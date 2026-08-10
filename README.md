@@ -48,7 +48,7 @@ When the sidebar is collapsed, child icons are hidden. Hovering the Inventory ic
 
 ## Product Entry
 
-The Add Product panel is collapsed by default. Primary inputs are:
+Product catalog, registration, stock receiving, and New Sale use the authenticated MariaDB-backed API. The dedicated **Add Product** inventory page accepts:
 
 - Supplier
 - Item type
@@ -57,12 +57,12 @@ The Add Product panel is collapsed by default. Primary inputs are:
 - Target stock level
 - Regular price
 - Employee price
-- Opening Display stock
-- Opening Bodega stock
+- Piece barcode
+- Optional package barcodes, piece conversions, and package prices
 
-The Products toolbar includes an **Order Summary** button. It groups low-stock products by supplier and shows On Hand, Reorder Level, Target Stock, and the suggested quantity to order. Products without a target stock level are omitted.
+New products start with zero stock. Use **Receive Stock** to scan a piece or package barcode and receive the converted piece quantity into Bodega. Package prices are suggested from the piece price and remain editable.
 
-SKU is generated when omitted. Category defaults to `Uncategorized`, unit defaults to `pcs`, and cost defaults to zero in the simplified form.
+SKU, category, unit, and the piece barcode are required. Barcode values are stored as text so leading zeroes are preserved.
 
 ## Persistence
 
@@ -80,7 +80,7 @@ Before each save, the previous document is copied to:
 %LOCALAPPDATA%\BNPV.Stockroom\store.json.bak
 ```
 
-Products, suppliers, sales, and stock movements survive logout and application restarts. Do not delete this file unless intentionally resetting local data.
+The API database is authoritative for product registration, stock receipts, and sales. The JSON file remains temporarily in use by legacy Overview, Reports, Suppliers, and Stock Movements screens while those screens are migrated to API endpoints. Do not treat its product or sale data as synchronized with MariaDB.
 
 ## Prototype Data
 
@@ -96,14 +96,15 @@ Prototype seeding never replaces an existing saved inventory. Known older protot
 
 ## Login
 
-Prototype credentials:
+Login uses the BPNV backend JWT endpoints. Start MariaDB and `BPNV.Api` before signing in. The API address defaults to `https://localhost:7282/`; set `BPNV_API_BASE_URL` to the server PC address on another LAN client, for example:
 
-```text
-Username: admin
-Password: password123
+```powershell
+$env:BPNV_API_BASE_URL = "https://192.168.1.50:7282/"
 ```
 
-The dashboard opens maximized after login.
+The bootstrap administrator is created from backend configuration when the users table is empty. Production defaults require changing that bootstrap password; local Development can disable the requirement. Access and refresh tokens are kept in memory and cleared on logout.
+
+Navigation follows backend roles: Cashier can access Overview/New Sale, Inventory can access Overview/Inventory/Reports, and Admin can access all current sections. The dashboard opens maximized after login.
 
 ## Reports
 

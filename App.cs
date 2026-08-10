@@ -23,6 +23,9 @@ namespace AvaloniaApp;
 public class App : Application
 {
     public StoreState Store { get; private set; } = null!;
+    public AuthSession AuthSession { get; private set; } = null!;
+    public AuthApiClient AuthClient { get; private set; } = null!;
+    public StoreApiClient StoreClient { get; private set; } = null!;
 
     public override void Initialize()
     {
@@ -33,6 +36,13 @@ public class App : Application
         ConfigureDataTemplates();
         ConfigureStyles();
         Store = new StoreState();
+        AuthSession = new AuthSession();
+        AuthClient = new AuthApiClient(new HttpClient
+        {
+            BaseAddress = ApiConfiguration.GetBaseAddress(),
+            Timeout = TimeSpan.FromSeconds(15)
+        }, AuthSession);
+        StoreClient = new StoreApiClient(AuthClient);
 #if DEBUG
         this.AttachDeveloperTools();
 #endif
@@ -44,7 +54,7 @@ public class App : Application
         {
             desktop.MainWindow = new Views.MainWindow
             {
-                DataContext = new MainViewModel(Store)
+                DataContext = new MainViewModel(Store, AuthClient, StoreClient, AuthSession)
             };
         }
 
@@ -108,6 +118,9 @@ public class App : Application
         DataTemplates.Add(new FuncDataTemplate<DashboardPageViewModel>((_, _) => new DashboardView(), true));
         DataTemplates.Add(new FuncDataTemplate<SalesViewModel>((_, _) => new SalesView(), true));
         DataTemplates.Add(new FuncDataTemplate<InventoryViewModel>((_, _) => new InventoryView(), true));
+        DataTemplates.Add(new FuncDataTemplate<ProductCatalogViewModel>((_, _) => new ProductCatalogView(), true));
+        DataTemplates.Add(new FuncDataTemplate<AddProductViewModel>((_, _) => new AddProductView(), true));
+        DataTemplates.Add(new FuncDataTemplate<StockReceivingViewModel>((_, _) => new StockReceivingView(), true));
         DataTemplates.Add(new FuncDataTemplate<ReportsViewModel>((_, _) => new ReportsView(), true));
     }
 

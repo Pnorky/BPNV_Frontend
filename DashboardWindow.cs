@@ -7,10 +7,12 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using AvaloniaApp.Converters;
 using AvaloniaApp.ViewModels;
 using Lucide.Avalonia;
@@ -19,7 +21,9 @@ namespace AvaloniaApp.Views;
 
 public class DashboardWindow : Window
 {
-    private FlyoutBase? _inventoryFlyout;
+    private readonly Flyout _inventoryFlyout;
+    private readonly Border _inventoryFlyoutContent;
+    private readonly TranslateTransform _inventoryFlyoutOffset;
     private readonly Border _sidebarBorder;
     private readonly StackPanel _brandPanel;
     private readonly TextBlock _brandSubtitle;
@@ -45,6 +49,22 @@ public class DashboardWindow : Window
         this.BindResource(ForegroundProperty, "Foreground");
         Resources["StringToIcon"] = new StringToIconConverter();
         ConfigureStyles();
+
+        _inventoryFlyoutOffset = new TranslateTransform(0, -4);
+        _inventoryFlyoutContent = CreateInventoryFlyoutContent();
+        _inventoryFlyoutContent.RenderTransform = _inventoryFlyoutOffset;
+        _inventoryFlyoutContent.Transitions = new Transitions
+        {
+            new DoubleTransition { Property = Visual.OpacityProperty, Duration = TimeSpan.FromMilliseconds(120) },
+            new DoubleTransition { Property = TranslateTransform.YProperty, Duration = TimeSpan.FromMilliseconds(120) }
+        };
+        _inventoryFlyout = new Flyout
+        {
+            Placement = PlacementMode.RightEdgeAlignedTop,
+            HorizontalOffset = 14,
+            Content = _inventoryFlyoutContent
+        };
+        _inventoryFlyout.FlyoutPresenterClasses.Add("inventory-flyout");
 
         _brandSubtitle = new TextBlock { Text = "SALES + INVENTORY", FontSize = 10, Opacity = 0.8 };
         _brandSubtitle.BindResource(TextBlock.ForegroundProperty, "SidebarForeground");
@@ -84,9 +104,11 @@ public class DashboardWindow : Window
                 new LucideIcon { Kind = LucideIconKind.User, Foreground = Brushes.White }
             }
         };
-        var staff = new TextBlock { Text = "Store Staff", FontSize = 13, FontWeight = FontWeight.SemiBold };
+        var staff = new TextBlock { FontSize = 13, FontWeight = FontWeight.SemiBold };
+        staff.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.UserDisplayName)));
         staff.BindResource(TextBlock.ForegroundProperty, "SidebarForeground");
-        var access = new TextBlock { Text = "Inventory access", FontSize = 11 };
+        var access = new TextBlock { FontSize = 11 };
+        access.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.RoleDisplay)));
         access.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
         var themeButton = CreateFooterButton("Theme", nameof(DashboardViewModel.ToggleThemeCommand));
         var logoutButton = CreateFooterButton("Logout", nameof(DashboardViewModel.LogoutCommand));
@@ -161,12 +183,13 @@ public class DashboardWindow : Window
 
     private Control CreateNavItem(NavItem item)
     {
-        var flyout = new MenuFlyout { Placement = PlacementMode.RightEdgeAlignedTop };
-        flyout.Items.Add(CreateFlyoutItem("Products", "InventoryProducts", LucideIconKind.Package));
-        flyout.Items.Add(CreateFlyoutItem("Suppliers", "InventorySuppliers", LucideIconKind.Truck));
-        flyout.Items.Add(CreateFlyoutItem("Stock Movements", "InventoryMovements", LucideIconKind.ArrowLeftRight));
-
-        var icon = new LucideIcon { Width = 20, Height = 20 };
+        var icon = new LucideIcon
+        {
+            Width = 20,
+            Height = 20,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
         icon.Bind(LucideIcon.KindProperty, new Binding(nameof(NavItem.Icon)) { Converter = new StringToIconConverter() });
         var label = new TextBlock
         {
@@ -179,24 +202,85 @@ public class DashboardWindow : Window
         Grid.SetColumn(label, 1);
         var content = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("20,*"),
+            ColumnDefinitions = new ColumnDefinitions("24,*"),
             Children = { icon, label }
         };
         content.Classes.Add("nav-content");
         content.Classes.Set("inventory-child", item.IsChild);
-        content.PointerEntered += OnNavItemPointerEntered;
-        FlyoutBase.SetAttachedFlyout(content, flyout);
+        content.AddHandler(InputElement.PointerPressedEvent, (_, eventArgs) =>
+        {
+            if (DataContext is not DashboardViewModel viewModel) return;
+            if (!item.IsChild && item.Tag == "InventoryProducts" && viewModel.SidebarCollapsed)
+            {
+                ShowInventoryFlyout(content);
+                eventArgs.Handled = true;
+                return;
+            }
+
+            viewModel.SelectNavItem(item);
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
         return content;
     }
 
-    private MenuItem CreateFlyoutItem(string header, string tag, LucideIconKind icon)
+    private Border CreateInventoryFlyoutContent()
     {
-        var item = new MenuItem
+        var content = new Border
         {
-            Header = header,
-            Tag = tag,
-            Icon = new LucideIcon { Kind = icon, Width = 16, Height = 16 }
+            Width = 232,
+            Padding = new Thickness(6),
+            CornerRadius = new CornerRadius(10),
+            BorderThickness = new Thickness(1),
+            Child = new StackPanel
+            {
+                Spacing = 2,
+                Children =
+                {
+                    CreateInventoryFlyoutItem("Products", "InventoryProducts", LucideIconKind.Package),
+                    CreateInventoryFlyoutItem("Add Product", "InventoryAddProduct", LucideIconKind.Package),
+                    CreateInventoryFlyoutItem("Receive Stock", "InventoryReceiveStock", LucideIconKind.Boxes),
+                    CreateInventoryFlyoutItem("Suppliers", "InventorySuppliers", LucideIconKind.Truck),
+                    CreateInventoryFlyoutItem("Stock Movements", "InventoryMovements", LucideIconKind.ArrowLeftRight)
+                }
+            }
         };
+        content.Classes.Add("theme-card");
+        content.BindResource(Border.BackgroundProperty, "Card");
+        content.BindResource(Border.BorderBrushProperty, "Border");
+        return content;
+    }
+
+    private Button CreateInventoryFlyoutItem(string text, string tag, LucideIconKind icon)
+    {
+        var iconControl = new LucideIcon
+        {
+            Kind = icon,
+            Width = 20,
+            Height = 20,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var label = new TextBlock
+        {
+            Text = text,
+            Margin = new Thickness(10, 0, 0, 0),
+            FontSize = 14,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(label, 1);
+
+        var item = new Button
+        {
+            Tag = tag,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("24,*"),
+                Children = { iconControl, label }
+            }
+        };
+        item.Classes.Add("inventory-flyout-item");
+        item.BindResource(ForegroundProperty, "Foreground");
         item.Click += OnInventoryFlyoutItemClick;
         return item;
     }
@@ -223,6 +307,19 @@ public class DashboardWindow : Window
             new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(0)),
             new Setter(Layoutable.WidthProperty, 32d), new Setter(Layoutable.HeightProperty, 32d),
             new Setter(InputElement.CursorProperty, new Cursor(StandardCursorType.Hand)));
+        AddStyle(x => x.OfType<FlyoutPresenter>().Class("inventory-flyout"),
+            new Setter(TemplatedControl.BackgroundProperty, Brushes.Transparent),
+            new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(0)),
+            new Setter(TemplatedControl.PaddingProperty, new Thickness(0)));
+        AddStyle(x => x.OfType<Button>().Class("inventory-flyout-item"),
+            new Setter(TemplatedControl.BackgroundProperty, Brushes.Transparent),
+            new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(0)),
+            new Setter(TemplatedControl.CornerRadiusProperty, new CornerRadius(7)),
+            new Setter(TemplatedControl.PaddingProperty, new Thickness(10, 8)),
+            new Setter(Layoutable.MinHeightProperty, 40d),
+            new Setter(InputElement.CursorProperty, new Cursor(StandardCursorType.Hand)));
+        AddStyle(x => x.OfType<Button>().Class("inventory-flyout-item").Class(":pointerover"),
+            new Setter(TemplatedControl.BackgroundProperty, new DynamicResourceExtension("NavHover")));
         AddStyle(x => x.OfType<Border>().Class("collapsed").Descendant().OfType<ListBoxItem>(),
             new Setter(Layoutable.HeightProperty, 48d), new Setter(TemplatedControl.PaddingProperty, new Thickness(0, 0, 3, 0)),
             new Setter(Layoutable.MarginProperty, new Thickness(4, 2)),
@@ -283,6 +380,7 @@ public class DashboardWindow : Window
         }
         else
         {
+            _inventoryFlyout.Hide();
             _sidebarBorder.Width = 230;
             _toggleIcon.Kind = LucideIconKind.PanelLeftClose;
             _brandPanel.IsVisible = true;
@@ -295,21 +393,23 @@ public class DashboardWindow : Window
         // Theme toggle handled by ViewModel - we just update the toggle icon
     }
 
-    private void OnNavItemPointerEntered(object? sender, PointerEventArgs e)
+    private void ShowInventoryFlyout(Control control)
     {
-        if (sender is not Control { DataContext: NavItem { Tag: "InventoryProducts", IsChild: false } } control ||
-            DataContext is not DashboardViewModel { SidebarCollapsed: true })
-            return;
-
-        _inventoryFlyout = FlyoutBase.GetAttachedFlyout(control);
-        FlyoutBase.ShowAttachedFlyout(control);
+        _inventoryFlyoutContent.Opacity = 0;
+        _inventoryFlyoutOffset.Y = -4;
+        _inventoryFlyout.ShowAt(control);
+        Dispatcher.UIThread.Post(() =>
+        {
+            _inventoryFlyoutContent.Opacity = 1;
+            _inventoryFlyoutOffset.Y = 0;
+        });
     }
 
     private void OnInventoryFlyoutItemClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (sender is Control { Tag: string tag } && DataContext is DashboardViewModel viewModel)
             viewModel.OpenInventorySection(tag);
-        _inventoryFlyout?.Hide();
+        _inventoryFlyout.Hide();
     }
 
 }

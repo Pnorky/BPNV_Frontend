@@ -116,7 +116,7 @@ public class InventoryView : UserControl
                 new TabItem { Header = "Stock movements", Content = BuildMovements() }
             }
         };
-        Bind(tabs, TabControl.SelectedIndexProperty, "SelectedSectionIndex", BindingMode.OneTime);
+        Bind(tabs, TabControl.SelectedIndexProperty, "SelectedSectionIndex", BindingMode.OneWay);
         tabs.Styles.Add(new Style(x => x.OfType<TabControl>().Template().OfType<ItemsPresenter>().Name("PART_ItemsPresenter"))
         {
             Setters = { new Setter(Visual.IsVisibleProperty, false) }
@@ -235,7 +235,7 @@ public class InventoryView : UserControl
                 Children =
                 {
                     new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Ellipsis("Name", true), MutedText(path: "Sku", fontSize: 10) } },
-                    At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Ellipsis("SupplierName"), Ellipsis("ItemTypeDisplay", 10, true) } }, column: 1),
+                    At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Ellipsis("SupplierName"), Ellipsis("ItemTypeDisplay", muted: true, fontSize: 10) } }, column: 1),
                     At(Cell("ShelfStock", true), column: 2), At(Cell("BodegaStock"), column: 3),
                     At(Cell("TotalStock", true, true), column: 4), At(Cell("ReorderDisplay"), column: 5),
                     At(MutedCell("StockStatus"), column: 6)
@@ -453,8 +453,6 @@ public class InventoryView : UserControl
         return block;
     }
 
-    private static TextBlock Ellipsis(string path, double fontSize, bool muted) => Ellipsis(path, muted: muted, fontSize: fontSize);
-
     private static Border RowBorder(Control child, Thickness padding)
     {
         var border = Resource(new Border { BorderThickness = new Thickness(0, 0, 0, 1), Padding = padding, Child = child }, Border.BorderBrushProperty, "Border");
@@ -483,7 +481,7 @@ public class InventoryView : UserControl
 
     private static T Resource<T>(T control, AvaloniaProperty property, string key) where T : AvaloniaObject
     {
-        control.Bind(property, new DynamicResourceExtension(key).ProvideValue(null!));
+        control.Bind(property, new DynamicResourceExtension(key));
         return control;
     }
 }

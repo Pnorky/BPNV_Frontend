@@ -98,6 +98,8 @@ public static class SampleData
         new() { Icon = "ShoppingBasket", Text = "New Sale", Tag = "Sales" },
         new() { Icon = "Boxes", Text = "Inventory", Tag = "InventoryProducts" },
         new() { Icon = "Package", Text = "Products", Tag = "InventoryProducts", IsChild = true },
+        new() { Icon = "Package", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
+        new() { Icon = "Boxes", Text = "Receive Stock", Tag = "InventoryReceiveStock", IsChild = true },
         new() { Icon = "Truck", Text = "Suppliers", Tag = "InventorySuppliers", IsChild = true },
         new() { Icon = "ArrowLeftRight", Text = "Stock Movements", Tag = "InventoryMovements", IsChild = true },
         new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports" },

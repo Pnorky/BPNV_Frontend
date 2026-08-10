@@ -330,6 +330,6 @@ public class ReportsView : UserControl
 
     private static T Resource<T>(T control, AvaloniaProperty property, string key) where T : AvaloniaObject
     {
-        control.Bind(property, new DynamicResourceExtension(key).ProvideValue(null!)); return control;
+        control.Bind(property, new DynamicResourceExtension(key)); return control;
     }
 }

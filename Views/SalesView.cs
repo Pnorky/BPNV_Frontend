@@ -1,404 +1,177 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Controls.Shapes;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
-using ShapePath = Avalonia.Controls.Shapes.Path;
+using Avalonia.Threading;
+using AvaloniaApp.Services;
+using AvaloniaApp.ViewModels;
 
 namespace AvaloniaApp.Views;
 
 public class SalesView : UserControl
 {
+    private readonly TextBox _scanner;
+    private SalesViewModel? _viewModel;
+
     public SalesView()
     {
-        var body = BuildBody();
-        Grid.SetRow(body, 1);
+        _scanner = new TextBox { PlaceholderText = "Scan piece or package barcode, then press Enter" };
+        _scanner.Classes.Add("form-input");
+        _scanner.Bind(TextBox.TextProperty, new Binding("ScannerText"));
+        _scanner.KeyDown += OnScannerKeyDown;
+
+        var body = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,410"),
+            ColumnSpacing = 16,
+            Children = { Card(Catalog()), At(Card(CurrentSale()), 1) }
+        };
+        Grid.SetRow(body, 2);
 
         Content = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
             Margin = new Thickness(30),
-            RowSpacing = 20,
-            Children = { BuildHeader(), body }
+            RowSpacing = 14,
+            Children = { Header(), At(_scanner, row: 1), body }
         };
+        DataContextChanged += OnDataContextChanged;
+        AttachedToVisualTree += (_, _) => FocusScanner();
     }
 
-    private static Grid BuildHeader()
+    private static Control Header()
     {
-        var title = new TextBlock { Text = "New sale" };
-        title.Classes.Add("h1");
-        var subtitle = new TextBlock
-        {
-            Text = "A simple sales entry workflow without register or receipt handling"
-        };
-        Resource(subtitle, TextBlock.ForegroundProperty, "MutedForeground");
-
-        var pricingLabel = new TextBlock
-        {
-            Text = "Pricing",
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Resource(pricingLabel, TextBlock.ForegroundProperty, "MutedForeground");
-        var pricing = new ComboBox { MinWidth = 145 };
+        var title = new TextBlock { Text = "New sale" }; title.Classes.Add("h1");
+        var pricing = new ComboBox { MinWidth = 150 };
+        pricing.Classes.Add("form-select");
         pricing.Bind(ItemsControl.ItemsSourceProperty, new Binding("CustomerTypes"));
         pricing.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedCustomerType"));
-
-        var pricingPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { pricingLabel, pricing }
-        };
-        Grid.SetColumn(pricingPanel, 1);
-
+        Grid.SetColumn(pricing, 1);
         return new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            ColumnSpacing = 20,
             Children =
             {
-                new StackPanel { Spacing = 4, Children = { title, subtitle } },
-                pricingPanel
+                new StackPanel { Spacing = 4, Children = { title, StaticMuted("Server-priced package-aware point of sale") } },
+                pricing
             }
         };
     }
 
-    private static Grid BuildBody()
+    private static Control Catalog()
     {
-        var catalog = Card(BuildCatalog(), new Thickness(20), new Thickness(0, 0, 14, 0));
-
-        var splitter = new GridSplitter
-        {
-            ResizeDirection = GridResizeDirection.Columns
-        };
-        Resource(splitter, Panel.BackgroundProperty, "Border");
-        Grid.SetColumn(splitter, 1);
-
-        var sale = Card(BuildCurrentSale(), new Thickness(20), new Thickness(14, 0, 0, 0));
-        Grid.SetColumn(sale, 2);
-
-        return new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,5,390"),
-            ColumnSpacing = 0,
-            Children = { catalog, splitter, sale }
-        };
-    }
-
-    private static Grid BuildCatalog()
-    {
-        var search = new TextBox
-        {
-            PlaceholderText = "Search product, SKU, supplier, or category..."
-        };
-        search.Classes.Add("search");
+        var search = new TextBox { PlaceholderText = "Search current API catalog..." }; search.Classes.Add("search");
         search.Bind(TextBox.TextProperty, new Binding("SearchText"));
-
-        var products = new ListBox
-        {
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0)
-        };
-        products.Bind(ItemsControl.ItemsSourceProperty, new Binding("FilteredProducts"));
-        products.ItemTemplate = new FuncDataTemplate<ProductItem>((_, _) => BuildProductRow(), true);
-        Grid.SetRow(products, 1);
-
-        return new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,*"),
-            RowSpacing = 14,
-            Children = { search, products }
-        };
+        var list = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
+        list.Bind(ItemsControl.ItemsSourceProperty, new Binding("FilteredProducts"));
+        list.ItemTemplate = new FuncDataTemplate<PosProductResponse>((_, _) => ProductRow(), true);
+        Grid.SetRow(list, 1);
+        return new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 12, Children = { search, list } };
     }
 
-    private static Border BuildProductRow()
+    private static Control ProductRow()
     {
-        var name = BoundText("Name", FontWeight.SemiBold, 14);
-        var details = BoundText("CatalogDetails", fontSize: 11, resource: "MutedForeground");
-        details.TextWrapping = TextWrapping.Wrap;
-        details.MaxLines = 2;
-
-        var regular = PriceColumn(1, "Regular", "RegularPriceDisplay");
-        var employee = PriceColumn(2, "Employee", "EmployeePriceDisplay");
-        var add = new Button
-        {
-            Content = "Add",
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        add.Classes.Add("primary");
-        add.Bind(Button.CommandProperty, AncestorCommand("AddProductCommand"));
-        add.Bind(Button.CommandParameterProperty, new Binding());
-        Grid.SetColumn(add, 3);
-
+        var add = new Button { Content = "Add piece" }; add.Classes.Add("primary");
+        add.Bind(Avalonia.Controls.Button.CommandProperty, AncestorCommand("AddProductCommand"));
+        add.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
+        Grid.SetColumn(add, 2);
         var border = new Border
         {
             BorderThickness = new Thickness(0, 0, 0, 1),
-            Padding = new Thickness(8, 14),
+            Padding = new Thickness(8, 13),
             Child = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("*,88,88,Auto"),
+                ColumnDefinitions = new ColumnDefinitions("*,120,Auto"),
                 ColumnSpacing = 12,
                 Children =
                 {
-                    new StackPanel
-                    {
-                        Spacing = 4,
-                        Margin = new Thickness(0, 0, 8, 0),
-                        Children = { name, details }
-                    },
-                    regular,
-                    employee,
+                    new StackPanel { Children = { Text("Name", FontWeight.SemiBold), Text("CatalogDetails", resource: "MutedForeground") } },
+                    At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("RegularPrice", FontWeight.SemiBold, format: "₱{0:N2}"), Text("EmployeePrice", resource: "MutedForeground", format: "Employee ₱{0:N2}") } }, 1),
                     add
                 }
             }
         };
-        Resource(border, Border.BorderBrushProperty, "Border");
+        border.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("Border"));
         return border;
     }
 
-    private static StackPanel PriceColumn(int column, string label, string path)
+    private static Control CurrentSale()
     {
-        var caption = new TextBlock { Text = label, FontSize = 10 };
-        Resource(caption, TextBlock.ForegroundProperty, "MutedForeground");
-        var value = BoundText(path, FontWeight.Bold);
-        var stack = new StackPanel
-        {
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { caption, value }
-        };
-        Grid.SetColumn(stack, column);
-        return stack;
-    }
-
-    private static Grid BuildCurrentSale()
-    {
-        var heading = BuildSaleHeading();
-        var cart = BuildCart();
-        Grid.SetRow(cart, 1);
-        var footer = BuildSaleFooter();
-        Grid.SetRow(footer, 2);
-
-        return new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
-            RowSpacing = 16,
-            Children = { heading, cart, footer }
-        };
-    }
-
-    private static Grid BuildSaleHeading()
-    {
-        var title = new TextBlock { Text = "Current sale" };
-        title.Classes.Add("h2");
-        var summary = BoundText("CartSummary", fontSize: 12, resource: "MutedForeground");
-        var clear = new Button
-        {
-            Content = "Clear",
-            Background = Brushes.Transparent
-        };
-        Resource(clear, Button.BorderBrushProperty, "Border");
-        clear.Bind(Button.CommandProperty, new Binding("ClearSaleCommand"));
-        Grid.SetColumn(clear, 1);
-
-        return new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Children =
-            {
-                new StackPanel { Children = { title, summary } },
-                clear
-            }
-        };
-    }
-
-    private static ListBox BuildCart()
-    {
-        var cart = new ListBox
-        {
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0)
-        };
-        cart.Bind(ItemsControl.ItemsSourceProperty, new Binding("Cart"));
-        cart.ItemTemplate = new FuncDataTemplate<CartLine>((_, _) => BuildCartLine(), true);
-        return cart;
-    }
-
-    private static Border BuildCartLine()
-    {
-        var product = BoundText("Product.Name", FontWeight.SemiBold);
-        product.TextTrimming = TextTrimming.CharacterEllipsis;
-        product.VerticalAlignment = VerticalAlignment.Center;
-
-        var remove = IconButton(BuildRemoveIcon());
-        remove.Background = Brushes.Transparent;
-        remove.BorderThickness = new Thickness(0);
-        remove.Bind(Button.CommandProperty, AncestorCommand("RemoveLineCommand"));
-        remove.Bind(Button.CommandParameterProperty, new Binding());
-        Grid.SetColumn(remove, 1);
-
+        var clear = Button("Clear", "ClearSaleCommand", false); Grid.SetColumn(clear, 1);
         var heading = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Children = { product, remove }
+            Children = { new StackPanel { Children = { Heading("Current sale"), Text("CartSummary", resource: "MutedForeground") } }, clear }
         };
+        var cart = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
+        cart.Bind(ItemsControl.ItemsSourceProperty, new Binding("Cart"));
+        cart.ItemTemplate = new FuncDataTemplate<ApiCartLine>((_, _) => CartRow(), true);
+        Grid.SetRow(cart, 1);
+        var footer = Footer(); Grid.SetRow(footer, 2);
+        return new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 12, Children = { heading, cart, footer } };
+    }
 
-        var decrease = QuantityButton(BuildMinusIcon(), "DecreaseQuantityCommand");
-        var quantity = BoundText("Quantity", FontWeight.Bold);
-        quantity.TextAlignment = TextAlignment.Center;
-        quantity.HorizontalAlignment = HorizontalAlignment.Stretch;
-        quantity.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(quantity, 1);
-        var increase = QuantityButton(BuildPlusIcon(), "IncreaseQuantityCommand");
-        Grid.SetColumn(increase, 2);
-        var unitPrice = BoundText("UnitPriceDisplay", resource: "MutedForeground", stringFormat: "@ {0}");
-        unitPrice.Margin = new Thickness(4, 0, 0, 0);
-        unitPrice.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(unitPrice, 3);
-        var amount = BoundText("AmountDisplay", FontWeight.Bold);
-        amount.VerticalAlignment = VerticalAlignment.Center;
-        amount.HorizontalAlignment = HorizontalAlignment.Stretch;
-        amount.TextAlignment = TextAlignment.Right;
-        Grid.SetColumn(amount, 4);
-
+    private static Control CartRow()
+    {
+        var remove = Button("Remove", "RemoveLineCommand", true, ancestor: true); remove.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding()); Grid.SetColumn(remove, 1);
+        var minus = Button("-", "DecreaseQuantityCommand", false, ancestor: true); minus.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
+        var count = Text("Count", FontWeight.Bold); count.HorizontalAlignment = HorizontalAlignment.Center; count.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(count, 1);
+        var plus = Button("+", "IncreaseQuantityCommand", false, ancestor: true); plus.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding()); Grid.SetColumn(plus, 2);
+        var amount = Text("AmountDisplay", FontWeight.Bold); amount.VerticalAlignment = VerticalAlignment.Center; amount.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumn(amount, 3);
         var border = new Border
         {
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(0, 12),
             Child = new StackPanel
             {
-                Spacing = 9,
+                Spacing = 8,
                 Children =
                 {
-                    heading,
-                    new Grid
-                    {
-                        ColumnDefinitions = new ColumnDefinitions("36,36,36,*,90"),
-                        ColumnSpacing = 8,
-                        Children = { decrease, quantity, increase, unitPrice, amount }
-                    }
+                    new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { new StackPanel { Children = { Text("ProductName", FontWeight.SemiBold), Text("UnitLabel", resource: "MutedForeground") } }, remove } },
+                    new Grid { ColumnDefinitions = new ColumnDefinitions("36,36,36,*"), ColumnSpacing = 8, Children = { minus, count, plus, amount } },
+                    Text("ConversionDisplay", resource: "MutedForeground")
                 }
             }
         };
-        Resource(border, Border.BorderBrushProperty, "Border");
+        border.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("Border"));
         return border;
     }
 
-    private static Button QuantityButton(Canvas icon, string commandPath)
+    private static Control Footer()
     {
-        var button = IconButton(icon);
-        button.Width = 36;
-        button.Height = 36;
-        button.Bind(Button.CommandProperty, AncestorCommand(commandPath));
-        button.Bind(Button.CommandParameterProperty, new Binding());
-        return button;
+        var total = Text("TotalDisplay", FontWeight.Bold); total.FontSize = 24; Grid.SetColumn(total, 1);
+        var totalHost = new Border { Padding = new Thickness(14), CornerRadius = new CornerRadius(7), Child = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { new TextBlock { Text = "Client estimate", VerticalAlignment = VerticalAlignment.Center }, total } } };
+        totalHost.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Muted"));
+        var status = Text("StatusMessage", resource: "MutedForeground"); status.TextWrapping = TextWrapping.Wrap;
+        return new StackPanel { Spacing = 10, Children = { totalHost, status, Button("Complete sale", "CompleteSaleCommand", true) } };
     }
 
-    private static Button IconButton(Canvas icon) => new()
+    private async void OnScannerKeyDown(object? sender, KeyEventArgs e)
     {
-        Width = 28,
-        Height = 28,
-        Padding = new Thickness(0),
-        HorizontalContentAlignment = HorizontalAlignment.Center,
-        VerticalContentAlignment = VerticalAlignment.Center,
-        Content = icon
-    };
-
-    private static Canvas BuildRemoveIcon() => IconCanvas("M 3,3 L 15,15 M 15,3 L 3,15");
-
-    private static Canvas BuildMinusIcon() => IconCanvas("M 2,9 L 16,9");
-
-    private static Canvas BuildPlusIcon() => IconCanvas("M 2,9 L 16,9 M 9,2 L 9,16");
-
-    private static Canvas IconCanvas(string data)
-    {
-        var path = new ShapePath
-        {
-            Data = Geometry.Parse(data),
-            StrokeThickness = 2,
-            StrokeLineCap = PenLineCap.Round
-        };
-        Resource(path, Shape.StrokeProperty, "Foreground");
-        return new Canvas { Width = 18, Height = 18, Children = { path } };
+        if (e.Key != Key.Enter || DataContext is not SalesViewModel viewModel) return;
+        e.Handled = true;
+        await viewModel.ScanBarcodeAsync();
+        FocusScanner();
     }
 
-    private static StackPanel BuildSaleFooter()
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        var total = BoundText("TotalDisplay", FontWeight.Bold, 24);
-        Grid.SetColumn(total, 1);
-        var totalPanel = new Border
-        {
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(14),
-            Child = new Grid
-            {
-                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-                Children =
-                {
-                    new TextBlock { Text = "Total", FontSize = 16, FontWeight = FontWeight.SemiBold },
-                    total
-                }
-            }
-        };
-        Resource(totalPanel, Border.BackgroundProperty, "Muted");
-
-        var status = BoundText("StatusMessage", fontSize: 12, resource: "MutedForeground");
-        status.TextWrapping = TextWrapping.Wrap;
-        var complete = new Button
-        {
-            Content = "Complete sale",
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
-            Padding = new Thickness(16, 12)
-        };
-        complete.Classes.Add("primary");
-        complete.Bind(Button.CommandProperty, new Binding("CompleteSaleCommand"));
-
-        return new StackPanel
-        {
-            Spacing = 12,
-            Children = { totalPanel, status, complete }
-        };
+        if (_viewModel is not null) _viewModel.ScannerFocusRequested -= OnScannerFocusRequested;
+        _viewModel = DataContext as SalesViewModel;
+        if (_viewModel is not null) _viewModel.ScannerFocusRequested += OnScannerFocusRequested;
     }
-
-    private static Binding AncestorCommand(string commandPath) => new($"DataContext.{commandPath}")
-    {
-        RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor)
-        {
-            AncestorType = typeof(ListBox)
-        }
-    };
-
-    private static Border Card(Control child, Thickness padding, Thickness margin)
-    {
-        var card = new Border { Padding = padding, Margin = margin, Child = child };
-        card.Classes.Add("theme-card");
-        Resource(card, Border.BackgroundProperty, "Card");
-        return card;
-    }
-
-    private static TextBlock BoundText(
-        string path,
-        FontWeight? fontWeight = null,
-        double? fontSize = null,
-        string? resource = null,
-        string? stringFormat = null)
-    {
-        var text = new TextBlock();
-        if (fontWeight is { } weight)
-            text.FontWeight = weight;
-        if (fontSize is { } size)
-            text.FontSize = size;
-        if (resource is not null)
-            Resource(text, TextBlock.ForegroundProperty, resource);
-        text.Bind(TextBlock.TextProperty, new Binding(path) { StringFormat = stringFormat });
-        return text;
-    }
-
-    private static void Resource(AvaloniaObject target, AvaloniaProperty property, object key) =>
-        target.Bind(property, new DynamicResourceExtension(key));
+    private void OnScannerFocusRequested(object? sender, EventArgs e) => FocusScanner();
+    private void FocusScanner() => Dispatcher.UIThread.Post(() => _scanner.Focus());
+    private static Border Card(Control child) { var value = new Border { Padding = new Thickness(20), Child = child }; value.Classes.Add("theme-card"); value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return value; }
+    private static TextBlock Heading(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("h2"); return value; }
+    private static TextBlock StaticMuted(string value) { var text = new TextBlock { Text = value }; text.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return text; }
+    private static TextBlock Text(string path, FontWeight? weight = null, string? resource = null, string? format = null) { var value = new TextBlock { FontWeight = weight ?? FontWeight.Normal }; value.Bind(TextBlock.TextProperty, new Binding(path) { StringFormat = format }); if (resource is not null) value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension(resource)); return value; }
+    private static Button Button(string text, string command, bool primary, bool ancestor = false) { var value = new Button { Content = text }; value.Classes.Add(primary ? "primary" : "secondary"); value.Bind(Avalonia.Controls.Button.CommandProperty, ancestor ? AncestorCommand(command) : new Binding(command)); return value; }
+    private static Binding AncestorCommand(string command) => new($"DataContext.{command}") { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(ListBox) } };
+    private static T At<T>(T value, int column = 0, int row = 0) where T : Control { Grid.SetColumn(value, column); Grid.SetRow(value, row); return value; }
 }

@@ -18,10 +18,10 @@ public class MainWindow : Window
     public MainWindow()
     {
         Title = "Login - BPNV Convenience Store";
-        Width = 520;
-        Height = 500;
-        MinWidth = 480;
-        MinHeight = 460;
+        Width = 440;
+        Height = 440;
+        MinWidth = 400;
+        MinHeight = 400;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         this.BindResource(BackgroundProperty, "Background");
         this.BindResource(ForegroundProperty, "Foreground");
@@ -90,24 +90,81 @@ public class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center,
             CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(16, 10),
+            Padding = new Thickness(12, 7),
             FontSize = 15,
             FontWeight = FontWeight.SemiBold,
             Cursor = new Cursor(StandardCursorType.Hand)
         };
         signIn.Bind(Button.CommandProperty, new Binding(nameof(MainViewModel.LoginCommand)));
+        signIn.Bind(Visual.IsVisibleProperty, new Binding(nameof(MainViewModel.CanLogin)));
+        signIn.Bind(Button.IsDefaultProperty, new Binding(nameof(MainViewModel.CanLogin)));
         signIn.BindResource(BackgroundProperty, "Primary");
         signIn.BindResource(ForegroundProperty, "PrimaryForeground");
 
         var status = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center };
         status.Bind(TextBlock.TextProperty, new Binding(nameof(MainViewModel.StatusMessage)));
         status.Bind(TextBlock.ForegroundProperty, new Binding(nameof(MainViewModel.StatusColor)));
-        status.Bind(Visual.IsVisibleProperty, new Binding(nameof(MainViewModel.HasError)));
+        status.Bind(Visual.IsVisibleProperty, new Binding(nameof(MainViewModel.HasStatus)));
+
+        var newPassword = new TextBox
+        {
+            PlaceholderText = "At least 12 characters",
+            PasswordChar = '*'
+        };
+        newPassword.Bind(TextBox.TextProperty, new Binding(nameof(MainViewModel.NewPassword)));
+        newPassword.BindResource(BackgroundProperty, "Card");
+        newPassword.BindResource(ForegroundProperty, "Foreground");
+
+        var confirmPassword = new TextBox
+        {
+            PlaceholderText = "Repeat new password",
+            PasswordChar = '*'
+        };
+        confirmPassword.Bind(TextBox.TextProperty, new Binding(nameof(MainViewModel.ConfirmPassword)));
+        confirmPassword.BindResource(BackgroundProperty, "Card");
+        confirmPassword.BindResource(ForegroundProperty, "Foreground");
+
+        var changePassword = new Button
+        {
+            Content = "Change Password and Continue",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            Padding = new Thickness(16, 10),
+            FontWeight = FontWeight.SemiBold
+        };
+        changePassword.Bind(Button.CommandProperty, new Binding(nameof(MainViewModel.ChangePasswordCommand)));
+        changePassword.Bind(Button.IsDefaultProperty, new Binding(nameof(MainViewModel.RequiresPasswordChange)));
+        changePassword.BindResource(BackgroundProperty, "Primary");
+        changePassword.BindResource(ForegroundProperty, "PrimaryForeground");
+
+        var cancelPasswordChange = new Button
+        {
+            Content = "Cancel",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0)
+        };
+        cancelPasswordChange.Bind(Button.CommandProperty, new Binding(nameof(MainViewModel.CancelPasswordChangeCommand)));
+
+        var passwordChangePanel = new StackPanel
+        {
+            Spacing = 10,
+            Children =
+            {
+                new TextBlock { Text = "New Password", FontSize = 13 },
+                newPassword,
+                new TextBlock { Text = "Confirm New Password", FontSize = 13 },
+                confirmPassword,
+                changePassword,
+                cancelPasswordChange
+            }
+        };
+        passwordChangePanel.Bind(Visual.IsVisibleProperty, new Binding(nameof(MainViewModel.RequiresPasswordChange)));
 
         var heading = new TextBlock
         {
             Text = "BPNV CONVENIENCE STORE",
-            FontSize = 26,
+            FontSize = 21,
             FontWeight = FontWeight.Bold,
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -117,31 +174,41 @@ public class MainWindow : Window
             Text = "Sales and Inventory Monitoring",
             FontSize = 12,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, -4, 0, 8)
+            Margin = new Thickness(0, -5, 0, 2)
         };
         subtitle.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
+
+        var loginCard = new Border
+        {
+            Width = 380,
+            MaxWidth = 380,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(16),
+            Padding = new Thickness(22, 20),
+            CornerRadius = new CornerRadius(16),
+            BorderThickness = new Thickness(1),
+            Child = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    heading, subtitle,
+                    new TextBlock { Text = "Username", FontSize = 12 }, username,
+                    new TextBlock { Text = "Password", FontSize = 12 }, password,
+                    signIn, passwordChangePanel, status
+                }
+            }
+        };
+        loginCard.Classes.Add("theme-card");
+        loginCard.BindResource(BackgroundProperty, "Card");
+        loginCard.BindResource(BorderBrushProperty, "Border");
 
         Content = new Grid
         {
             Children =
             {
-                new Border
-                {
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    Margin = new Thickness(56, 0),
-                    Child = new StackPanel
-                    {
-                        Spacing = 16,
-                        Children =
-                        {
-                            heading, subtitle,
-                            new TextBlock { Text = "Username", FontSize = 13 }, username,
-                            new TextBlock { Text = "Password", FontSize = 13 }, password,
-                            signIn, status
-                        }
-                    }
-                }
+                loginCard
             }
         };
     }
