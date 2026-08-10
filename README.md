@@ -53,9 +53,10 @@ Product catalog, registration, stock receiving, and New Sale use the authenticat
 - Supplier
 - Item type
 - Product name
-- Reorder level
-- Target stock level
-- Regular price
+- Critical reorder level and fixed order quantity
+- Warning reorder level and fixed order quantity
+- Purchase price per piece
+- Selling price
 - Employee price
 - Piece barcode
 - Optional package barcodes, piece conversions, and package prices

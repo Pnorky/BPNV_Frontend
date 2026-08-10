@@ -60,8 +60,10 @@ public partial class AddProductViewModel : ObservableObject
     [ObservableProperty] private decimal _costPrice;
     [ObservableProperty] private decimal _regularPrice;
     [ObservableProperty] private decimal _employeePrice;
-    [ObservableProperty] private decimal _reorderLevel;
-    [ObservableProperty] private decimal _targetStockLevel = 1;
+    [ObservableProperty] private decimal _criticalReorderLevel;
+    [ObservableProperty] private decimal _criticalOrderQuantity = 1;
+    [ObservableProperty] private decimal _warningReorderLevel = 1;
+    [ObservableProperty] private decimal _warningOrderQuantity = 1;
     [ObservableProperty] private string _supplierName = "";
     [ObservableProperty] private string _supplierContact = "";
     [ObservableProperty] private string _supplierPhone = "";
@@ -190,9 +192,13 @@ public partial class AddProductViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
         if (CostPrice < 0 || RegularPrice < 0 || EmployeePrice < 0)
-            return Fail("Cost and selling prices cannot be negative.", out error);
-        if (!WholeNumber(ReorderLevel) || !WholeNumber(TargetStockLevel) || ReorderLevel < 0 || TargetStockLevel <= ReorderLevel)
-            return Fail("Reorder and target must be whole numbers, and target must be greater than reorder.", out error);
+            return Fail("Purchase and selling prices cannot be negative.", out error);
+        if (!WholeNumber(CriticalReorderLevel) || !WholeNumber(WarningReorderLevel) ||
+            CriticalReorderLevel < 0 || WarningReorderLevel <= CriticalReorderLevel)
+            return Fail("Critical and warning levels must be whole numbers, and warning must be greater than critical.", out error);
+        if (!WholeNumber(CriticalOrderQuantity) || !WholeNumber(WarningOrderQuantity) ||
+            CriticalOrderQuantity <= 0 || WarningOrderQuantity <= 0)
+            return Fail("Critical and warning order quantities must be whole numbers greater than zero.", out error);
 
         var barcodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { PieceBarcode.Trim() };
         var packages = new List<CreateProductUnitRequest>();
@@ -213,7 +219,9 @@ public partial class AddProductViewModel : ObservableObject
 
         request = new CreateProductRequest(
             SelectedSupplier.Id, ItemType, Sku.Trim(), PieceBarcode.Trim(), Name.Trim(), Category.Trim(), Unit.Trim(),
-            CostPrice, RegularPrice, EmployeePrice, (int)ReorderLevel, (int)TargetStockLevel, packages);
+            CostPrice, RegularPrice, EmployeePrice,
+            (int)CriticalReorderLevel, (int)CriticalOrderQuantity,
+            (int)WarningReorderLevel, (int)WarningOrderQuantity, packages);
         return true;
     }
 
@@ -226,8 +234,10 @@ public partial class AddProductViewModel : ObservableObject
         CostPrice = 0;
         RegularPrice = 0;
         EmployeePrice = 0;
-        ReorderLevel = 0;
-        TargetStockLevel = 1;
+        CriticalReorderLevel = 0;
+        CriticalOrderQuantity = 1;
+        WarningReorderLevel = 1;
+        WarningOrderQuantity = 1;
         Packages.Clear();
     }
 

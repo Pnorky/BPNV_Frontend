@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Styling;
+using AvaloniaApp.Views.UI;
 
 namespace AvaloniaApp.Views;
 
@@ -194,8 +195,8 @@ public class InventoryView : UserControl
                 Field("Supplier", supplier),
                 At(Field("Item type", type), column: 1),
                 At(Field("Product name", name), column: 2),
-                At(Field("Reorder level", Number("NewReorderLevel", "0")), column: 3),
-                At(Field("Target stock", Number("NewTargetStockLevel", "0")), column: 4)
+                At(Field("Critical level", Number("NewCriticalReorderLevel", "0")), column: 3),
+                At(Field("Warning level", Number("NewWarningReorderLevel", "0", 1)), column: 4)
             }
         };
 
@@ -204,15 +205,18 @@ public class InventoryView : UserControl
         add.Padding = new Thickness(20, 8);
         var prices = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*,*,*,Auto"),
             ColumnSpacing = 14,
             Children =
             {
-                Field("Regular price", Number("NewRegularPrice", "0.00")),
-                At(Field("Employee price", Number("NewEmployeePrice", "0.00")), column: 1),
-                At(Field("Opening display", Number("NewOpeningShelf", "0")), column: 2),
-                At(Field("Opening bodega", Number("NewOpeningBodega", "0")), column: 3),
-                At(add, column: 4)
+                Field("Purchase price", Number("NewCostPrice", "0.00")),
+                At(Field("Selling price", Number("NewRegularPrice", "0.00")), column: 1),
+                At(Field("Employee price", Number("NewEmployeePrice", "0.00")), column: 2),
+                At(Field("Critical order qty", Number("NewCriticalOrderQuantity", "0", 1)), column: 3),
+                At(Field("Warning order qty", Number("NewWarningOrderQuantity", "0", 1)), column: 4),
+                At(Field("Opening display", Number("NewOpeningShelf", "0")), column: 5),
+                At(Field("Opening bodega", Number("NewOpeningBodega", "0")), column: 6),
+                At(add, column: 7)
             }
         };
         Grid.SetRow(prices, 1);
@@ -237,7 +241,7 @@ public class InventoryView : UserControl
                     new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Ellipsis("Name", true), MutedText(path: "Sku", fontSize: 10) } },
                     At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Ellipsis("SupplierName"), Ellipsis("ItemTypeDisplay", muted: true, fontSize: 10) } }, column: 1),
                     At(Cell("ShelfStock", true), column: 2), At(Cell("BodegaStock"), column: 3),
-                    At(Cell("TotalStock", true, true), column: 4), At(Cell("ReorderDisplay"), column: 5),
+                    At(Cell("TotalStock", true, true), column: 4), At(Cell("WarningReorderDisplay"), column: 5),
                     At(MutedCell("StockStatus"), column: 6)
                 }
             };
@@ -247,7 +251,7 @@ public class InventoryView : UserControl
         return Card(new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*"),
-            Children = { TableHeader("1.8*,1.2*,0.65*,0.65*,0.65*,0.75*,1*", "PRODUCT", "SUPPLIER", "DISPLAY", "BODEGA", "TOTAL", "REORDER", "STATUS"), At(list, row: 1) }
+            Children = { TableHeader("1.8*,1.2*,0.65*,0.65*,0.65*,0.75*,1*", "PRODUCT", "SUPPLIER", "DISPLAY", "BODEGA", "TOTAL", "WARNING", "STATUS"), At(list, row: 1) }
         }, clip: true);
     }
 
@@ -298,8 +302,10 @@ public class InventoryView : UserControl
     {
         var product = new AutoCompleteBox
         {
-            PlaceholderText = "Search name, SKU, or supplier...", FilterMode = AutoCompleteFilterMode.Contains,
-            MinimumPrefixLength = 0, ValueMemberBinding = new Binding("MovementSelectorText")
+            PlaceholderText = "Search name, SKU, or supplier...",
+            FilterMode = AutoCompleteFilterMode.Contains,
+            MinimumPrefixLength = 0,
+            ValueMemberBinding = new Binding("MovementSelectorText")
         };
         Bind(product, AutoCompleteBox.ItemsSourceProperty, "Products");
         Bind(product, AutoCompleteBox.SelectedItemProperty, "MovementProduct");
@@ -308,7 +314,9 @@ public class InventoryView : UserControl
             var total = BoundText("TotalDisplay"); total.FontWeight = FontWeight.SemiBold; total.HorizontalAlignment = HorizontalAlignment.Right;
             return new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 16, Margin = new Thickness(4),
+                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                ColumnSpacing = 16,
+                Margin = new Thickness(4),
                 Children =
                 {
                     new StackPanel { Children = { SemiBold("Name"), MutedText(path: "MovementSelectorDetails", fontSize: 10) } },
@@ -319,8 +327,10 @@ public class InventoryView : UserControl
 
         var movement = new AutoCompleteBox
         {
-            PlaceholderText = "Search movement...", FilterMode = AutoCompleteFilterMode.Contains,
-            MinimumPrefixLength = 0, ValueMemberBinding = new Binding("Name")
+            PlaceholderText = "Search movement...",
+            FilterMode = AutoCompleteFilterMode.Contains,
+            MinimumPrefixLength = 0,
+            ValueMemberBinding = new Binding("Name")
         };
         Bind(movement, AutoCompleteBox.ItemsSourceProperty, "MovementOptions");
         Bind(movement, AutoCompleteBox.SelectedItemProperty, "SelectedMovement");
@@ -330,7 +340,8 @@ public class InventoryView : UserControl
 
         var form = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.5*,1.2*,0.6*,1.5*,Auto"), ColumnSpacing = 10,
+            ColumnDefinitions = new ColumnDefinitions("1.5*,1.2*,0.6*,1.5*,Auto"),
+            ColumnSpacing = 10,
             Children =
             {
                 Field("Product", product), At(Field("Movement", movement), column: 1),
@@ -343,7 +354,8 @@ public class InventoryView : UserControl
         Bind(list, ListBox.ItemsSourceProperty, "RecentMovements");
         list.ItemTemplate = new FuncDataTemplate<StockMovement>((_, _) => RowBorder(new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.5*,1*,1*,0.6*,1*,1.2*"), ColumnSpacing = 10,
+            ColumnDefinitions = new ColumnDefinitions("1.5*,1*,1*,0.6*,1*,1.2*"),
+            ColumnSpacing = 10,
             Children =
             {
                 new StackPanel { Children = { SemiBold("ProductName"), MutedText(path: "Sku", fontSize: 10) } },
@@ -377,10 +389,10 @@ public class InventoryView : UserControl
     private static StackPanel Field(string label, Control control) => new() { Spacing = 4, Children = { Label(label), control } };
     private static TextBlock Label(string text) => MutedText(text, 11);
 
-    private static NumericUpDown Number(string path, string format, decimal minimum = 0)
+    private static NumberField Number(string path, string format, decimal minimum = 0)
     {
-        var number = new NumericUpDown { Minimum = minimum, Increment = 1, FormatString = format };
-        Bind(number, NumericUpDown.ValueProperty, path);
+        var number = new NumberField { Minimum = minimum, Increment = 1, FormatString = format };
+        Bind(number, NumberField.ValueProperty, path);
         return number;
     }
 

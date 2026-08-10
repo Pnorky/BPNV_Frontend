@@ -91,7 +91,7 @@ public class SalesView : UserControl
                 Children =
                 {
                     new StackPanel { Children = { Text("Name", FontWeight.SemiBold), Text("CatalogDetails", resource: "MutedForeground") } },
-                    At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("RegularPrice", FontWeight.SemiBold, format: "₱{0:N2}"), Text("EmployeePrice", resource: "MutedForeground", format: "Employee ₱{0:N2}") } }, 1),
+                    At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("RegularPrice", FontWeight.SemiBold, format: "Selling ₱{0:N2}"), Text("EmployeePrice", resource: "MutedForeground", format: "Employee ₱{0:N2}") } }, 1),
                     add
                 }
             }

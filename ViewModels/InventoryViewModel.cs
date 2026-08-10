@@ -22,8 +22,9 @@ public sealed record ReorderProductSummary(ProductItem Product)
     public string Name => Product.Name;
     public string Sku => Product.Sku;
     public int OnHand => Product.TotalStock;
-    public string ReorderLevel => Product.ReorderDisplay;
-    public string TargetStock => Product.TargetStockDisplay;
+    public string Tier => Product.ReorderTier;
+    public string CriticalLevel => Product.CriticalReorderDisplay;
+    public string WarningLevel => Product.WarningReorderDisplay;
     public int OrderQuantity => Product.SuggestedOrderQuantity;
 }
 
@@ -74,8 +75,10 @@ public partial class InventoryViewModel : ObservableObject
     [ObservableProperty] private decimal _newCostPrice;
     [ObservableProperty] private decimal _newRegularPrice;
     [ObservableProperty] private decimal _newEmployeePrice;
-    [ObservableProperty] private decimal _newReorderLevel;
-    [ObservableProperty] private decimal _newTargetStockLevel;
+    [ObservableProperty] private decimal _newCriticalReorderLevel;
+    [ObservableProperty] private decimal _newCriticalOrderQuantity = 1;
+    [ObservableProperty] private decimal _newWarningReorderLevel = 1;
+    [ObservableProperty] private decimal _newWarningOrderQuantity = 1;
     [ObservableProperty] private decimal _newOpeningShelf;
     [ObservableProperty] private decimal _newOpeningBodega;
 
@@ -115,7 +118,7 @@ public partial class InventoryViewModel : ObservableObject
     public int ShelfUnits => Products.Sum(product => product.ShelfStock);
     public int BodegaUnits => Products.Sum(product => product.BodegaStock);
     public int LowStockCount => Products.Count(product => product.IsLowStock);
-    public int MissingReorderCount => Products.Count(product => product.ReorderLevel is null);
+    public int MissingReorderCount => Products.Count(product => product.EffectiveWarningReorderLevel is null);
 
     public InventoryViewModel(StoreState store, int selectedSectionIndex = 0)
     {
@@ -154,7 +157,7 @@ public partial class InventoryViewModel : ObservableObject
 
         if (OrderSummaries.Count == 0)
         {
-            StatusMessage = "No products currently need ordering. Products without a target stock level are not included.";
+            StatusMessage = "No products currently meet a critical or warning reorder threshold.";
             return;
         }
 
@@ -193,8 +196,10 @@ public partial class InventoryViewModel : ObservableObject
             NewCostPrice,
             NewRegularPrice,
             NewEmployeePrice,
-            NewReorderLevel > 0 ? (int)NewReorderLevel : null,
-            NewTargetStockLevel > 0 ? (int)NewTargetStockLevel : null,
+            (int)NewCriticalReorderLevel,
+            (int)NewCriticalOrderQuantity,
+            (int)NewWarningReorderLevel,
+            (int)NewWarningOrderQuantity,
             (int)NewOpeningShelf,
             (int)NewOpeningBodega);
 
@@ -212,8 +217,10 @@ public partial class InventoryViewModel : ObservableObject
         NewCostPrice = 0;
         NewRegularPrice = 0;
         NewEmployeePrice = 0;
-        NewReorderLevel = 0;
-        NewTargetStockLevel = 0;
+        NewCriticalReorderLevel = 0;
+        NewCriticalOrderQuantity = 1;
+        NewWarningReorderLevel = 1;
+        NewWarningOrderQuantity = 1;
         NewOpeningShelf = 0;
         NewOpeningBodega = 0;
         StatusMessage = message;

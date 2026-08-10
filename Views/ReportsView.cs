@@ -99,7 +99,8 @@ public class ReportsView : UserControl
             var sales = BoundText("SalesDisplay"); sales.FontWeight = FontWeight.Bold; sales.Width = 90; sales.TextAlignment = TextAlignment.Right;
             return RowBorder(new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 20,
+                ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
+                ColumnSpacing = 20,
                 Children = { Ellipsis("Product", true), At(quantity, column: 1), At(sales, column: 2) }
             }, new Thickness(0, 13), new Thickness(0, 1, 0, 0));
         }, true);
@@ -118,7 +119,8 @@ public class ReportsView : UserControl
 
         var lower = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("0.9*,1.1*"), ColumnSpacing = 18,
+            ColumnDefinitions = new ColumnDefinitions("0.9*,1.1*"),
+            ColumnSpacing = 18,
             Children =
             {
                 Card(new StackPanel { Spacing = 15, Children = { Heading("Top-selling products", "h2"), topProducts } }, new Thickness(22), VerticalAlignment.Top),
@@ -150,7 +152,8 @@ public class ReportsView : UserControl
         Bind(items, ItemsControl.ItemsSourceProperty, "InventoryItems");
         items.ItemTemplate = new FuncDataTemplate<ProductItem>((_, _) => RowBorder(new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.6*,1.1*,0.8*,0.6*,0.6*,0.6*,0.9*"), ColumnSpacing = 12,
+            ColumnDefinitions = new ColumnDefinitions("1.6*,1.1*,0.8*,0.6*,0.6*,0.6*,0.9*"),
+            ColumnSpacing = 12,
             Children =
             {
                 new StackPanel { Children = { SemiBold("Name"), Muted(path: "Sku", fontSize: 10) } },
@@ -195,11 +198,13 @@ public class ReportsView : UserControl
                 var order = BoundText("OrderQuantity"); order.FontWeight = FontWeight.Bold; Resource(order, TextBlock.ForegroundProperty, "Primary");
                 return RowBorder(new Grid
                 {
-                    ColumnDefinitions = new ColumnDefinitions("1.8*,0.8*,0.7*,0.7*,0.7*,0.8*"), ColumnSpacing = 12,
+                    ColumnDefinitions = new ColumnDefinitions("1.8*,0.8*,0.7*,0.7*,0.7*,0.7*,0.8*"),
+                    ColumnSpacing = 12,
                     Children =
                     {
                         SemiBold("Name"), At(BoundText("Sku"), column: 1), At(BoundText("OnHand"), column: 2),
-                        At(BoundText("ReorderLevel"), column: 3), At(BoundText("TargetStock"), column: 4), At(order, column: 5)
+                        At(BoundText("Tier"), column: 3), At(BoundText("CriticalLevel"), column: 4),
+                        At(BoundText("WarningLevel"), column: 5), At(order, column: 6)
                     }
                 }, new Thickness(12, 9));
             }, true);
@@ -211,7 +216,7 @@ public class ReportsView : UserControl
                 Children =
                 {
                     new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { supplier, At(Muted(path: "Summary"), column: 1) } },
-                    SmallHeader("1.8*,0.8*,0.7*,0.7*,0.7*,0.8*", "PRODUCT", "SKU", "ON HAND", "REORDER", "TARGET", "ORDER", new Thickness(12, 8)),
+                    SmallHeader("1.8*,0.8*,0.7*,0.7*,0.7*,0.7*,0.8*", "PRODUCT", "SKU", "ON HAND", "TIER", "CRITICAL", "WARNING", "ORDER", new Thickness(12, 8)),
                     products
                 }
             }, new Thickness(18), margin: new Thickness(0, 0, 0, 14));

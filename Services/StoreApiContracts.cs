@@ -36,19 +36,28 @@ public sealed record ProductResponse(
     decimal CostPrice,
     decimal RegularPrice,
     decimal EmployeePrice,
-    int? ReorderLevel,
-    int? TargetStockLevel,
+    int CriticalReorderLevel,
+    int CriticalOrderQuantity,
+    int WarningReorderLevel,
+    int WarningOrderQuantity,
     int DisplayStock,
     int BodegaStock,
     int TotalStock,
     bool IsLowStock,
+    bool IsCriticalStock,
     int SuggestedOrderQuantity,
     ulong Version,
     bool IsActive,
     IReadOnlyList<ProductUnitResponse> Units)
 {
-    public string StockStatus => TotalStock == 0 ? "Out of stock" : IsLowStock ? "Low stock" : "In stock";
-    public string PriceDisplay => $"₱{RegularPrice:N2}";
+    public string StockStatus => TotalStock == 0 ? "Out of stock" : IsCriticalStock ? "Critical" : IsLowStock ? "Warning" : "In stock";
+    public string ReorderActionDisplay => SuggestedOrderQuantity > 0
+        ? $"Order {SuggestedOrderQuantity} pieces"
+        : "No order needed";
+    public string ReorderRulesDisplay => $"Critical ≤ {CriticalReorderLevel}: {CriticalOrderQuantity} · Warning ≤ {WarningReorderLevel}: {WarningOrderQuantity}";
+    public string PurchasePriceDisplay => $"₱{CostPrice:N2}";
+    public string SellingPriceDisplay => $"₱{RegularPrice:N2}";
+    public string EmployeePriceDisplay => EmployeePrice > 0 ? $"₱{EmployeePrice:N2}" : "Same as selling";
     public string StockDisplay => $"{DisplayStock} display / {BodegaStock} bodega";
 }
 
@@ -101,8 +110,10 @@ public sealed record CreateProductRequest(
     decimal CostPrice,
     decimal RegularPrice,
     decimal EmployeePrice,
-    int ReorderLevel,
-    int TargetStockLevel,
+    int CriticalReorderLevel,
+    int CriticalOrderQuantity,
+    int WarningReorderLevel,
+    int WarningOrderQuantity,
     IReadOnlyList<CreateProductUnitRequest>? Packages);
 
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);

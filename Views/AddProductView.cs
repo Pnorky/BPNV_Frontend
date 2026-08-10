@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
@@ -7,6 +8,7 @@ using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using AvaloniaApp.Services;
 using AvaloniaApp.ViewModels;
+using AvaloniaApp.Views.UI;
 
 namespace AvaloniaApp.Views;
 
@@ -17,15 +19,23 @@ public class AddProductView : UserControl
         var content = new StackPanel
         {
             Spacing = 16,
+            Margin = new Thickness(0, 0, 18, 0),
             Children =
             {
                 Header(),
+                Card(SupplierSection(), new Thickness(20)),
                 Card(ProductDetails(), new Thickness(20)),
+                Card(ReorderSection(), new Thickness(20)),
                 Card(PackageSection(), new Thickness(20)),
-                Card(SupplierSection(), new Thickness(20))
+                CreateProductAction()
             }
         };
-        Content = new ScrollViewer { Content = content, Margin = new Thickness(30) };
+        Content = new ScrollViewer
+        {
+            Content = content,
+            Margin = new Thickness(30, 30, 12, 30),
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
     }
 
     private static Control Header()
@@ -46,16 +56,13 @@ public class AddProductView : UserControl
 
     private static Control ProductDetails()
     {
-        var supplier = new ComboBox { PlaceholderText = "Select supplier" };
-        supplier.Classes.Add("form-select");
-        Bind(supplier, ItemsControl.ItemsSourceProperty, "Suppliers");
-        Bind(supplier, ComboBox.SelectedItemProperty, "SelectedSupplier");
-        supplier.ItemTemplate = new FuncDataTemplate<SupplierResponse>((_, _) => BoundText("Name"), true);
-
         var itemType = new ComboBox();
         itemType.Classes.Add("form-select");
         Bind(itemType, ItemsControl.ItemsSourceProperty, "ItemTypes");
         Bind(itemType, ComboBox.SelectedItemProperty, "ItemType");
+
+        var barcode = At(Field("PIECE BARCODE", InputBox("PieceBarcode", "Leading zeros are preserved")), column: 2);
+        Grid.SetColumnSpan(barcode, 2);
 
         var primary = new Grid
         {
@@ -65,24 +72,45 @@ public class AddProductView : UserControl
             RowSpacing = 12,
             Children =
             {
-                Field("SUPPLIER", supplier),
-                At(Field("ITEM TYPE", itemType), column: 1),
-                At(Field("SKU", InputBox("Sku", "Required")), column: 2),
-                At(Field("PIECE BARCODE", InputBox("PieceBarcode", "Leading zeros are preserved")), column: 3),
+                Field("ITEM TYPE", itemType),
+                At(Field("SKU", InputBox("Sku", "Required")), column: 1),
+                barcode,
                 At(Field("PRODUCT NAME", InputBox("Name", "Required")), row: 1),
                 At(Field("CATEGORY", InputBox("Category", "Required")), column: 1, row: 1),
                 At(Field("BASE UNIT LABEL", InputBox("Unit", "piece")), column: 2, row: 1),
-                At(Field("COST PER PIECE", Number("CostPrice", "0.00")), column: 3, row: 1),
-                At(Field("REGULAR PRICE", Number("RegularPrice", "0.00")), row: 2),
-                At(Field("EMPLOYEE PRICE (0 = REGULAR)", Number("EmployeePrice", "0.00")), column: 1, row: 2),
-                At(Field("REORDER LEVEL", Number("ReorderLevel", "0")), column: 2, row: 2),
-                At(Field("TARGET STOCK", Number("TargetStockLevel", "0", 1)), column: 3, row: 2)
+                At(Field("PURCHASE PRICE / PIECE", Number("CostPrice", "0.00")), column: 3, row: 1),
+                At(Field("SELLING PRICE", Number("RegularPrice", "0.00")), row: 2),
+                At(Field("EMPLOYEE PRICE (0 = SELLING)", Number("EmployeePrice", "0.00")), column: 1, row: 2)
             }
         };
 
-        var save = Button("Create product", "CreateProductCommand", true);
-        save.HorizontalAlignment = HorizontalAlignment.Right;
-        return new StackPanel { Spacing = 16, Children = { Heading("Required product details"), primary, save } };
+        return new StackPanel { Spacing = 16, Children = { Heading("Required product details"), primary } };
+    }
+
+    private static Control ReorderSection()
+    {
+        var fields = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
+            ColumnSpacing = 12,
+            Children =
+            {
+                Field("CRITICAL LEVEL", Number("CriticalReorderLevel", "0")),
+                At(Field("ORDER QTY AT CRITICAL", Number("CriticalOrderQuantity", "0", 1)), column: 1),
+                At(Field("WARNING LEVEL", Number("WarningReorderLevel", "0", 1)), column: 2),
+                At(Field("ORDER QTY AT WARNING", Number("WarningOrderQuantity", "0", 1)), column: 3)
+            }
+        };
+        return new StackPanel
+        {
+            Spacing = 14,
+            Children =
+            {
+                Heading("Two-level reorder rules"),
+                Muted("Total stock is checked against the lower critical level first, then the higher warning level. Each level uses its own fixed order quantity."),
+                fields
+            }
+        };
     }
 
     private static Control PackageSection()
@@ -105,6 +133,13 @@ public class AddProductView : UserControl
         return new StackPanel { Spacing = 14, Children = { heading, packages } };
     }
 
+    private static Control CreateProductAction()
+    {
+        var save = Button("Create product", "CreateProductCommand", true);
+        save.HorizontalAlignment = HorizontalAlignment.Right;
+        return save;
+    }
+
     private static Control PackageRow()
     {
         var remove = Button("Remove", "DataContext.RemovePackageCommand", ancestor: typeof(AddProductView));
@@ -118,7 +153,7 @@ public class AddProductView : UserControl
                 Field("BARCODE", InputBox("Barcode", "Package barcode")),
                 At(Field("LABEL", InputBox("Label", "e.g. Case")), column: 1),
                 At(Field("PIECES", Number("PiecesPerUnit", "0", 2)), column: 2),
-                At(Field("REGULAR", Number("RegularPrice", "0.00")), column: 3),
+                At(Field("SELLING", Number("RegularPrice", "0.00")), column: 3),
                 At(Field("EMPLOYEE", Number("EmployeePrice", "0.00")), column: 4),
                 At(remove, column: 5)
             }
@@ -134,20 +169,36 @@ public class AddProductView : UserControl
 
     private static Control SupplierSection()
     {
+        var existingSupplier = new ComboBox { PlaceholderText = "Select an existing supplier" };
+        existingSupplier.Classes.Add("form-select");
+        Bind(existingSupplier, ItemsControl.ItemsSourceProperty, "Suppliers");
+        Bind(existingSupplier, ComboBox.SelectedItemProperty, "SelectedSupplier");
+        existingSupplier.ItemTemplate = new FuncDataTemplate<SupplierResponse>((_, _) => BoundText("Name"), true);
+
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.3*,1*,1*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("1.2*,1.2*,1*,1*,Auto"),
             ColumnSpacing = 12,
             Children =
             {
-                Field("SUPPLIER NAME", InputBox("SupplierName", "Required")),
-                At(Field("CONTACT", InputBox("SupplierContact", "Optional")), column: 1),
-                At(Field("PHONE", InputBox("SupplierPhone", "Optional")), column: 2),
-                At(Button("Create and select supplier", "CreateSupplierCommand", true), column: 3)
+                Field("EXISTING SUPPLIER", existingSupplier),
+                At(Field("NEW SUPPLIER NAME", InputBox("SupplierName", "Required when creating")), column: 1),
+                At(Field("CONTACT", InputBox("SupplierContact", "Optional")), column: 2),
+                At(Field("PHONE", InputBox("SupplierPhone", "Optional")), column: 3),
+                At(Button("Create and select", "CreateSupplierCommand", true), column: 4)
             }
         };
         grid.Children[^1].VerticalAlignment = VerticalAlignment.Bottom;
-        return new StackPanel { Spacing = 12, Children = { Heading("Create a supplier without leaving this page"), grid } };
+        return new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                Heading("Supplier"),
+                Muted("Select an existing supplier, or enter a new supplier and create it without leaving this page."),
+                grid
+            }
+        };
     }
 
     private static Border Status()
@@ -162,7 +213,7 @@ public class AddProductView : UserControl
     private static TextBlock Muted(string text) => Resource(new TextBlock { Text = text, FontSize = 12, TextWrapping = TextWrapping.Wrap }, TextBlock.ForegroundProperty, "MutedForeground");
     private static TextBlock BoundText(string path) { var value = new TextBlock(); Bind(value, TextBlock.TextProperty, path); return value; }
     private static TextBox InputBox(string path, string placeholder) { var value = new TextBox { PlaceholderText = placeholder }; value.Classes.Add("form-input"); Bind(value, TextBox.TextProperty, path); return value; }
-    private static NumericUpDown Number(string path, string format, decimal minimum = 0) { var value = new NumericUpDown { Minimum = minimum, FormatString = format, Increment = 1 }; Bind(value, NumericUpDown.ValueProperty, path); return value; }
+    private static NumberField Number(string path, string format, decimal minimum = 0) { var value = new NumberField { Minimum = minimum, FormatString = format, Increment = 1 }; Bind(value, NumberField.ValueProperty, path); return value; }
     private static Button Button(string text, string command, bool primary = false, Type? ancestor = null)
     {
         var value = new Button { Content = text };

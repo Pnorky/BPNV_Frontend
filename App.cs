@@ -220,6 +220,32 @@ public class App : Application
             new Setter(TextBox.BorderThicknessProperty, new Thickness(2)),
             ResourceSetter(TextBox.BorderBrushProperty, "Ring"));
 
+        AddStyle(x => x.OfType<Border>().Class("number-field"),
+            new Setter(Border.MinHeightProperty, 42d), new Setter(Border.CornerRadiusProperty, new CornerRadius(7)),
+            new Setter(Border.BorderThicknessProperty, new Thickness(1)), new Setter(Border.ClipToBoundsProperty, true),
+            ResourceSetter(Border.BorderBrushProperty, "Border"), ResourceSetter(Border.BackgroundProperty, "Card"));
+
+        AddStyle(x => x.OfType<Border>().Class("number-field").Class(":pointerover"),
+            ResourceSetter(Border.BorderBrushProperty, "Ring"));
+
+        AddStyle(x => x.OfType<Border>().Class("number-field").Class("focused"),
+            new Setter(Border.BorderThicknessProperty, new Thickness(2)),
+            ResourceSetter(Border.BorderBrushProperty, "Ring"));
+
+        AddStyle(x => x.OfType<TextBox>().Class("number-field-input"),
+            new Setter(TextBox.PaddingProperty, new Thickness(13, 8)), new Setter(TextBox.FontSizeProperty, 14d),
+            ResourceSetter(TextBox.ForegroundProperty, "Foreground"));
+
+        AddStyle(x => x.OfType<Border>().Class("number-field-stepper"),
+            ResourceSetter(Border.BorderBrushProperty, "Input"), ResourceSetter(Border.BackgroundProperty, "Card"));
+
+        AddStyle(x => x.OfType<Border>().Class("number-field-step"),
+            new Setter(Border.BackgroundProperty, Brushes.Transparent),
+            new Setter(InputElement.CursorProperty, new Cursor(StandardCursorType.Hand)));
+
+        AddStyle(x => x.OfType<Border>().Class("number-field-step").Class(":pointerover"),
+            ResourceSetter(Border.BackgroundProperty, "Accent"));
+
         AddStyle(x => x.OfType<ComboBox>().Class("form-select"),
             new Setter(ComboBox.MinHeightProperty, 42d), new Setter(ComboBox.PaddingProperty, new Thickness(13, 7)),
             new Setter(ComboBox.BorderThicknessProperty, new Thickness(1)),

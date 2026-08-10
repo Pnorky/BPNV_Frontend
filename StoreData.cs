@@ -34,6 +34,10 @@ public partial class ProductItem : ObservableObject
     public decimal CostPrice { get; init; }
     public decimal RegularPrice { get; init; }
     public decimal EmployeePrice { get; init; }
+    public int? CriticalReorderLevel { get; init; }
+    public int? CriticalOrderQuantity { get; init; }
+    public int? WarningReorderLevel { get; init; }
+    public int? WarningOrderQuantity { get; init; }
     public int? ReorderLevel { get; init; }
     public int? TargetStockLevel { get; set; }
     public bool IsActive { get; init; } = true;
@@ -54,8 +58,13 @@ public partial class ProductItem : ObservableObject
     public string CostPriceDisplay => CostPrice > 0 ? $"₱{CostPrice:N2}" : "Not set";
     public string RegularPriceDisplay => RegularPrice > 0 ? $"₱{RegularPrice:N2}" : "Not set";
     public string EmployeePriceDisplay => EmployeePrice > 0 ? $"₱{EmployeePrice:N2}" : "Not set";
-    public string ReorderDisplay => ReorderLevel is null ? "Not set" : ReorderLevel.Value.ToString();
-    public string TargetStockDisplay => TargetStockLevel is null ? "Not set" : TargetStockLevel.Value.ToString();
+    public int? EffectiveWarningReorderLevel => WarningReorderLevel ?? ReorderLevel;
+    public int? EffectiveCriticalReorderLevel => CriticalReorderLevel ??
+        (EffectiveWarningReorderLevel is int warning ? warning / 2 : null);
+    public int? EffectiveCriticalOrderQuantity => CriticalOrderQuantity ?? LegacyOrderQuantity(EffectiveCriticalReorderLevel);
+    public int? EffectiveWarningOrderQuantity => WarningOrderQuantity ?? LegacyOrderQuantity(EffectiveWarningReorderLevel);
+    public string CriticalReorderDisplay => EffectiveCriticalReorderLevel?.ToString() ?? "Not set";
+    public string WarningReorderDisplay => EffectiveWarningReorderLevel?.ToString() ?? "Not set";
     public string ItemTypeDisplay => ItemType switch
     {
         InventoryItemType.Merchandise => "Merchandise",
@@ -66,17 +75,21 @@ public partial class ProductItem : ObservableObject
     public string CatalogDetails => $"{Sku}  ·  {SupplierName}  ·  Display: {ShelfStock} {Unit}";
     public string MovementSelectorText => $"{Name} · {Sku} · {SupplierName}";
     public string MovementSelectorDetails => $"{Sku} · {SupplierName}";
-    public bool IsLowStock => ReorderLevel is int level && TotalStock <= level;
-    public int SuggestedOrderQuantity => IsLowStock && TargetStockLevel is int target
-        ? Math.Max(0, target - TotalStock)
-        : 0;
+    public bool IsCriticalStock => EffectiveCriticalReorderLevel is int level && TotalStock <= level;
+    public bool IsLowStock => IsCriticalStock || EffectiveWarningReorderLevel is int level && TotalStock <= level;
+    public int SuggestedOrderQuantity => IsCriticalStock
+        ? EffectiveCriticalOrderQuantity.GetValueOrDefault()
+        : EffectiveWarningReorderLevel is int warning && TotalStock <= warning
+            ? EffectiveWarningOrderQuantity.GetValueOrDefault()
+            : 0;
+    public string ReorderTier => IsCriticalStock ? "Critical" : IsLowStock ? "Warning" : "Healthy";
     public string StockStatus => TotalStock == 0
         ? "Out of stock"
         : IsLowStock
             ? "Low stock"
             : ShelfStock == 0
                 ? "Refill display"
-                : ReorderLevel is null
+                : EffectiveWarningReorderLevel is null
                     ? "Reorder not set"
                     : "In stock";
 
@@ -91,9 +104,15 @@ public partial class ProductItem : ObservableObject
         OnPropertyChanged(nameof(TotalDisplay));
         OnPropertyChanged(nameof(CatalogDetails));
         OnPropertyChanged(nameof(IsLowStock));
+        OnPropertyChanged(nameof(IsCriticalStock));
         OnPropertyChanged(nameof(SuggestedOrderQuantity));
+        OnPropertyChanged(nameof(ReorderTier));
         OnPropertyChanged(nameof(StockStatus));
     }
+
+    private int? LegacyOrderQuantity(int? level) => level is int threshold && TargetStockLevel is int target
+        ? Math.Max(1, target - threshold)
+        : null;
 
     public override string ToString() => $"{Name} ({Sku})";
 }
@@ -165,8 +184,10 @@ public sealed record ProductInput(
     decimal CostPrice,
     decimal RegularPrice,
     decimal EmployeePrice,
-    int? ReorderLevel,
-    int? TargetStockLevel,
+    int? CriticalReorderLevel,
+    int? CriticalOrderQuantity,
+    int? WarningReorderLevel,
+    int? WarningOrderQuantity,
     int OpeningShelf,
     int OpeningBodega);
 
@@ -277,16 +298,24 @@ public sealed class StoreState
             return false;
         }
 
-        if (input.OpeningShelf < 0 || input.OpeningBodega < 0 || input.ReorderLevel < 0 || input.TargetStockLevel < 0 ||
+        if (input.OpeningShelf < 0 || input.OpeningBodega < 0 || input.CriticalReorderLevel < 0 ||
+            input.CriticalOrderQuantity < 0 || input.WarningReorderLevel < 0 || input.WarningOrderQuantity < 0 ||
             input.CostPrice < 0 || input.RegularPrice < 0 || input.EmployeePrice < 0)
         {
             message = "Stock, prices, and reorder level cannot be negative.";
             return false;
         }
 
-        if (input.ReorderLevel is int reorderLevel && input.TargetStockLevel is int targetStockLevel && targetStockLevel <= reorderLevel)
+        if (input.CriticalReorderLevel is not int critical || input.WarningReorderLevel is not int warning || warning <= critical)
         {
-            message = "Target stock level must be greater than the reorder level.";
+            message = "Critical and warning reorder levels are required, and warning must be greater than critical.";
+            return false;
+        }
+
+        if (input.CriticalOrderQuantity is not int criticalQuantity || criticalQuantity <= 0 ||
+            input.WarningOrderQuantity is not int warningQuantity || warningQuantity <= 0)
+        {
+            message = "Critical and warning order quantities must be greater than zero.";
             return false;
         }
 
@@ -315,8 +344,10 @@ public sealed class StoreState
             CostPrice = input.CostPrice,
             RegularPrice = input.RegularPrice,
             EmployeePrice = input.EmployeePrice,
-            ReorderLevel = input.ReorderLevel,
-            TargetStockLevel = input.TargetStockLevel,
+            CriticalReorderLevel = input.CriticalReorderLevel,
+            CriticalOrderQuantity = input.CriticalOrderQuantity,
+            WarningReorderLevel = input.WarningReorderLevel,
+            WarningOrderQuantity = input.WarningOrderQuantity,
             ShelfStock = input.OpeningShelf,
             BodegaStock = input.OpeningBodega
         };
@@ -567,8 +598,10 @@ public sealed class StoreState
             CostPrice = costPrice,
             RegularPrice = regularPrice,
             EmployeePrice = employeePrice,
-            ReorderLevel = reorderLevel,
-            TargetStockLevel = reorderLevel * 2,
+            CriticalReorderLevel = reorderLevel / 2,
+            CriticalOrderQuantity = Math.Max(1, reorderLevel * 2 - reorderLevel / 2),
+            WarningReorderLevel = Math.Max(1, reorderLevel),
+            WarningOrderQuantity = Math.Max(1, reorderLevel),
             ShelfStock = shelfStock,
             BodegaStock = bodegaStock
         };

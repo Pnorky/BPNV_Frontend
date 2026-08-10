@@ -24,7 +24,18 @@ public class ProductCatalogView : UserControl
         var list = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding("FilteredProducts"));
         list.ItemTemplate = new FuncDataTemplate<ProductResponse>((_, _) => ProductRow(), true);
-        var card = new Border { Padding = new Thickness(0), ClipToBounds = true, Child = list }; card.Classes.Add("theme-card");
+        Grid.SetRow(list, 1);
+        var card = new Border
+        {
+            Padding = new Thickness(0),
+            ClipToBounds = true,
+            Child = new Grid
+            {
+                RowDefinitions = new RowDefinitions("Auto,*"),
+                Children = { CatalogHeader(), list }
+            }
+        };
+        card.Classes.Add("theme-card");
         card.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card"));
 
         Content = new Grid
@@ -44,21 +55,43 @@ public class ProductCatalogView : UserControl
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.4*,1*,0.8*,1*,0.8*"),
+            ColumnDefinitions = CatalogColumns(),
             ColumnSpacing = 14,
             Children =
             {
                 new StackPanel { Children = { Text("Name", FontWeight.SemiBold), Text("Sku", resource: "MutedForeground") } },
                 At(new StackPanel { Children = { Text("SupplierName"), Text("Category", resource: "MutedForeground") } }, column: 1),
-                At(Text("ItemType", vertical: true), column: 2),
-                At(Text("StockDisplay", vertical: true), column: 3),
-                At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("PriceDisplay", FontWeight.SemiBold), Text("StockStatus", resource: "MutedForeground") } }, column: 4)
+                At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("ItemType"), Text("StockStatus", resource: "MutedForeground") } }, column: 2),
+                At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("StockDisplay"), Text("ReorderActionDisplay", resource: "MutedForeground") } }, column: 3),
+                At(Text("PurchasePriceDisplay", FontWeight.SemiBold, vertical: true), column: 4),
+                At(Text("SellingPriceDisplay", FontWeight.SemiBold, vertical: true), column: 5),
+                At(Text("EmployeePriceDisplay", FontWeight.SemiBold, vertical: true), column: 6)
             }
         };
         var border = new Border { BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 12), Child = row };
         border.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("Border"));
         return border;
     }
+
+    private static Border CatalogHeader()
+    {
+        var grid = new Grid { ColumnDefinitions = CatalogColumns(), ColumnSpacing = 14 };
+        var labels = new[] { "PRODUCT", "SUPPLIER", "TYPE / STATUS", "STOCK / REORDER", "PURCHASE / PIECE", "SELLING", "EMPLOYEE" };
+        for (var index = 0; index < labels.Length; index++)
+        {
+            var label = Muted(labels[index]);
+            label.FontSize = 10;
+            label.FontWeight = FontWeight.SemiBold;
+            label.LetterSpacing = 0.6;
+            grid.Children.Add(At(label, column: index));
+        }
+
+        var header = new Border { Padding = new Thickness(16, 10), Child = grid };
+        header.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Muted"));
+        return header;
+    }
+
+    private static ColumnDefinitions CatalogColumns() => new("1.35*,1*,0.8*,1.05*,0.85*,0.8*,0.95*");
 
     private static Border Status() { var value = new Border { Padding = new Thickness(12, 8), CornerRadius = new CornerRadius(7), Child = Text("StatusMessage") }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }
     private static TextBlock Muted(string text) { var value = new TextBlock { Text = text }; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }

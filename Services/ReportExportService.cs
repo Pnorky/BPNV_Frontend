@@ -201,7 +201,7 @@ public static class ReportExportService
     private static void CreateInventorySheet(XLWorkbook workbook, StoreState store)
     {
         var sheet = workbook.Worksheets.Add("Inventory");
-        string[] headers = ["SKU", "Product", "Supplier", "Type", "Category", "Unit", "Display", "Bodega", "Total", "Reorder level", "Target stock", "Suggested order", "Cost price", "Regular price", "Employee price", "Status"];
+        string[] headers = ["SKU", "Product", "Supplier", "Type", "Category", "Unit", "Display", "Bodega", "Total", "Critical level", "Warning level", "Reorder tier", "Suggested order", "Purchase price", "Selling price", "Employee price", "Status"];
         WriteHeaders(sheet, headers);
 
         var row = 2;
@@ -216,17 +216,18 @@ public static class ReportExportService
             sheet.Cell(row, 7).Value = product.ShelfStock;
             sheet.Cell(row, 8).Value = product.BodegaStock;
             sheet.Cell(row, 9).Value = product.TotalStock;
-            if (product.ReorderLevel is int reorderLevel) sheet.Cell(row, 10).Value = reorderLevel;
-            if (product.TargetStockLevel is int targetStockLevel) sheet.Cell(row, 11).Value = targetStockLevel;
-            sheet.Cell(row, 12).Value = product.SuggestedOrderQuantity;
-            sheet.Cell(row, 13).Value = product.CostPrice;
-            sheet.Cell(row, 14).Value = product.RegularPrice;
-            sheet.Cell(row, 15).Value = product.EmployeePrice;
-            sheet.Cell(row, 16).Value = product.StockStatus;
+            if (product.EffectiveCriticalReorderLevel is int criticalLevel) sheet.Cell(row, 10).Value = criticalLevel;
+            if (product.EffectiveWarningReorderLevel is int warningLevel) sheet.Cell(row, 11).Value = warningLevel;
+            sheet.Cell(row, 12).Value = product.ReorderTier;
+            sheet.Cell(row, 13).Value = product.SuggestedOrderQuantity;
+            sheet.Cell(row, 14).Value = product.CostPrice;
+            sheet.Cell(row, 15).Value = product.RegularPrice;
+            sheet.Cell(row, 16).Value = product.EmployeePrice;
+            sheet.Cell(row, 17).Value = product.StockStatus;
             row++;
         }
 
-        sheet.Columns(13, 15).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Columns(14, 16).Style.NumberFormat.Format = "₱#,##0.00";
         StyleDataSheet(sheet, headers.Length, headers.Length, row - 1);
     }
 

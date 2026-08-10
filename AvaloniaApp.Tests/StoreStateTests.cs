@@ -98,7 +98,7 @@ public sealed class StoreStateTests
         Assert.IsTrue(_store.AddSupplier("Shoppers", "", "", out _));
         Assert.IsFalse(_store.AddSupplier(" shoppers ", "", "", out _));
         var supplier = _store.Suppliers[0];
-        var input = new ProductInput(supplier.Id, InventoryItemType.Merchandise, "SHP-001", "Boy Bawang", "Snacks", "pcs", 0, 10, 0, null, null, 0, 0);
+        var input = new ProductInput(supplier.Id, InventoryItemType.Merchandise, "SHP-001", "Boy Bawang", "Snacks", "pcs", 0, 10, 0, 0, 1, 1, 1, 0, 0);
         Assert.IsTrue(_store.AddProduct(input, out _, out _));
 
         var duplicate = input with { Name = "Different product" };
@@ -139,6 +139,8 @@ public sealed class StoreStateTests
             0,
             10,
             20,
+            20,
+            10,
             0,
             20);
         Assert.IsTrue(_store.AddProduct(input, out var product, out _));
@@ -152,12 +154,16 @@ public sealed class StoreStateTests
     }
 
     [TestMethod]
-    public void SuggestedOrderRestoresLowStockProductToTarget()
+    public void SuggestedOrderUsesCriticalThenWarningQuantity()
     {
         var product = AddProduct(openingShelf: 2, openingBodega: 3, reorderLevel: 10);
 
         Assert.AreEqual(15, product.SuggestedOrderQuantity);
-        Assert.IsTrue(_store.ApplyStockMovement(product, StockMovementType.Receipt, 6, "Delivery", out _));
+        Assert.IsTrue(product.IsCriticalStock);
+        Assert.IsTrue(_store.ApplyStockMovement(product, StockMovementType.Receipt, 3, "Delivery", out _));
+        Assert.AreEqual(10, product.SuggestedOrderQuantity);
+        Assert.IsFalse(product.IsCriticalStock);
+        Assert.IsTrue(_store.ApplyStockMovement(product, StockMovementType.Receipt, 3, "Delivery", out _));
         Assert.AreEqual(0, product.SuggestedOrderQuantity);
     }
 
@@ -174,8 +180,10 @@ public sealed class StoreStateTests
             8,
             regularPrice,
             12,
-            reorderLevel,
-            reorderLevel is null ? null : reorderLevel * 2,
+            reorderLevel is null ? 0 : reorderLevel / 2,
+            reorderLevel is null ? 1 : 15,
+            reorderLevel ?? 1,
+            reorderLevel is null ? 1 : 10,
             openingShelf,
             openingBodega);
         Assert.IsTrue(_store.AddProduct(input, out var product, out var message), message);

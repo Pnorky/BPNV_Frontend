@@ -27,7 +27,7 @@ public class ReorderSummaryDialog : Window
         title.Classes.Add("h1");
         var description = new TextBlock
         {
-            Text = "Suggested quantities restore low-stock products to their target stock level."
+            Text = "Suggested quantities follow each product's critical and warning reorder rule."
         };
         description.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
         var header = new StackPanel { Spacing = 4, Children = { title, description } };
@@ -80,7 +80,7 @@ public class ReorderSummaryDialog : Window
 
         var columnHeader = CreateColumns(
             CreateHeader("PRODUCT"), CreateHeader("SKU"), CreateHeader("ON HAND"),
-            CreateHeader("REORDER"), CreateHeader("TARGET"), CreateHeader("ORDER"));
+            CreateHeader("TIER"), CreateHeader("CRITICAL"), CreateHeader("WARNING"), CreateHeader("ORDER"));
         var headerBorder = new Border { Padding = new Thickness(12, 8), Child = columnHeader };
         headerBorder.BindResource(Border.BackgroundProperty, "Muted");
 
@@ -122,8 +122,8 @@ public class ReorderSummaryDialog : Window
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(12, 9),
             Child = CreateColumns(name, BoundText(nameof(ReorderProductSummary.Sku)),
-                BoundText(nameof(ReorderProductSummary.OnHand)), BoundText(nameof(ReorderProductSummary.ReorderLevel)),
-                BoundText(nameof(ReorderProductSummary.TargetStock)), quantity)
+                BoundText(nameof(ReorderProductSummary.OnHand)), BoundText(nameof(ReorderProductSummary.Tier)),
+                BoundText(nameof(ReorderProductSummary.CriticalLevel)), BoundText(nameof(ReorderProductSummary.WarningLevel)), quantity)
         };
         border.BindResource(Border.BorderBrushProperty, "Border");
         return border;
@@ -133,7 +133,7 @@ public class ReorderSummaryDialog : Window
     {
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.8*,0.8*,0.7*,0.7*,0.7*,0.8*"),
+            ColumnDefinitions = new ColumnDefinitions("1.8*,0.8*,0.7*,0.7*,0.7*,0.7*,0.8*"),
             ColumnSpacing = 12
         };
         for (var index = 0; index < cells.Length; index++)
