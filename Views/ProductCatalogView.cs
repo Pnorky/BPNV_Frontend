@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using AvaloniaApp.Services;
+using AvaloniaApp.Views.UI;
 
 namespace AvaloniaApp.Views;
 
@@ -14,10 +15,9 @@ public class ProductCatalogView : UserControl
     public ProductCatalogView()
     {
         var title = new TextBlock { Text = "Product catalog" }; title.Classes.Add("h1");
-        var search = new TextBox { PlaceholderText = "Search database product, SKU, supplier, category, or barcode..." };
-        search.Classes.Add("search");
-        search.Bind(TextBox.TextProperty, new Binding("SearchText"));
-        var refresh = new Button { Content = "Refresh" }; refresh.Classes.Add("secondary"); refresh.Bind(Button.CommandProperty, new Binding("LoadCommand"));
+        var search = new IconInput("Search", "Search database product, SKU, supplier, category, or barcode...");
+        search.Input.Bind(TextBox.TextProperty, new Binding("SearchText"));
+        var refresh = new ActionButton("Refresh", ActionButtonVariant.Secondary); refresh.Bind(Button.CommandProperty, new Binding("LoadCommand"));
         Grid.SetColumn(refresh, 1);
         var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 10, Children = { search, refresh } };
 
@@ -61,7 +61,7 @@ public class ProductCatalogView : UserControl
             {
                 new StackPanel { Children = { Text("Name", FontWeight.SemiBold), Text("Sku", resource: "MutedForeground") } },
                 At(new StackPanel { Children = { Text("SupplierName"), Text("Category", resource: "MutedForeground") } }, column: 1),
-                At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("ItemType"), Text("StockStatus", resource: "MutedForeground") } }, column: 2),
+                At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 4, Children = { Text("ItemType"), Badge("StockStatus") } }, column: 2),
                 At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("StockDisplay"), Text("ReorderActionDisplay", resource: "MutedForeground") } }, column: 3),
                 At(Text("PurchasePriceDisplay", FontWeight.SemiBold, vertical: true), column: 4),
                 At(Text("SellingPriceDisplay", FontWeight.SemiBold, vertical: true), column: 5),
@@ -94,6 +94,7 @@ public class ProductCatalogView : UserControl
     private static ColumnDefinitions CatalogColumns() => new("1.35*,1*,0.8*,1.05*,0.85*,0.8*,0.95*");
 
     private static Border Status() { var value = new Border { Padding = new Thickness(12, 8), CornerRadius = new CornerRadius(7), Child = Text("StatusMessage") }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }
+    private static StatusBadge Badge(string path) { var value = new StatusBadge(); value.Bind(StatusBadge.StatusProperty, new Binding(path)); return value; }
     private static TextBlock Muted(string text) { var value = new TextBlock { Text = text }; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
     private static TextBlock Text(string path, FontWeight? weight = null, string? resource = null, bool vertical = false) { var value = new TextBlock { FontWeight = weight ?? FontWeight.Normal, VerticalAlignment = vertical ? VerticalAlignment.Center : VerticalAlignment.Top }; value.Bind(TextBlock.TextProperty, new Binding(path)); if (resource is not null) value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension(resource)); return value; }
     private static T At<T>(T value, int row = 0, int column = 0) where T : Control { Grid.SetRow(value, row); Grid.SetColumn(value, column); return value; }

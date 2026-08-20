@@ -9,16 +9,13 @@ public class RadiologyView : UserControl
     public RadiologyView()
     {
         var actions = new DockPanel { Margin = new Thickness(0, 0, 0, 20) };
-        var button = ViewCode.Bind(new Button { Content = "New Order", Classes = { "primary" } },
+        var button = ViewCode.Bind(new ActionButton("New Order"),
             Button.CommandProperty, "NewOrderCommand");
         DockPanel.SetDock(button, Dock.Right);
         actions.Children.Add(button);
-        actions.Children.Add(ViewCode.Bind(new TextBox
-        {
-            PlaceholderText = "Search order, patient, or procedure...",
-            Margin = new Thickness(0, 0, 10, 0),
-            Classes = { "search" }
-        }, TextBox.TextProperty, "SearchText"));
+        var search = new IconInput("Search", "Search order, patient, or procedure...") { Margin = new Thickness(0, 0, 10, 0) };
+        ViewCode.Bind(search.Input, TextBox.TextProperty, "SearchText");
+        actions.Children.Add(search);
         Grid.SetRow(actions, 1);
 
         var table = ViewCode.Table("Pager.SourceItems", "radiology order", "radiology orders");

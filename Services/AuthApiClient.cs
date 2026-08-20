@@ -30,6 +30,8 @@ public sealed class ApiClientException(
 
 public sealed class AuthApiClient(HttpClient httpClient, AuthSession session)
 {
+    // Admin is the highest role currently defined by the backend.
+    public bool IsSuperAdmin => session.HasRole("SuperAdmin") || session.HasRole("Admin");
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
 

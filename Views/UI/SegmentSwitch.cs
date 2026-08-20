@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -39,8 +40,11 @@ public sealed class SegmentSwitch : Border
                 FontSize = 12,
                 Padding = new Thickness(8, 7),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
                 Cursor = new Cursor(StandardCursorType.Hand)
             };
+            AutomationProperties.SetAutomationId(button, $"Segment.{string.Concat(options[index].Where(char.IsLetterOrDigit))}");
+            AutomationProperties.SetName(button, options[index]);
             button.Click += (_, _) => Select(optionIndex);
             _buttons.Add(button);
             panel.Children.Add(button);

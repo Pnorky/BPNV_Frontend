@@ -56,27 +56,26 @@ public class AddProductView : UserControl
 
     private static Control ProductDetails()
     {
-        var itemType = new ComboBox();
-        itemType.Classes.Add("form-select");
-        Bind(itemType, ItemsControl.ItemsSourceProperty, "ItemTypes");
-        Bind(itemType, ComboBox.SelectedItemProperty, "ItemType");
+        var itemType = new SearchableSelect { PlaceholderText = "Select item type" };
+        Bind(itemType, SearchableSelect.ItemsSourceProperty, "ItemTypes");
+        Bind(itemType, SearchableSelect.SelectedItemProperty, "ItemType");
 
         var barcode = At(Field("PIECE BARCODE", InputBox("PieceBarcode", "Leading zeros are preserved")), column: 2);
         Grid.SetColumnSpan(barcode, 2);
 
         var primary = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.3*,0.8*,1*,1.2*"),
+            ColumnDefinitions = new ColumnDefinitions("1.2*,1.2*,1.2*,1.2*"),
             RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
             ColumnSpacing = 12,
             RowSpacing = 12,
             Children =
             {
                 Field("ITEM TYPE", itemType),
-                At(Field("SKU", InputBox("Sku", "Required")), column: 1),
+                At(SkuField(), column: 1),
                 barcode,
                 At(Field("PRODUCT NAME", InputBox("Name", "Required")), row: 1),
-                At(Field("CATEGORY", InputBox("Category", "Required")), column: 1, row: 1),
+                At(CategoryField(), column: 1, row: 1),
                 At(Field("BASE UNIT LABEL", InputBox("Unit", "piece")), column: 2, row: 1),
                 At(Field("PURCHASE PRICE / PIECE", Number("CostPrice", "0.00")), column: 3, row: 1),
                 At(Field("SELLING PRICE", Number("RegularPrice", "0.00")), row: 2),
@@ -111,6 +110,27 @@ public class AddProductView : UserControl
                 fields
             }
         };
+    }
+
+    private static Control SkuField()
+    {
+        var input = InputBox("Sku", "Auto-generated, editable");
+        var regenerate = Button("Regenerate", "GenerateSkuFromProductCommand");
+        var row = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 6,
+            Children = { input, At(regenerate, column: 1) }
+        };
+        return Field("SKU (AUTO-GENERATED)", row);
+    }
+
+    private static Control CategoryField()
+    {
+        var category = new SearchableSelect { PlaceholderText = "Select or type a category", AllowCustomValue = true };
+        Bind(category, SearchableSelect.ItemsSourceProperty, "Categories");
+        Bind(category, SearchableSelect.SelectedItemProperty, "Category");
+        return Field("CATEGORY", category);
     }
 
     private static Control PackageSection()
@@ -169,10 +189,13 @@ public class AddProductView : UserControl
 
     private static Control SupplierSection()
     {
-        var existingSupplier = new ComboBox { PlaceholderText = "Select an existing supplier" };
-        existingSupplier.Classes.Add("form-select");
-        Bind(existingSupplier, ItemsControl.ItemsSourceProperty, "Suppliers");
-        Bind(existingSupplier, ComboBox.SelectedItemProperty, "SelectedSupplier");
+        var existingSupplier = new SearchableSelect
+        {
+            PlaceholderText = "Select an existing supplier",
+            SearchTextSelector = item => item is SupplierResponse supplier ? $"{supplier.Name} {supplier.ContactPerson} {supplier.Phone}" : item.ToString() ?? ""
+        };
+        Bind(existingSupplier, SearchableSelect.ItemsSourceProperty, "Suppliers");
+        Bind(existingSupplier, SearchableSelect.SelectedItemProperty, "SelectedSupplier");
         existingSupplier.ItemTemplate = new FuncDataTemplate<SupplierResponse>((_, _) => BoundText("Name"), true);
 
         var grid = new Grid
@@ -216,8 +239,7 @@ public class AddProductView : UserControl
     private static NumberField Number(string path, string format, decimal minimum = 0) { var value = new NumberField { Minimum = minimum, FormatString = format, Increment = 1 }; Bind(value, NumberField.ValueProperty, path); return value; }
     private static Button Button(string text, string command, bool primary = false, Type? ancestor = null)
     {
-        var value = new Button { Content = text };
-        value.Classes.Add(primary ? "primary" : "secondary");
+        var value = new ActionButton(text, primary ? ActionButtonVariant.Primary : ActionButtonVariant.Secondary);
         value.Bind(Avalonia.Controls.Button.CommandProperty, ancestor is null ? new Binding(command) : new Binding(command) { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = ancestor } });
         return value;
     }

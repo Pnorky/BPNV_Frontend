@@ -10,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaApp.Services;
 using AvaloniaApp.ViewModels;
+using AvaloniaApp.Views.UI;
 
 namespace AvaloniaApp.Views;
 
@@ -47,10 +48,9 @@ public class SalesView : UserControl
     private static Control Header()
     {
         var title = new TextBlock { Text = "New sale" }; title.Classes.Add("h1");
-        var pricing = new ComboBox { MinWidth = 150 };
-        pricing.Classes.Add("form-select");
-        pricing.Bind(ItemsControl.ItemsSourceProperty, new Binding("CustomerTypes"));
-        pricing.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedCustomerType"));
+        var pricing = new SearchableSelect { MinWidth = 150, PlaceholderText = "Pricing type" };
+        pricing.Bind(SearchableSelect.ItemsSourceProperty, new Binding("CustomerTypes"));
+        pricing.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedCustomerType"));
         Grid.SetColumn(pricing, 1);
         return new Grid
         {
@@ -171,7 +171,7 @@ public class SalesView : UserControl
     private static TextBlock Heading(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("h2"); return value; }
     private static TextBlock StaticMuted(string value) { var text = new TextBlock { Text = value }; text.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return text; }
     private static TextBlock Text(string path, FontWeight? weight = null, string? resource = null, string? format = null) { var value = new TextBlock { FontWeight = weight ?? FontWeight.Normal }; value.Bind(TextBlock.TextProperty, new Binding(path) { StringFormat = format }); if (resource is not null) value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension(resource)); return value; }
-    private static Button Button(string text, string command, bool primary, bool ancestor = false) { var value = new Button { Content = text }; value.Classes.Add(primary ? "primary" : "secondary"); value.Bind(Avalonia.Controls.Button.CommandProperty, ancestor ? AncestorCommand(command) : new Binding(command)); return value; }
+    private static Button Button(string text, string command, bool primary, bool ancestor = false) { var value = new ActionButton(text, primary ? ActionButtonVariant.Primary : ActionButtonVariant.Secondary); value.Bind(Avalonia.Controls.Button.CommandProperty, ancestor ? AncestorCommand(command) : new Binding(command)); return value; }
     private static Binding AncestorCommand(string command) => new($"DataContext.{command}") { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(ListBox) } };
     private static T At<T>(T value, int column = 0, int row = 0) where T : Control { Grid.SetColumn(value, column); Grid.SetRow(value, row); return value; }
 }

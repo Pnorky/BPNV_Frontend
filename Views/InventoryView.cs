@@ -89,9 +89,13 @@ public class InventoryView : UserControl
         search.Classes.Add("search");
         Bind(search, TextBox.TextProperty, "SearchText");
 
-        var supplier = new ComboBox { PlaceholderText = "Filter by supplier" };
-        Bind(supplier, ComboBox.ItemsSourceProperty, "Suppliers");
-        Bind(supplier, ComboBox.SelectedItemProperty, "FilterSupplier");
+        var supplier = new SearchableSelect
+        {
+            PlaceholderText = "Filter by supplier",
+            SearchTextSelector = item => item is SupplierItem value ? $"{value.Name} {value.ContactPerson} {value.Phone}" : item.ToString() ?? ""
+        };
+        Bind(supplier, SearchableSelect.ItemsSourceProperty, "Suppliers");
+        Bind(supplier, SearchableSelect.SelectedItemProperty, "FilterSupplier");
         supplier.ItemTemplate = new FuncDataTemplate<SupplierItem>((_, _) => BoundText("Name"), true);
 
         var order = Button("Order summary", "ShowOrderSummaryCommand", true);
@@ -161,15 +165,13 @@ public class InventoryView : UserControl
             }
         };
 
-        var supplier = new AutoCompleteBox
+        var supplier = new SearchableSelect
         {
             PlaceholderText = "Search supplier...",
-            FilterMode = AutoCompleteFilterMode.Contains,
-            MinimumPrefixLength = 0,
-            ValueMemberBinding = new Binding("Name")
+            SearchTextSelector = item => item is SupplierItem value ? $"{value.Name} {value.Details}" : item.ToString() ?? ""
         };
-        Bind(supplier, AutoCompleteBox.ItemsSourceProperty, "Suppliers");
-        Bind(supplier, AutoCompleteBox.SelectedItemProperty, "NewProductSupplier");
+        Bind(supplier, SearchableSelect.ItemsSourceProperty, "Suppliers");
+        Bind(supplier, SearchableSelect.SelectedItemProperty, "NewProductSupplier");
         supplier.ItemTemplate = new FuncDataTemplate<SupplierItem>((_, _) =>
             new StackPanel
             {
@@ -177,9 +179,9 @@ public class InventoryView : UserControl
                 Children = { SemiBold("Name"), MutedText(path: "Details", fontSize: 10) }
             }, true);
 
-        var type = new ComboBox();
-        Bind(type, ComboBox.ItemsSourceProperty, "ItemTypes");
-        Bind(type, ComboBox.SelectedItemProperty, "NewProductType");
+        var type = new SearchableSelect { PlaceholderText = "Select item type" };
+        Bind(type, SearchableSelect.ItemsSourceProperty, "ItemTypes");
+        Bind(type, SearchableSelect.SelectedItemProperty, "NewProductType");
         var name = new TextBox { PlaceholderText = "Required" };
         Bind(name, TextBox.TextProperty, "NewProductName");
 
@@ -242,7 +244,7 @@ public class InventoryView : UserControl
                     At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Ellipsis("SupplierName"), Ellipsis("ItemTypeDisplay", muted: true, fontSize: 10) } }, column: 1),
                     At(Cell("ShelfStock", true), column: 2), At(Cell("BodegaStock"), column: 3),
                     At(Cell("TotalStock", true, true), column: 4), At(Cell("WarningReorderDisplay"), column: 5),
-                    At(MutedCell("StockStatus"), column: 6)
+                    At(Badge("StockStatus"), column: 6)
                 }
             };
             return RowBorder(row, new Thickness(16, 10));
@@ -300,15 +302,13 @@ public class InventoryView : UserControl
 
     private static Control BuildMovements()
     {
-        var product = new AutoCompleteBox
+        var product = new SearchableSelect
         {
             PlaceholderText = "Search name, SKU, or supplier...",
-            FilterMode = AutoCompleteFilterMode.Contains,
-            MinimumPrefixLength = 0,
-            ValueMemberBinding = new Binding("MovementSelectorText")
+            SearchTextSelector = item => item is ProductItem value ? value.MovementSelectorText : item.ToString() ?? ""
         };
-        Bind(product, AutoCompleteBox.ItemsSourceProperty, "Products");
-        Bind(product, AutoCompleteBox.SelectedItemProperty, "MovementProduct");
+        Bind(product, SearchableSelect.ItemsSourceProperty, "Products");
+        Bind(product, SearchableSelect.SelectedItemProperty, "MovementProduct");
         product.ItemTemplate = new FuncDataTemplate<ProductItem>((_, _) =>
         {
             var total = BoundText("TotalDisplay"); total.FontWeight = FontWeight.SemiBold; total.HorizontalAlignment = HorizontalAlignment.Right;
@@ -325,15 +325,12 @@ public class InventoryView : UserControl
             };
         }, true);
 
-        var movement = new AutoCompleteBox
+        var movement = new SearchableSelect
         {
-            PlaceholderText = "Search movement...",
-            FilterMode = AutoCompleteFilterMode.Contains,
-            MinimumPrefixLength = 0,
-            ValueMemberBinding = new Binding("Name")
+            PlaceholderText = "Search movement..."
         };
-        Bind(movement, AutoCompleteBox.ItemsSourceProperty, "MovementOptions");
-        Bind(movement, AutoCompleteBox.SelectedItemProperty, "SelectedMovement");
+        Bind(movement, SearchableSelect.ItemsSourceProperty, "MovementOptions");
+        Bind(movement, SearchableSelect.SelectedItemProperty, "SelectedMovement");
         var notes = BoundTextBox("MovementNotes", "Delivery receipt, reason, or note");
         var record = Button("Record movement", "ApplyMovementCommand", true);
         record.VerticalAlignment = VerticalAlignment.Bottom;
@@ -405,9 +402,8 @@ public class InventoryView : UserControl
 
     private static Button Button(string content, string command, bool primary = false)
     {
-        var button = new Button { Content = content };
+        var button = new ActionButton(content, primary ? ActionButtonVariant.Primary : ActionButtonVariant.Secondary);
         Bind(button, Avalonia.Controls.Button.CommandProperty, command);
-        if (primary) button.Classes.Add("primary");
         return button;
     }
 
@@ -453,6 +449,13 @@ public class InventoryView : UserControl
         var block = MutedText(path: path);
         block.VerticalAlignment = VerticalAlignment.Center;
         return block;
+    }
+
+    private static StatusBadge Badge(string path)
+    {
+        var badge = new StatusBadge();
+        Bind(badge, StatusBadge.StatusProperty, path);
+        return badge;
     }
 
     private static TextBlock Ellipsis(string path, bool semiBold = false, bool muted = false, double? fontSize = null, bool verticalCenter = false)

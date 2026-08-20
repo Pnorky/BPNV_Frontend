@@ -6,19 +6,46 @@ namespace AvaloniaApp.Services;
 
 public sealed class StoreApiClient(AuthApiClient authClient)
 {
+    public bool IsSuperAdmin => authClient.IsSuperAdmin;
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
     public Task<IReadOnlyList<SupplierResponse>> GetSuppliersAsync(
         string? search = null,
+        bool includeInactive = false,
         CancellationToken cancellationToken = default) =>
         SendAsync<IReadOnlyList<SupplierResponse>>(
-            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/suppliers", ("search", search))),
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/suppliers", ("search", search), ("includeInactive", includeInactive ? "true" : null))),
             cancellationToken);
 
     public Task<SupplierResponse> CreateSupplierAsync(
         CreateSupplierRequest request,
         CancellationToken cancellationToken = default) =>
         SendJsonAsync<SupplierResponse, CreateSupplierRequest>(HttpMethod.Post, "api/suppliers", request, cancellationToken);
+
+    public Task<SupplierResponse> UpdateSupplierAsync(Guid id, UpdateSupplierRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<SupplierResponse, UpdateSupplierRequest>(HttpMethod.Put, $"api/suppliers/{id}", request, cancellationToken);
+
+    public async Task DeactivateSupplierAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        using var response = await authClient.SendAuthorizedAsync(
+            () => new HttpRequestMessage(HttpMethod.Delete, $"api/suppliers/{id}"), cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var problem = await ReadProblemAsync(response, cancellationToken);
+            throw new ApiClientException(response.StatusCode, ProblemMessage(problem, response), problem);
+        }
+    }
+
+    public async Task ReactivateSupplierAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        using var response = await authClient.SendAuthorizedAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, $"api/suppliers/{id}/reactivate"), cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var problem = await ReadProblemAsync(response, cancellationToken);
+            throw new ApiClientException(response.StatusCode, ProblemMessage(problem, response), problem);
+        }
+    }
 
     public Task<ProductResponse> CreateProductAsync(
         CreateProductRequest request,
@@ -76,10 +103,38 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         CancellationToken cancellationToken = default) =>
         SendJsonAsync<StockReceiptResponse, ReceiveStockRequest>(HttpMethod.Post, "api/stock-receipts", request, cancellationToken);
 
+    public Task<StockTransferResponse> TransferToDisplayAsync(
+        TransferStockRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<StockTransferResponse, TransferStockRequest>(HttpMethod.Post, "api/stock-transfers", request, cancellationToken);
+
     public Task<SaleResponse> CreateSaleAsync(
         CreateSaleRequest request,
         CancellationToken cancellationToken = default) =>
         SendJsonAsync<SaleResponse, CreateSaleRequest>(HttpMethod.Post, "api/sales", request, cancellationToken);
+
+    public Task<InventoryImportValidationResult> ValidateInventoryImportAsync(
+        InventoryImportRequest request,
+        CancellationToken cancellationToken = default) =>
+        SendJsonAsync<InventoryImportValidationResult, InventoryImportRequest>(
+            HttpMethod.Post, "api/inventory-imports/validate", request, cancellationToken);
+
+    public async Task<InventoryImportCommitResult> ImportInventoryAsync(
+        InventoryImportRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await authClient.SendAuthorizedAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, "api/inventory-imports")
+            {
+                Content = JsonContent.Create(request, options: JsonOptions)
+            },
+            cancellationToken);
+        if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            return await response.Content.ReadFromJsonAsync<InventoryImportCommitResult>(JsonOptions, cancellationToken)
+                ?? throw new ApiClientException(response.StatusCode, "The API returned an empty response.");
+
+        var problem = await ReadProblemAsync(response, cancellationToken);
+        throw new ApiClientException(response.StatusCode, ProblemMessage(problem, response), problem);
+    }
 
     private Task<TResponse> SendJsonAsync<TResponse, TRequest>(
         HttpMethod method,

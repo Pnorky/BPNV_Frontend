@@ -9,16 +9,13 @@ public class BillingView : UserControl
     public BillingView()
     {
         var actions = new DockPanel { Margin = new Thickness(0, 0, 0, 20) };
-        var button = ViewCode.Bind(new Button { Content = "New Invoice", Classes = { "primary" } },
+        var button = ViewCode.Bind(new ActionButton("New Invoice"),
             Button.CommandProperty, "NewInvoiceCommand");
         DockPanel.SetDock(button, Dock.Right);
         actions.Children.Add(button);
-        actions.Children.Add(ViewCode.Bind(new TextBox
-        {
-            PlaceholderText = "Search invoice or patient...",
-            Margin = new Thickness(0, 0, 10, 0),
-            Classes = { "search" }
-        }, TextBox.TextProperty, "SearchText"));
+        var search = new IconInput("Search", "Search invoice or patient...") { Margin = new Thickness(0, 0, 10, 0) };
+        ViewCode.Bind(search.Input, TextBox.TextProperty, "SearchText");
+        actions.Children.Add(search);
         Grid.SetRow(actions, 1);
 
         var table = ViewCode.Table("FilteredInvoices", "invoice", "invoices");

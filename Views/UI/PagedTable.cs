@@ -63,7 +63,7 @@ public class PagedTable : UserControl
     private readonly StackPanel RowsPanel;
     private readonly Border StatePanel;
     private readonly TextBlock StateIcon;
-    private readonly ProgressBar LoadingIndicator;
+    private readonly SkeletonBox LoadingIndicator;
     private readonly TextBlock StateTitle;
     private readonly TextBlock StateMessage;
     private readonly Button StateActionButton;
@@ -106,11 +106,10 @@ public class PagedTable : UserControl
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        LoadingIndicator = new ProgressBar
+        LoadingIndicator = new SkeletonBox
         {
             Width = 30,
             Height = 4,
-            IsIndeterminate = true,
             IsVisible = false,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center

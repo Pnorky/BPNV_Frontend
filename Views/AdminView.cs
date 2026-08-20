@@ -6,7 +6,6 @@ using Avalonia.Data;
 using Avalonia.Data.Converters;
 using Avalonia.Layout;
 using Avalonia.Media;
-using AvaloniaApp.Converters;
 using AvaloniaApp.ViewModels;
 using AvaloniaApp.Views.UI;
 
@@ -101,9 +100,6 @@ public class AdminView : UserControl
 
 internal static class ViewCode
 {
-    private static readonly IValueConverter StatusColor = new StatusToColorConverter();
-    private static readonly IValueConverter StatusForeground = new StatusToForegroundConverter();
-
     internal static T Bind<T>(T target, AvaloniaProperty property, string path, RelativeSource? relativeSource = null,
         BindingMode mode = BindingMode.Default) where T : AvaloniaObject
     {
@@ -161,21 +157,6 @@ internal static class ViewCode
 
     private static Control StatusBadge(string path)
     {
-        var text = Bind(new TextBlock
-        {
-            FontSize = 11,
-            FontWeight = FontWeight.SemiBold,
-            TextAlignment = TextAlignment.Center
-        }, TextBlock.TextProperty, path);
-        Bind(text, TextBlock.ForegroundProperty, path, StatusForeground);
-        var border = new Border
-        {
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(10, 4),
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = text
-        };
-        Bind(border, Border.BackgroundProperty, path, StatusColor);
-        return border;
+        return Bind(new AvaloniaApp.Views.UI.StatusBadge(), AvaloniaApp.Views.UI.StatusBadge.StatusProperty, path);
     }
 }

@@ -104,6 +104,50 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
+    public async Task InventoryImportEndpointsSerializeContractAndEnumAsString()
+    {
+        var paths = new List<string>();
+        var bodies = new List<string>();
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            paths.Add(request.RequestUri.AbsolutePath);
+            bodies.Add(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+            if (request.RequestUri.AbsolutePath.EndsWith("/validate"))
+                return Json(new InventoryImportValidationResult(true, [], new InventoryImportSummary(1, 1, 1, 0, 2, 3, 0)));
+            return new HttpResponseMessage(HttpStatusCode.Conflict)
+            {
+                Content = JsonContent.Create(new InventoryImportCommitResult(false, Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    new InventoryImportValidationResult(false,
+                        [new InventoryImportIssue(7, "sku", "existingSku", "SKU already exists.")],
+                        new InventoryImportSummary(1, 0, 1, 0, 2, 3, 1))))
+            };
+        });
+        await auth.LoginAsync("inventory", "password");
+        var client = new StoreApiClient(auth);
+        var importKey = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var request = new InventoryImportRequest(
+            importKey,
+            "legacy.xlsx",
+            "abc123",
+            [new InventoryImportSupplierRequest("supplier-a", "Supplier A", true, null, null)],
+            [new InventoryImportProductRequest(
+                7, "supplier-a", ApiInventoryItemType.Consumable, "SKU-1", "0001", "Product", "Category", "piece",
+                1, 2, 1.5m, 0, 4, 3, 2, 2, 3, [])]);
+
+        var validation = await client.ValidateInventoryImportAsync(request);
+        var result = await client.ImportInventoryAsync(request);
+
+        Assert.IsTrue(validation.IsValid);
+        Assert.IsFalse(result.Committed);
+        Assert.AreEqual("existingSku", result.Validation.Issues.Single().Code);
+        CollectionAssert.AreEqual(new[] { "/api/inventory-imports/validate", "/api/inventory-imports" }, paths);
+        Assert.IsTrue(bodies.All(body => body.Contains("\"itemType\":\"Consumable\"")));
+        Assert.IsTrue(bodies.All(body => body.Contains("\"pieceBarcode\":\"0001\"")));
+        Assert.IsTrue(bodies.All(body => body.Contains("\"importKey\":\"11111111-1111-1111-1111-111111111111\"")));
+    }
+
+    [TestMethod]
     public async Task PosScannerUsesSelectedPackageAndEnforcesBasePieceDisplayLimit()
     {
         var productId = Guid.NewGuid();

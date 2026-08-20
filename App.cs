@@ -35,7 +35,8 @@ public class App : Application
         ThemeConverter.ApplyCssAsset(this, new Uri("avares://AvaloniaApp/Assets/index.css"));
         ConfigureDataTemplates();
         ConfigureStyles();
-        Store = new StoreState();
+        // Start new local stores empty; existing persisted data is still loaded unchanged.
+        Store = new StoreState(seedPrototypeData: false);
         AuthSession = new AuthSession();
         AuthClient = new AuthApiClient(new HttpClient
         {
@@ -121,6 +122,9 @@ public class App : Application
         DataTemplates.Add(new FuncDataTemplate<ProductCatalogViewModel>((_, _) => new ProductCatalogView(), true));
         DataTemplates.Add(new FuncDataTemplate<AddProductViewModel>((_, _) => new AddProductView(), true));
         DataTemplates.Add(new FuncDataTemplate<StockReceivingViewModel>((_, _) => new StockReceivingView(), true));
+        DataTemplates.Add(new FuncDataTemplate<ExcelInventoryImportViewModel>((_, _) => new ExcelInventoryImportView(), true));
+        DataTemplates.Add(new FuncDataTemplate<SuppliersViewModel>((_, _) => new SuppliersView(), true));
+        DataTemplates.Add(new FuncDataTemplate<ApiStockMovementsViewModel>((_, _) => new ApiStockMovementsView(), true));
         DataTemplates.Add(new FuncDataTemplate<ReportsViewModel>((_, _) => new ReportsView(), true));
     }
 

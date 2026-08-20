@@ -37,6 +37,7 @@ public partial class DashboardViewModel : ObservableObject
 
     public ObservableCollection<NavItem> NavItems { get; } = [];
     public string UserDisplayName => _session.User?.DisplayName ?? _session.User?.Username ?? "Store User";
+    public string UserInitials => string.Concat(UserDisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => char.ToUpperInvariant(part[0])));
     public string RoleDisplay => _session.User is { Roles.Count: > 0 } user
         ? string.Join(" / ", user.Roles)
         : "No assigned role";
@@ -72,8 +73,9 @@ public partial class DashboardViewModel : ObservableObject
             "InventoryProducts" => new ProductCatalogViewModel(_storeClient),
             "InventoryAddProduct" => new AddProductViewModel(_storeClient),
             "InventoryReceiveStock" => new StockReceivingViewModel(_storeClient),
-            "InventorySuppliers" => new InventoryViewModel(_store, 1),
-            "InventoryMovements" => new InventoryViewModel(_store, 2),
+            "InventoryImport" => new ExcelInventoryImportViewModel(_storeClient),
+            "InventorySuppliers" => new SuppliersViewModel(_storeClient),
+            "InventoryMovements" => new ApiStockMovementsViewModel(_storeClient),
             "Reports" => new ReportsViewModel(_store),
             _ => new DashboardPageViewModel(_store)
         };
@@ -168,7 +170,7 @@ public partial class DashboardViewModel : ObservableObject
         "Dashboard" => _session.IsAuthenticated,
         "Sales" => _session.HasRole("Admin") || _session.HasRole("Cashier"),
         "InventoryProducts" or "InventoryAddProduct" or "InventoryReceiveStock" or
-        "InventorySuppliers" or "InventoryMovements" or "Reports" =>
+        "InventoryImport" or "InventorySuppliers" or "InventoryMovements" or "Reports" =>
             _session.HasRole("Admin") || _session.HasRole("Inventory"),
         _ => false
     };

@@ -69,6 +69,7 @@ public sealed record SupplierResponse(
     bool IsActive)
 {
     public string Details => string.Join(" · ", new[] { ContactPerson, Phone }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    public string Status => IsActive ? "Active" : "Inactive";
     public override string ToString() => Name;
 }
 
@@ -90,6 +91,7 @@ public sealed record PosProductResponse(
 }
 
 public sealed record CreateSupplierRequest(string Name, string? ContactPerson, string? Phone);
+public sealed record UpdateSupplierRequest(string Name, string? ContactPerson, string? Phone);
 
 public sealed record CreateProductUnitRequest(
     string Barcode,
@@ -116,9 +118,73 @@ public sealed record CreateProductRequest(
     int WarningOrderQuantity,
     IReadOnlyList<CreateProductUnitRequest>? Packages);
 
+public sealed record InventoryImportSupplierRequest(
+    string Key,
+    string Name,
+    bool CreateIfMissing,
+    string? ContactPerson,
+    string? Phone);
+
+public sealed record InventoryImportPackageRequest(
+    string? Barcode,
+    string Label,
+    int PiecesPerUnit,
+    decimal RegularPrice,
+    decimal EmployeePrice,
+    bool IsActive = true);
+
+public sealed record InventoryImportProductRequest(
+    int SourceRow,
+    string SupplierKey,
+    ApiInventoryItemType ItemType,
+    string Sku,
+    string? PieceBarcode,
+    string Name,
+    string Category,
+    string Unit,
+    decimal CostPrice,
+    decimal RegularPrice,
+    decimal EmployeePrice,
+    int CriticalReorderLevel,
+    int CriticalOrderQuantity,
+    int WarningReorderLevel,
+    int WarningOrderQuantity,
+    int OpeningDisplayStock,
+    int OpeningBodegaStock,
+    IReadOnlyList<InventoryImportPackageRequest>? Packages);
+
+public sealed record InventoryImportRequest(
+    Guid ImportKey,
+    string SourceFileName,
+    string SourceHash,
+    IReadOnlyList<InventoryImportSupplierRequest>? Suppliers,
+    IReadOnlyList<InventoryImportProductRequest>? Products);
+
+public sealed record InventoryImportIssue(int? SourceRow, string Field, string Code, string Message);
+
+public sealed record InventoryImportSummary(
+    int SupplierCount,
+    int SuppliersToCreate,
+    int ProductCount,
+    int PackageCount,
+    long OpeningDisplayQuantity,
+    long OpeningBodegaQuantity,
+    int ErrorCount);
+
+public sealed record InventoryImportValidationResult(
+    bool IsValid,
+    IReadOnlyList<InventoryImportIssue> Issues,
+    InventoryImportSummary Summary);
+
+public sealed record InventoryImportCommitResult(
+    bool Committed,
+    Guid ImportKey,
+    InventoryImportValidationResult Validation);
+
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
 
 public sealed record ReceiveStockRequest(Guid ProductId, Guid UnitId, int Count, string? Reference, string? Notes);
+public sealed record TransferStockRequest(Guid ProductId, int Quantity, string? Reference, string? Notes);
 
 public sealed record StockReceiptResponse(
     Guid MovementId,
@@ -132,6 +198,7 @@ public sealed record StockReceiptResponse(
     int BodegaStock,
     ulong ProductVersion,
     DateTime OccurredAtUtc);
+public sealed record StockTransferResponse(Guid MovementId, Guid ProductId, int Quantity, int DisplayStock, int BodegaStock, ulong ProductVersion, DateTime OccurredAtUtc);
 
 public sealed record CreateSaleLineRequest(Guid UnitId, int Count);
 

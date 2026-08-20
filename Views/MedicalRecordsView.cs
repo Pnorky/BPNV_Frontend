@@ -9,16 +9,13 @@ public class MedicalRecordsView : UserControl
     public MedicalRecordsView()
     {
         var actions = new DockPanel { Margin = new Thickness(0, 0, 0, 20) };
-        var button = ViewCode.Bind(new Button { Content = "New Record Request", Classes = { "primary" } },
+        var button = ViewCode.Bind(new ActionButton("New Record Request"),
             Button.CommandProperty, "NewRecordRequestCommand");
         DockPanel.SetDock(button, Dock.Right);
         actions.Children.Add(button);
-        actions.Children.Add(ViewCode.Bind(new TextBox
-        {
-            PlaceholderText = "Search MRN or patient name...",
-            Margin = new Thickness(0, 0, 10, 0),
-            Classes = { "search" }
-        }, TextBox.TextProperty, "SearchText"));
+        var search = new IconInput("Search", "Search MRN or patient name...") { Margin = new Thickness(0, 0, 10, 0) };
+        ViewCode.Bind(search.Input, TextBox.TextProperty, "SearchText");
+        actions.Children.Add(search);
         Grid.SetRow(actions, 1);
 
         var table = ViewCode.Table("Pager.SourceItems", "record request", "medical records");

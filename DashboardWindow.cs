@@ -3,7 +3,6 @@ using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
-using Avalonia.Controls.Shapes;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Input;
@@ -15,6 +14,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using AvaloniaApp.Converters;
 using AvaloniaApp.ViewModels;
+using AvaloniaApp.Views.UI;
 using Lucide.Avalonia;
 
 namespace AvaloniaApp.Views;
@@ -28,10 +28,10 @@ public class DashboardWindow : Window
     private readonly StackPanel _brandPanel;
     private readonly TextBlock _brandSubtitle;
     private readonly Button _toggleButton;
-    private readonly LucideIcon _toggleIcon;
+    private readonly AnimatedMenuIcon _toggleIcon;
     private readonly Border _userFooter;
     private readonly DockPanel _userFooterContent;
-    private readonly Grid _userAvatar;
+    private readonly Avatar _userAvatar;
     private readonly StackPanel _userPanel;
     private readonly ListBox _navList;
     private readonly ContentControl _mainContent;
@@ -77,7 +77,8 @@ public class DashboardWindow : Window
             Children = { brandTitle, _brandSubtitle }
         };
 
-        _toggleIcon = new LucideIcon { Kind = LucideIconKind.PanelLeftClose, Width = 20, Height = 20 };
+        _toggleIcon = new AnimatedMenuIcon { Width = 20, Height = 20 };
+        _toggleIcon.BindResource(AnimatedMenuIcon.ForegroundProperty, "SidebarForeground");
         _toggleButton = new Button
         {
             Margin = new Thickness(4, 0, 0, 0),
@@ -92,25 +93,24 @@ public class DashboardWindow : Window
         header.BindResource(BackgroundProperty, "SidebarHeader");
         DockPanel.SetDock(header, Dock.Top);
 
-        var avatarBackground = new Ellipse();
-        avatarBackground.BindResource(Shape.FillProperty, "Primary");
-        _userAvatar = new Grid
-        {
-            Width = 32,
-            Height = 32,
-            Children =
-            {
-                avatarBackground,
-                new LucideIcon { Kind = LucideIconKind.User, Foreground = Brushes.White }
-            }
-        };
+        _userAvatar = new Avatar { AvatarSize = 32 };
+        _userAvatar.Bind(Avatar.FallbackProperty, new Binding(nameof(DashboardViewModel.UserInitials)));
         var staff = new TextBlock { FontSize = 13, FontWeight = FontWeight.SemiBold };
         staff.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.UserDisplayName)));
         staff.BindResource(TextBlock.ForegroundProperty, "SidebarForeground");
         var access = new TextBlock { FontSize = 11 };
         access.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.RoleDisplay)));
         access.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
-        var themeButton = CreateFooterButton("Theme", nameof(DashboardViewModel.ToggleThemeCommand));
+        var themeSwitch = new ShadcnSwitch();
+        themeSwitch.Bind(ToggleButton.IsCheckedProperty, new Binding(nameof(DashboardViewModel.IsDarkTheme)) { Mode = BindingMode.OneWay });
+        themeSwitch.Bind(Button.CommandProperty, new Binding(nameof(DashboardViewModel.ToggleThemeCommand)));
+        var themeControl = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { new TextBlock { Text = "Theme", FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, themeSwitch }
+        };
         var logoutButton = CreateFooterButton("Logout", nameof(DashboardViewModel.LogoutCommand));
         _userPanel = new StackPanel
         {
@@ -119,7 +119,7 @@ public class DashboardWindow : Window
             Children =
             {
                 staff, access,
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { themeButton, logoutButton } }
+                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { themeControl, logoutButton } }
             }
         };
         _userFooterContent = new DockPanel { Children = { _userAvatar, _userPanel } };
@@ -238,6 +238,7 @@ public class DashboardWindow : Window
                     CreateInventoryFlyoutItem("Products", "InventoryProducts", LucideIconKind.Package),
                     CreateInventoryFlyoutItem("Add Product", "InventoryAddProduct", LucideIconKind.Package),
                     CreateInventoryFlyoutItem("Receive Stock", "InventoryReceiveStock", LucideIconKind.Boxes),
+                    CreateInventoryFlyoutItem("Import Excel", "InventoryImport", LucideIconKind.FileSpreadsheet),
                     CreateInventoryFlyoutItem("Suppliers", "InventorySuppliers", LucideIconKind.Truck),
                     CreateInventoryFlyoutItem("Stock Movements", "InventoryMovements", LucideIconKind.ArrowLeftRight)
                 }
@@ -374,7 +375,7 @@ public class DashboardWindow : Window
         if (collapsed)
         {
             _sidebarBorder.Width = 55;
-            _toggleIcon.Kind = LucideIconKind.PanelLeftOpen;
+            _toggleIcon.IsOpen = true;
             _brandPanel.IsVisible = false;
             _userPanel.IsVisible = false;
         }
@@ -382,7 +383,7 @@ public class DashboardWindow : Window
         {
             _inventoryFlyout.Hide();
             _sidebarBorder.Width = 230;
-            _toggleIcon.Kind = LucideIconKind.PanelLeftClose;
+            _toggleIcon.IsOpen = false;
             _brandPanel.IsVisible = true;
             _userPanel.IsVisible = true;
         }

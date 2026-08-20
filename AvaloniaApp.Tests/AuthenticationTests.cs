@@ -105,7 +105,7 @@ public sealed class AuthenticationTests
 
     [TestMethod]
     [DataRow("Cashier", "Dashboard,Sales")]
-    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventorySuppliers,InventoryMovements,Reports")]
+    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryImport,InventorySuppliers,InventoryMovements,Reports")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));
@@ -124,6 +124,7 @@ public sealed class AuthenticationTests
         {
             viewModel.SelectNavItem(item);
             Assert.IsNotNull(viewModel.CurrentPage, $"Navigation did not create a page for {item.Tag}.");
+            if (item.Tag == "InventorySuppliers") Assert.IsInstanceOfType<SuppliersViewModel>(viewModel.CurrentPage);
         }
     }
 

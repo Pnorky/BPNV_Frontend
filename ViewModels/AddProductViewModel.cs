@@ -49,6 +49,8 @@ public partial class ProductPackageDraft : ObservableObject
 public partial class AddProductViewModel : ObservableObject
 {
     private readonly StoreApiClient _api;
+    private bool _updatingSku;
+    private bool _skuWasEdited;
 
     [ObservableProperty] private SupplierResponse? _selectedSupplier;
     [ObservableProperty] private ApiInventoryItemType _itemType = ApiInventoryItemType.Merchandise;
@@ -73,6 +75,11 @@ public partial class AddProductViewModel : ObservableObject
     public ObservableCollection<SupplierResponse> Suppliers { get; } = [];
     public ObservableCollection<ProductPackageDraft> Packages { get; } = [];
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
+    public IReadOnlyList<string> Categories { get; } =
+    [
+        "Beverages", "Snacks", "Grocery", "Personal Care", "Household",
+        "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
+    ];
 
     public AddProductViewModel(StoreApiClient api)
     {
@@ -110,6 +117,49 @@ public partial class AddProductViewModel : ObservableObject
 
     partial void OnRegularPriceChanged(decimal value) => UpdatePackageSuggestions();
     partial void OnEmployeePriceChanged(decimal value) => UpdatePackageSuggestions();
+
+    partial void OnNameChanged(string value)
+    {
+        if (!_skuWasEdited) GenerateSku();
+    }
+
+    partial void OnPieceBarcodeChanged(string value)
+    {
+        if (!_skuWasEdited) GenerateSku();
+    }
+
+    partial void OnItemTypeChanged(ApiInventoryItemType value)
+    {
+        if (!_skuWasEdited) GenerateSku();
+    }
+
+    partial void OnSkuChanged(string value)
+    {
+        if (!_updatingSku && !string.IsNullOrWhiteSpace(value)) _skuWasEdited = true;
+    }
+
+    [RelayCommand]
+    private void GenerateSkuFromProduct() => GenerateSku(force: true);
+
+    private void GenerateSku(bool force = false)
+    {
+        if (!force && _skuWasEdited) return;
+        var words = new string(Name.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        var prefix = ItemType switch
+        {
+            ApiInventoryItemType.Consumable => "CON",
+            ApiInventoryItemType.Supply => "SUP",
+            _ => "MER"
+        };
+        var productCode = string.IsNullOrWhiteSpace(words) ? "ITEM" : words[..Math.Min(words.Length, 6)];
+        var barcode = new string(PieceBarcode.Where(char.IsLetterOrDigit).ToArray());
+        var barcodeCode = string.IsNullOrWhiteSpace(barcode)
+            ? "BARCODE"
+            : barcode[Math.Max(0, barcode.Length - 6)..];
+        _updatingSku = true;
+        Sku = $"{prefix}-{productCode}-{barcodeCode}";
+        _updatingSku = false;
+    }
 
     [RelayCommand]
     private void AddPackage() => Packages.Add(new ProductPackageDraft(RegularPrice, EmployeePrice));

@@ -10,16 +10,13 @@ public class PharmacyView : UserControl
     {
         Name = "Root";
         var actions = new DockPanel { Margin = new Thickness(0, 0, 0, 20) };
-        var button = ViewCode.Bind(new Button { Content = "+ Add Medicine", Classes = { "primary" } },
+        var button = ViewCode.Bind(new ActionButton("Add Medicine"),
             Button.CommandProperty, "AddMedicineCommand");
         DockPanel.SetDock(button, Dock.Right);
         actions.Children.Add(button);
-        actions.Children.Add(ViewCode.Bind(new TextBox
-        {
-            PlaceholderText = "Search medicine by name, code, or category...",
-            Margin = new Thickness(0, 0, 10, 0),
-            Classes = { "search" }
-        }, TextBox.TextProperty, "SearchText"));
+        var search = new IconInput("Search", "Search medicine by name, code, or category...") { Margin = new Thickness(0, 0, 10, 0) };
+        ViewCode.Bind(search.Input, TextBox.TextProperty, "SearchText");
+        actions.Children.Add(search);
         Grid.SetRow(actions, 1);
 
         var table = ViewCode.Table("Pager.SourceItems", "medicine", "medicines");

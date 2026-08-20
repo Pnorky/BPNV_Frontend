@@ -12,9 +12,6 @@ public sealed class IconInput : Grid
 
     public IconInput(string kind, string? placeholder = null)
     {
-        ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-
         _icon = new HomisIcon
         {
             Kind = kind,
@@ -36,9 +33,8 @@ public sealed class IconInput : Grid
         };
         _input.Classes.Add("form-input");
 
-        Children.Add(_icon);
         Children.Add(_input);
-        Grid.SetColumn(_input, 1);
+        Children.Add(_icon);
     }
 
     public string Kind

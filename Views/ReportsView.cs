@@ -6,6 +6,7 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using AvaloniaApp.Views.UI;
 using Lucide.Avalonia;
 
 namespace AvaloniaApp.Views;
@@ -159,7 +160,7 @@ public class ReportsView : UserControl
                 new StackPanel { Children = { SemiBold("Name"), Muted(path: "Sku", fontSize: 10) } },
                 At(Ellipsis("SupplierName", verticalCenter: true), column: 1), At(Cell("ItemTypeDisplay"), column: 2),
                 At(Cell("ShelfStock"), column: 3), At(Cell("BodegaStock"), column: 4),
-                At(Cell("TotalStock", true), column: 5), At(Cell("StockStatus"), column: 6)
+                At(Cell("TotalStock", true), column: 5), At(Badge("StockStatus"), column: 6)
             }
         }, new Thickness(16, 10)), true);
 
@@ -311,6 +312,13 @@ public class ReportsView : UserControl
         var block = BoundText(path); block.VerticalAlignment = VerticalAlignment.Center; block.TextAlignment = alignment;
         if (bold) block.FontWeight = FontWeight.Bold;
         return block;
+    }
+
+    private static StatusBadge Badge(string path)
+    {
+        var badge = new StatusBadge();
+        Bind(badge, StatusBadge.StatusProperty, path);
+        return badge;
     }
 
     private static Border RowBorder(Control child, Thickness padding, Thickness? thickness = null) =>

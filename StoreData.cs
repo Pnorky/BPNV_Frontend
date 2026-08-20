@@ -258,6 +258,35 @@ public sealed class StoreState
         }
         else if (migratedPrototypeData)
             Commit();
+
+        if (!seedPrototypeData && RemovePrototypeData())
+            Commit();
+    }
+
+    private bool RemovePrototypeData()
+    {
+        var prototypeSuppliers = Suppliers
+            .Where(supplier => supplier.ContactPerson.Equals("Sample supplier", StringComparison.OrdinalIgnoreCase))
+            .Select(supplier => supplier.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var prototypeProducts = Products
+            .Where(product => prototypeSuppliers.Contains(product.SupplierName) || product.Sku.StartsWith("SHP-", StringComparison.OrdinalIgnoreCase) && prototypeSuppliers.Contains(product.SupplierName) ||
+                              product.Sku.StartsWith("DD-", StringComparison.OrdinalIgnoreCase) && prototypeSuppliers.Contains(product.SupplierName) ||
+                              product.Sku.StartsWith("MGB-", StringComparison.OrdinalIgnoreCase) && prototypeSuppliers.Contains(product.SupplierName) ||
+                              product.Sku.StartsWith("LUB-", StringComparison.OrdinalIgnoreCase) && prototypeSuppliers.Contains(product.SupplierName) ||
+                              product.Sku.StartsWith("SUP-", StringComparison.OrdinalIgnoreCase) && prototypeSuppliers.Contains(product.SupplierName))
+            .ToArray();
+        if (prototypeProducts.Length == 0 && !Movements.Any(movement => movement.Notes.Contains("Prototype", StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        var productIds = prototypeProducts.Select(product => product.Id).ToHashSet();
+        foreach (var movement in Movements.Where(movement => productIds.Contains(movement.ProductId) || movement.Notes.Contains("Prototype", StringComparison.OrdinalIgnoreCase)).ToArray())
+            Movements.Remove(movement);
+        foreach (var sale in Sales.Where(sale => sale.Lines.Any(line => productIds.Contains(line.ProductId) || line.Sku.StartsWith("SHP-", StringComparison.OrdinalIgnoreCase))).ToArray())
+            Sales.Remove(sale);
+        foreach (var product in prototypeProducts) Products.Remove(product);
+        foreach (var supplier in Suppliers.Where(supplier => prototypeSuppliers.Contains(supplier.Name)).ToArray()) Suppliers.Remove(supplier);
+        return true;
     }
 
     public bool AddSupplier(string name, string contactPerson, string phone, out string message)

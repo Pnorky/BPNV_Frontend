@@ -4,7 +4,7 @@ Avalonia desktop prototype for sales and inventory management at **BPNV Convenie
 
 ## Resume Context
 
-This project originally referenced the store's Excel inventory workbook, but it does **not import Excel files**. The workbook was used only to understand the business process. Staff enter suppliers, products, opening balances, and later stock movements directly in the application.
+The Inventory > Import Excel workflow accepts the supported legacy workbook or the BPNV standard template. It provides section mappings and bulk defaults, performs local and backend validation, and imports suppliers, products, packages, and opening balances only after confirmation.
 
 The system deliberately keeps two inventory locations:
 
@@ -43,8 +43,9 @@ Inventory has sidebar children:
 - Products
 - Suppliers
 - Stock Movements
+- Import Excel
 
-When the sidebar is collapsed, child icons are hidden. Hovering the Inventory icon opens a compact flyout with the three destinations. The selected Inventory subsection is restored when the sidebar expands.
+When the sidebar is collapsed, child icons are hidden. Selecting the Inventory icon opens a compact flyout with its destinations. The selected Inventory subsection is restored when the sidebar expands.
 
 ## Product Entry
 
