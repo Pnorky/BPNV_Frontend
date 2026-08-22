@@ -6,7 +6,7 @@ namespace AvaloniaApp.Views.UI;
 public sealed class SelectInput : StackPanel
 {
     private readonly TextBlock _label;
-    private readonly ComboBox _combo;
+    private readonly SelectDropdown _dropdown;
 
     public SelectInput(string label, IEnumerable<string>? options = null)
     {
@@ -16,17 +16,16 @@ public sealed class SelectInput : StackPanel
         _label = new TextBlock { Text = label.ToUpperInvariant() };
         _label.Classes.Add("form-label");
 
-        _combo = new ComboBox
+        _dropdown = new SelectDropdown
         {
             MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        _combo.Classes.Add("form-select");
         if (options is not null)
-            _combo.ItemsSource = options;
+            _dropdown.ItemsSource = options;
 
         Children.Add(_label);
-        Children.Add(_combo);
+        Children.Add(_dropdown);
     }
 
     public string? Label
@@ -37,15 +36,15 @@ public sealed class SelectInput : StackPanel
 
     public IEnumerable<string>? Options
     {
-        get => _combo.ItemsSource?.Cast<string>();
-        set => _combo.ItemsSource = value;
+        get => _dropdown.ItemsSource?.Cast<string>();
+        set => _dropdown.ItemsSource = value;
     }
 
     public object? SelectedItem
     {
-        get => _combo.SelectedItem;
-        set => _combo.SelectedItem = value;
+        get => _dropdown.SelectedItem;
+        set => _dropdown.SelectedItem = value;
     }
 
-    public ComboBox Combo => _combo;
+    public SelectDropdown Dropdown => _dropdown;
 }

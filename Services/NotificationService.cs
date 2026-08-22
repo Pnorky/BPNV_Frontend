@@ -1,26 +1,30 @@
+using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
+
 namespace AvaloniaApp.Services;
 
-public class NotificationService
+public interface INotificationService
 {
-    public event Action<NotificationMessage>? OnMessage;
-
-    public void Show(string message, NotificationType type = NotificationType.Info)
-    {
-        OnMessage?.Invoke(new NotificationMessage(message, type));
-    }
-
-    public void Success(string message) => Show(message, NotificationType.Success);
-    public void Error(string message) => Show(message, NotificationType.Error);
-    public void Info(string message) => Show(message, NotificationType.Info);
-    public void Warning(string message) => Show(message, NotificationType.Warning);
+    void ShowInformation(string title, string message);
+    void ShowSuccess(string title, string message);
+    void ShowWarning(string title, string message);
+    void ShowError(string title, string message);
 }
 
-public record NotificationMessage(string Text, NotificationType Type);
-
-public enum NotificationType
+public sealed class NotificationService(TopLevel host) : INotificationService
 {
-    Info,
-    Success,
-    Warning,
-    Error
+    private static readonly TimeSpan DefaultExpiration = TimeSpan.FromSeconds(4);
+    private readonly WindowNotificationManager _manager = new(host)
+    {
+        Position = NotificationPosition.TopRight,
+        MaxItems = 4
+    };
+
+    public void ShowInformation(string title, string message) => Show(title, message, NotificationType.Information);
+    public void ShowSuccess(string title, string message) => Show(title, message, NotificationType.Success);
+    public void ShowWarning(string title, string message) => Show(title, message, NotificationType.Warning);
+    public void ShowError(string title, string message) => Show(title, message, NotificationType.Error);
+
+    private void Show(string title, string message, NotificationType type) =>
+        _manager.Show(new Notification(title, message, type, DefaultExpiration));
 }

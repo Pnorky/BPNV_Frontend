@@ -17,6 +17,7 @@ public partial class DashboardViewModel : ObservableObject
     private readonly AuthApiClient _authClient;
     private readonly StoreApiClient _storeClient;
     private readonly AuthSession _session;
+    private readonly INotificationService _notifications;
     private readonly IReadOnlyList<NavItem> _allNavItems = SampleData.NavItems;
     private IReadOnlyList<NavItem> _allowedNavItems = [];
     private bool _suppressNavigation;
@@ -42,12 +43,18 @@ public partial class DashboardViewModel : ObservableObject
         ? string.Join(" / ", user.Roles)
         : "No assigned role";
 
-    public DashboardViewModel(StoreState store, AuthApiClient authClient, StoreApiClient storeClient, AuthSession session)
+    public DashboardViewModel(
+        StoreState store,
+        AuthApiClient authClient,
+        StoreApiClient storeClient,
+        AuthSession session,
+        INotificationService notifications)
     {
         _store = store;
         _authClient = authClient;
         _storeClient = storeClient;
         _session = session;
+        _notifications = notifications;
         _session.Changed += OnSessionChanged;
         _allowedNavItems = _allNavItems.Where(item => CanNavigateTo(item.Tag)).ToArray();
         foreach (var item in _allowedNavItems) NavItems.Add(item);
@@ -69,13 +76,13 @@ public partial class DashboardViewModel : ObservableObject
         CurrentPage = tag switch
         {
             "Dashboard" => new DashboardPageViewModel(_store),
-            "Sales" => new SalesViewModel(_storeClient),
+            "Sales" => new SalesViewModel(_storeClient, _notifications),
             "InventoryProducts" => new ProductCatalogViewModel(_storeClient),
-            "InventoryAddProduct" => new AddProductViewModel(_storeClient),
-            "InventoryReceiveStock" => new StockReceivingViewModel(_storeClient),
-            "InventoryImport" => new ExcelInventoryImportViewModel(_storeClient),
-            "InventorySuppliers" => new SuppliersViewModel(_storeClient),
-            "InventoryMovements" => new ApiStockMovementsViewModel(_storeClient),
+            "InventoryAddProduct" => new AddProductViewModel(_storeClient, _notifications),
+            "InventoryReceiveStock" => new StockReceivingViewModel(_storeClient, _notifications),
+            "InventoryImport" => new ExcelInventoryImportViewModel(_storeClient, _notifications),
+            "InventorySuppliers" => new SuppliersViewModel(_storeClient, _notifications),
+            "InventoryMovements" => new ApiStockMovementsViewModel(_storeClient, _notifications),
             "Reports" => new ReportsViewModel(_store),
             _ => new DashboardPageViewModel(_store)
         };

@@ -148,6 +148,37 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
+    public async Task StockMovementHistorySendsServerPagingAndAuditFilters()
+    {
+        Uri? requestedUri = null;
+        var movement = new StockMovementResponse(
+            Guid.NewGuid(), Guid.NewGuid(), null, null, "Coffee", "SKU-1", "Supplier", "Receipt",
+            12, 1, "case", "0001", 12, 0, 12, 0, 12, "DR-1", "Delivery",
+            DateTime.UtcNow, Guid.NewGuid(), "Inventory User");
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            requestedUri = request.RequestUri;
+            return Json(new PagedResponse<StockMovementResponse>([movement], 2, 20, 21));
+        });
+        await auth.LoginAsync("inventory", "password");
+
+        var result = await new StoreApiClient(auth).GetStockMovementsAsync(
+            "coffee", "Receipt", "DR-1", new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 8, 31, 23, 59, 59, DateTimeKind.Utc), 2, 20, "product", "asc");
+
+        Assert.AreEqual(21, result.TotalCount);
+        Assert.AreEqual("Inventory User", result.Items.Single().CreatedByName);
+        StringAssert.Contains(requestedUri!.Query, "search=coffee");
+        StringAssert.Contains(requestedUri.Query, "movementType=Receipt");
+        StringAssert.Contains(requestedUri.Query, "reference=DR-1");
+        StringAssert.Contains(requestedUri.Query, "page=2");
+        StringAssert.Contains(requestedUri.Query, "pageSize=20");
+        StringAssert.Contains(requestedUri.Query, "sortBy=product");
+        StringAssert.Contains(requestedUri.Query, "sortDirection=asc");
+    }
+
+    [TestMethod]
     public async Task PosScannerUsesSelectedPackageAndEnforcesBasePieceDisplayLimit()
     {
         var productId = Guid.NewGuid();
@@ -165,7 +196,7 @@ public sealed class StoreApiClientTests
             throw new InvalidOperationException(path);
         });
         await auth.LoginAsync("cashier", "password");
-        var viewModel = new SalesViewModel(new StoreApiClient(auth));
+        var viewModel = new SalesViewModel(new StoreApiClient(auth), new TestNotificationService());
         while (viewModel.IsBusy) await Task.Delay(5);
 
         viewModel.ScannerText = "0003";

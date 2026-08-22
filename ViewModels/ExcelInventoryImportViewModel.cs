@@ -28,6 +28,7 @@ public sealed record InventoryImportDisplayIssue(string Severity, string Locatio
 public partial class ExcelInventoryImportViewModel : ObservableObject
 {
     private readonly StoreApiClient _api;
+    private readonly INotificationService _notifications;
     private readonly ExcelInventoryImportService _excel = new();
     private ExcelInventoryImportResult? _draft;
     private IReadOnlyList<SupplierResponse> _existingSuppliers = [];
@@ -67,7 +68,11 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
     public int IssueCount => Issues.Count;
     public bool CanImport => IsLoaded && BackendValidated && !IsBusy;
 
-    public ExcelInventoryImportViewModel(StoreApiClient api) => _api = api;
+    public ExcelInventoryImportViewModel(StoreApiClient api, INotificationService notifications)
+    {
+        _api = api;
+        _notifications = notifications;
+    }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(CanImport));
     partial void OnBackendValidatedChanged(bool value) => OnPropertyChanged(nameof(CanImport));
@@ -207,11 +212,16 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
             StatusMessage = result.IsValid
                 ? "Backend validation passed. Review the summary, then import."
                 : $"Backend validation found {result.Issues.Count} issue{Plural(result.Issues.Count)}.";
+            if (result.IsValid)
+                _notifications.ShowSuccess("Validation passed", StatusMessage);
+            else
+                _notifications.ShowWarning("Validation issues found", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
             BackendValidated = false;
             StatusMessage = $"Validation failed: {exception.Message}";
+            _notifications.ShowError("Validation failed", StatusMessage);
         }
         finally
         {
@@ -261,14 +271,20 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
                 : "The import was not committed. Resolve the reported issues and validate again.";
             if (result.Committed)
             {
+                _notifications.ShowSuccess("Inventory imported", StatusMessage);
                 _validatedRequest = null;
                 BackendValidated = false;
+            }
+            else
+            {
+                _notifications.ShowWarning("Inventory not imported", StatusMessage);
             }
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
             BackendValidated = false;
             StatusMessage = $"Import failed: {exception.Message}";
+            _notifications.ShowError("Inventory import failed", StatusMessage);
         }
         finally
         {

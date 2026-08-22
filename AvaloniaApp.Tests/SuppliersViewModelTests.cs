@@ -25,7 +25,8 @@ public sealed class SuppliersViewModelTests
         });
         var auth = new AuthApiClient(new HttpClient(handler) { BaseAddress = new Uri("https://test/") }, new AuthSession());
         await auth.LoginAsync("inventory", "password");
-        var viewModel = new SuppliersViewModel(new StoreApiClient(auth));
+        var notifications = new TestNotificationService();
+        var viewModel = new SuppliersViewModel(new StoreApiClient(auth), notifications);
         await WaitUntilIdle(viewModel);
 
         Assert.AreEqual("Imported Vendor", viewModel.FilteredSuppliers.Single().Name);
@@ -33,6 +34,10 @@ public sealed class SuppliersViewModelTests
         Assert.AreEqual("Imported Vendor", viewModel.FilteredSuppliers.Single().Name);
 
         viewModel.SearchText = "";
+        await viewModel.CreateSupplierAsync();
+        Assert.AreEqual("Error", notifications.Notifications.Single().Type);
+        notifications.Notifications.Clear();
+
         viewModel.SupplierName = " New Vendor ";
         viewModel.ContactPerson = " Jose ";
         await viewModel.CreateSupplierAsync();
@@ -41,6 +46,8 @@ public sealed class SuppliersViewModelTests
         Assert.AreEqual("Jose", posted.ContactPerson);
         CollectionAssert.AreEqual(new[] { "Imported Vendor", "New Vendor" }, viewModel.FilteredSuppliers.Select(item => item.Name).ToArray());
         Assert.AreEqual("", viewModel.SupplierName);
+        Assert.AreEqual("Success", notifications.Notifications.Single().Type);
+        Assert.AreEqual("Supplier created", notifications.Notifications.Single().Title);
     }
 
     private static async Task WaitUntilIdle(SuppliersViewModel viewModel)

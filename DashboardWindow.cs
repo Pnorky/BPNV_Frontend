@@ -375,7 +375,7 @@ public class DashboardWindow : Window
         if (collapsed)
         {
             _sidebarBorder.Width = 55;
-            _toggleIcon.IsOpen = true;
+            _toggleIcon.IsOpen = false;
             _brandPanel.IsVisible = false;
             _userPanel.IsVisible = false;
         }

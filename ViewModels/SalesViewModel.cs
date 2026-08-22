@@ -46,6 +46,7 @@ public partial class ApiCartLine(PosProductResponse product, ProductUnitResponse
 public partial class SalesViewModel : ObservableObject
 {
     private readonly StoreApiClient _api;
+    private readonly INotificationService _notifications;
     private IReadOnlyList<PosProductResponse> _products = [];
     private Guid? _idempotencyKey;
     private bool _suppressCartMutation;
@@ -63,9 +64,10 @@ public partial class SalesViewModel : ObservableObject
     public string TotalDisplay => $"₱{Cart.Sum(line => line.Amount):N2}";
     public event EventHandler? ScannerFocusRequested;
 
-    public SalesViewModel(StoreApiClient api)
+    public SalesViewModel(StoreApiClient api, INotificationService notifications)
     {
         _api = api;
+        _notifications = notifications;
         Cart.CollectionChanged += OnCartChanged;
         _ = LoadCatalogAsync();
     }
@@ -196,7 +198,7 @@ public partial class SalesViewModel : ObservableObject
         if (IsBusy) return;
         if (Cart.Count == 0)
         {
-            StatusMessage = "Add at least one unit before completing the sale.";
+            ShowError("Sale not completed", "Add at least one unit before completing the sale.");
             return;
         }
 
@@ -214,16 +216,17 @@ public partial class SalesViewModel : ObservableObject
             _suppressCartMutation = false;
             _idempotencyKey = null;
             StatusMessage = $"{sale.SaleNumber} completed. Server total: ₱{sale.Total:N2}{(sale.IsIdempotentReplay ? " (confirmed retry)" : "")}.";
+            _notifications.ShowSuccess("Sale completed", StatusMessage);
             await TryRefreshCatalogAsync();
         }
         catch (ApiClientException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
         {
-            StatusMessage = exception.Message;
+            ShowError("Sale not completed", exception.Message);
             await TryRefreshCatalogAsync();
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            StatusMessage = FailureMessage(exception);
+            ShowError("Sale not completed", FailureMessage(exception));
         }
         finally
         {
@@ -330,6 +333,11 @@ public partial class SalesViewModel : ObservableObject
         OnPropertyChanged(nameof(TotalDisplay));
     }
     private void RequestScannerFocus() => ScannerFocusRequested?.Invoke(this, EventArgs.Empty);
+    private void ShowError(string title, string message)
+    {
+        StatusMessage = message;
+        _notifications.ShowError(title, message);
+    }
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;
     private static string FailureMessage(Exception exception) => exception is HttpRequestException
         ? "Cannot reach the store API."

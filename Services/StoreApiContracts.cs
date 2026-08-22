@@ -200,6 +200,64 @@ public sealed record StockReceiptResponse(
     DateTime OccurredAtUtc);
 public sealed record StockTransferResponse(Guid MovementId, Guid ProductId, int Quantity, int DisplayStock, int BodegaStock, ulong ProductVersion, DateTime OccurredAtUtc);
 
+public sealed record StockMovementResponse(
+    Guid Id,
+    Guid ProductId,
+    Guid? ProductUnitId,
+    Guid? SaleId,
+    string ProductName,
+    string Sku,
+    string SupplierName,
+    string MovementType,
+    int Quantity,
+    int? InputUnitCount,
+    string? UnitLabel,
+    string? UnitBarcode,
+    int? PiecesPerUnit,
+    int DisplayDelta,
+    int BodegaDelta,
+    int DisplayBalanceAfter,
+    int BodegaBalanceAfter,
+    string? Reference,
+    string? Notes,
+    DateTime OccurredAtUtc,
+    Guid CreatedByUserId,
+    string CreatedByName)
+{
+    public string OccurredAtDisplay => OccurredAtUtc.ToLocalTime().ToString("MMMM d, yyyy");
+    public string ProductDisplay => $"{ProductName} | {Sku} | {SupplierName}";
+    public string MovementTypeDisplay => MovementType switch
+    {
+        "OpeningDisplay" => "Opening Display",
+        "OpeningBodega" => "Opening Bodega",
+        "TransferToDisplay" => "Bodega to Display",
+        "AccountsReceivable" => "Accounts Receivable",
+        "DisplayAdjustmentIn" => "Display Adjustment In",
+        "DisplayAdjustmentOut" => "Display Adjustment Out",
+        "BodegaAdjustmentIn" => "Bodega Adjustment In",
+        "BodegaAdjustmentOut" => "Bodega Adjustment Out",
+        "DisplaySpoilage" => "Display Spoilage",
+        "BodegaSpoilage" => "Bodega Spoilage",
+        "DisplayUsage" => "Display Usage",
+        "BodegaUsage" => "Bodega Usage",
+        _ => MovementType
+    };
+    public string UnitDisplay => InputUnitCount.HasValue
+        ? $"{InputUnitCount:N0} {UnitLabel ?? "unit"} x {PiecesPerUnit ?? 1}"
+        : UnitLabel ?? "Base pieces";
+    public string QuantityDisplay => $"{Quantity:N0} pcs";
+    public string DisplayDeltaDisplay => Signed(DisplayDelta);
+    public string BodegaDeltaDisplay => Signed(BodegaDelta);
+    public string BalanceDisplay => $"D {DisplayBalanceAfter:N0} | B {BodegaBalanceAfter:N0}";
+    public string ChangeDisplay => $"D {Signed(DisplayDelta)} | B {Signed(BodegaDelta)}";
+    public string ReferenceDisplay => string.IsNullOrWhiteSpace(Reference) ? "-" : Reference;
+    public string NotesDisplay => string.IsNullOrWhiteSpace(Notes) ? "-" : Notes;
+    public string ReferenceNotesDisplay => string.IsNullOrWhiteSpace(Notes)
+        ? ReferenceDisplay
+        : $"{ReferenceDisplay} | {Notes}";
+    private static string Signed(int value) => value > 0 ? $"+{value:N0}" : value.ToString("N0");
+}
+
 public sealed record CreateSaleLineRequest(Guid UnitId, int Count);
 
 public sealed record CreateSaleRequest(

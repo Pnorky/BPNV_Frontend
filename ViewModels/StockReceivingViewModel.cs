@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AvaloniaApp.ViewModels;
 
-public partial class StockReceivingViewModel(StoreApiClient api) : ObservableObject
+public partial class StockReceivingViewModel(StoreApiClient api, INotificationService notifications) : ObservableObject
 {
     [ObservableProperty] private string _scannerText = "";
     [ObservableProperty] private PosProductResponse? _selectedProduct;
@@ -59,7 +59,7 @@ public partial class StockReceivingViewModel(StoreApiClient api) : ObservableObj
             SelectedProduct = null;
             SelectedUnit = null;
             SelectedCatalogProduct = null;
-            StatusMessage = FailureMessage(exception);
+            ShowError("Barcode lookup failed", FailureMessage(exception));
         }
         finally
         {
@@ -75,13 +75,13 @@ public partial class StockReceivingViewModel(StoreApiClient api) : ObservableObj
         if (IsBusy) return;
         if (SelectedProduct is null || SelectedUnit is null)
         {
-            StatusMessage = "Scan a product unit before receiving stock.";
+            ShowError("Stock not received", "Scan a product unit before receiving stock.");
             RequestScannerFocus();
             return;
         }
         if (!WholeNumber(Count) || Count <= 0 || Count > int.MaxValue)
         {
-            StatusMessage = "Count must be a whole number greater than zero.";
+            ShowError("Stock not received", "Count must be a whole number greater than zero.");
             return;
         }
 
@@ -93,6 +93,7 @@ public partial class StockReceivingViewModel(StoreApiClient api) : ObservableObj
                 SelectedProduct.Id, SelectedUnit.Id, (int)Count,
                 NullIfWhiteSpace(Reference), NullIfWhiteSpace(Notes)));
             StatusMessage = $"Received {result.Count} {result.UnitLabel} = {result.BasePieceQuantity} base pieces. Bodega balance: {result.BodegaStock}; display: {result.DisplayStock}.";
+            notifications.ShowSuccess("Stock received", StatusMessage);
             SelectedProduct = null;
             SelectedUnit = null;
             SelectedCatalogProduct = null;
@@ -103,7 +104,7 @@ public partial class StockReceivingViewModel(StoreApiClient api) : ObservableObj
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            StatusMessage = FailureMessage(exception);
+            ShowError("Stock not received", FailureMessage(exception));
         }
         finally
         {
@@ -120,6 +121,11 @@ public partial class StockReceivingViewModel(StoreApiClient api) : ObservableObj
     }
 
     private void RequestScannerFocus() => ScannerFocusRequested?.Invoke(this, EventArgs.Empty);
+    private void ShowError(string title, string message)
+    {
+        StatusMessage = message;
+        notifications.ShowError(title, message);
+    }
     private static bool WholeNumber(decimal value) => value == decimal.Truncate(value);
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;

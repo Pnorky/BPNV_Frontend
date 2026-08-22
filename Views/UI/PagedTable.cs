@@ -26,6 +26,10 @@ public class PagedTable : UserControl
     public static readonly StyledProperty<object?> SelectedItemProperty = AvaloniaProperty.Register<PagedTable, object?>(nameof(SelectedItem), defaultBindingMode: BindingMode.TwoWay);
     public static readonly StyledProperty<bool> IsSelectableProperty = AvaloniaProperty.Register<PagedTable, bool>(nameof(IsSelectable));
     public static readonly StyledProperty<int> PageSizeProperty = AvaloniaProperty.Register<PagedTable, int>(nameof(PageSize), 10, defaultBindingMode: BindingMode.TwoWay);
+    public static readonly StyledProperty<int> ExternalTotalCountProperty = AvaloniaProperty.Register<PagedTable, int>(nameof(ExternalTotalCount), -1);
+    public static readonly StyledProperty<int> ExternalPageProperty = AvaloniaProperty.Register<PagedTable, int>(nameof(ExternalPage), 1, defaultBindingMode: BindingMode.TwoWay);
+    public static readonly StyledProperty<ICommand?> ExternalPreviousCommandProperty = AvaloniaProperty.Register<PagedTable, ICommand?>(nameof(ExternalPreviousCommand));
+    public static readonly StyledProperty<ICommand?> ExternalNextCommandProperty = AvaloniaProperty.Register<PagedTable, ICommand?>(nameof(ExternalNextCommand));
     public static readonly StyledProperty<double> MinTableWidthProperty = AvaloniaProperty.Register<PagedTable, double>(nameof(MinTableWidth), 720);
     public static readonly StyledProperty<string> ItemNameProperty = AvaloniaProperty.Register<PagedTable, string>(nameof(ItemName), "record");
     public static readonly StyledProperty<string> ItemNamePluralProperty = AvaloniaProperty.Register<PagedTable, string>(nameof(ItemNamePlural), "records");
@@ -84,6 +88,7 @@ public class PagedTable : UserControl
         {
             Margin = new Thickness(0),
             MinHeight = 40,
+            ColumnSpacing = 10,
             IsVisible = !IsMobilePlatform,
             Background = HeaderBackground
         };
@@ -318,7 +323,12 @@ public class PagedTable : UserControl
         Columns.CollectionChanged += (_, _) => ScheduleRebuildTable();
         PageSizeSelector.ItemsSource = PageSizeOptions;
         PageSizeSelector.SelectedItem = PageSize;
-        SizeChanged += (_, _) => ApplyMobileFooterLayout();
+        SizeChanged += (_, _) =>
+        {
+            ApplyTableWidth();
+            ApplyMobileFooterLayout();
+        };
+        ApplyTableWidth();
         Refresh();
     }
 
@@ -330,6 +340,10 @@ public class PagedTable : UserControl
     public object? SelectedItem { get => GetValue(SelectedItemProperty); set => SetValue(SelectedItemProperty, value); }
     public bool IsSelectable { get => GetValue(IsSelectableProperty); set => SetValue(IsSelectableProperty, value); }
     public int PageSize { get => GetValue(PageSizeProperty); set => SetValue(PageSizeProperty, value); }
+    public int ExternalTotalCount { get => GetValue(ExternalTotalCountProperty); set => SetValue(ExternalTotalCountProperty, value); }
+    public int ExternalPage { get => GetValue(ExternalPageProperty); set => SetValue(ExternalPageProperty, value); }
+    public ICommand? ExternalPreviousCommand { get => GetValue(ExternalPreviousCommandProperty); set => SetValue(ExternalPreviousCommandProperty, value); }
+    public ICommand? ExternalNextCommand { get => GetValue(ExternalNextCommandProperty); set => SetValue(ExternalNextCommandProperty, value); }
     public double MinTableWidth { get => GetValue(MinTableWidthProperty); set => SetValue(MinTableWidthProperty, value); }
     public string ItemName { get => GetValue(ItemNameProperty); set => SetValue(ItemNameProperty, value); }
     public string ItemNamePlural { get => GetValue(ItemNamePluralProperty); set => SetValue(ItemNamePluralProperty, value); }
@@ -360,11 +374,17 @@ public class PagedTable : UserControl
         else if (change.Property == PageSizeProperty)
         {
             _currentPage = 1;
+            if (ExternalTotalCount >= 0) SetCurrentValue(ExternalPageProperty, 1);
             _updatingPageSize = true;
             PageSizeSelector.SelectedItem = PageSize;
             _updatingPageSize = false;
             Refresh();
         }
+        else if (change.Property == ExternalTotalCountProperty || change.Property == ExternalPageProperty ||
+                 change.Property == ExternalPreviousCommandProperty || change.Property == ExternalNextCommandProperty)
+            Refresh();
+        else if (change.Property == MinTableWidthProperty)
+            ApplyTableWidth();
         else if (change.Property == SelectedItemProperty || change.Property == IsSelectableProperty)
             RenderRows();
         else if (change.Property == IsFilteredProperty || change.Property == IsLoadingProperty ||
@@ -412,7 +432,7 @@ public class PagedTable : UserControl
         if (ItemsSource is not null)
             foreach (var item in ItemsSource)
                 if (item is not null) _baseItems.Add(item);
-        _currentPage = 1;
+        if (ExternalTotalCount < 0) _currentPage = 1;
         ApplySort();
         Refresh();
     }
@@ -512,17 +532,22 @@ public class PagedTable : UserControl
     private void Refresh()
     {
         var pageSize = Math.Max(1, PageSize);
-        var totalPages = Math.Max(1, (int)Math.Ceiling(_sortedItems.Count / (double)pageSize));
-        if (_currentPage > totalPages) _currentPage = totalPages;
+        var externalPaging = ExternalTotalCount >= 0;
+        var totalCount = externalPaging ? ExternalTotalCount : _sortedItems.Count;
+        var page = externalPaging ? Math.Max(1, ExternalPage) : _currentPage;
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+        if (!externalPaging && _currentPage > totalPages) _currentPage = totalPages;
+        page = externalPaging ? Math.Min(page, totalPages) : _currentPage;
         PageItems.Clear();
-        foreach (var item in _sortedItems.Skip((_currentPage - 1) * pageSize).Take(pageSize)) PageItems.Add(item);
+        var visibleItems = externalPaging ? _sortedItems : _sortedItems.Skip((page - 1) * pageSize).Take(pageSize);
+        foreach (var item in visibleItems) PageItems.Add(item);
         RenderRows();
-        PageSummaryText.Text = _sortedItems.Count == 0 ? "No items" :
-            $"Showing {((_currentPage - 1) * pageSize) + 1}-{Math.Min(_currentPage * pageSize, _sortedItems.Count)} of {_sortedItems.Count}";
+        PageSummaryText.Text = totalCount == 0 ? "No items" :
+            $"Showing {((page - 1) * pageSize) + 1}-{Math.Min((page - 1) * pageSize + PageItems.Count, totalCount)} of {totalCount}";
         SortSummaryText.Text = _sorts.Count == 0 ? "" :
             $"Sorted by {string.Join(", ", _sorts.Select((sort, index) => $"{sort.Column.Header} {(sort.Ascending ? "\u2191" : "\u2193")} {index + 1}"))}";
-        PreviousButton.IsEnabled = _currentPage > 1;
-        NextButton.IsEnabled = _currentPage < totalPages;
+        PreviousButton.IsEnabled = page > 1 && (!externalPaging || ExternalPreviousCommand?.CanExecute(null) == true);
+        NextButton.IsEnabled = page < totalPages && (!externalPaging || ExternalNextCommand?.CanExecute(null) == true);
         UpdateColumnHeaders();
         RefreshState();
     }
@@ -539,7 +564,7 @@ public class PagedTable : UserControl
                 continue;
             }
 
-            var row = new Grid();
+            var row = new Grid { ColumnSpacing = 10 };
             for (var index = 0; index < Columns.Count; index++)
             {
                 var column = Columns[index];
@@ -552,7 +577,7 @@ public class PagedTable : UserControl
             {
                 Child = row,
                 Background = Equals(item, SelectedItem) ? SelectedRowBackground ?? RowBackground : RowBackground,
-                Padding = new Thickness(12, 10),
+                Padding = new Thickness(0, 10),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 BorderBrush = TableBorderBrush ?? new SolidColorBrush(Color.FromArgb(40, 128, 128, 128))
             };
@@ -616,6 +641,8 @@ public class PagedTable : UserControl
         {
             Content = item,
             ContentTemplate = column.CellTemplate,
+            ClipToBounds = true,
+            Margin = wrap ? new Thickness(0) : new Thickness(8, 0),
             HorizontalAlignment = column.HorizontalAlignment,
             VerticalAlignment = VerticalAlignment.Center
         }
@@ -627,6 +654,8 @@ public class PagedTable : UserControl
             VerticalAlignment = VerticalAlignment.Center,
             TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
             TextTrimming = wrap ? Avalonia.Media.TextTrimming.None : Avalonia.Media.TextTrimming.CharacterEllipsis,
+            ClipToBounds = true,
+            Margin = wrap ? new Thickness(0) : new Thickness(8, 0),
             HorizontalAlignment = column.HorizontalAlignment,
             TextAlignment = column.HorizontalAlignment == HorizontalAlignment.Right ? TextAlignment.Right : TextAlignment.Left
         };
@@ -737,12 +766,36 @@ public class PagedTable : UserControl
         PageSizePanel.IsVisible = false;
     }
 
+    private void ApplyTableWidth()
+    {
+        if (_backgroundPanel is null) return;
+        _backgroundPanel.Width = Math.Max(MinTableWidth, Bounds.Width);
+    }
+
     private void OnPageSizeChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (!_updatingPageSize && PageSizeSelector.SelectedItem is int size) PageSize = size;
     }
-    private void OnPreviousClick(object? sender, RoutedEventArgs e) { if (_currentPage > 1) { _currentPage--; Refresh(); } }
-    private void OnNextClick(object? sender, RoutedEventArgs e) { _currentPage++; Refresh(); }
+    private void OnPreviousClick(object? sender, RoutedEventArgs e)
+    {
+        if (ExternalTotalCount >= 0)
+        {
+            if (ExternalPreviousCommand?.CanExecute(null) == true) ExternalPreviousCommand.Execute(null);
+            return;
+        }
+        if (_currentPage > 1) { _currentPage--; Refresh(); }
+    }
+
+    private void OnNextClick(object? sender, RoutedEventArgs e)
+    {
+        if (ExternalTotalCount >= 0)
+        {
+            if (ExternalNextCommand?.CanExecute(null) == true) ExternalNextCommand.Execute(null);
+            return;
+        }
+        _currentPage++;
+        Refresh();
+    }
 
     private sealed record SortDescriptor(PagedTableColumn Column, bool Ascending);
 

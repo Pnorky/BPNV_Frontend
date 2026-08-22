@@ -114,7 +114,7 @@ public sealed class AuthenticationTests
             new StorePersistenceService(Path.Combine(Path.GetTempPath(), $"bpnv-auth-{Guid.NewGuid():N}.json")),
             seedPrototypeData: false);
 
-        var viewModel = new DashboardViewModel(store, client, new StoreApiClient(client), session);
+        var viewModel = new DashboardViewModel(store, client, new StoreApiClient(client), session, new TestNotificationService());
 
         CollectionAssert.AreEqual(
             expectedTags.Split(','),

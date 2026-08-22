@@ -49,6 +49,7 @@ public partial class ProductPackageDraft : ObservableObject
 public partial class AddProductViewModel : ObservableObject
 {
     private readonly StoreApiClient _api;
+    private readonly INotificationService _notifications;
     private bool _updatingSku;
     private bool _skuWasEdited;
 
@@ -81,9 +82,10 @@ public partial class AddProductViewModel : ObservableObject
         "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
     ];
 
-    public AddProductViewModel(StoreApiClient api)
+    public AddProductViewModel(StoreApiClient api, INotificationService notifications)
     {
         _api = api;
+        _notifications = notifications;
         _ = LoadSuppliersAsync();
     }
 
@@ -107,7 +109,7 @@ public partial class AddProductViewModel : ObservableObject
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            StatusMessage = FailureMessage(exception);
+            ShowError("Could not load suppliers", FailureMessage(exception));
         }
         finally
         {
@@ -176,7 +178,7 @@ public partial class AddProductViewModel : ObservableObject
         if (IsBusy) return;
         if (string.IsNullOrWhiteSpace(SupplierName))
         {
-            StatusMessage = "Supplier name is required.";
+            ShowError("Supplier not created", "Supplier name is required.");
             return;
         }
 
@@ -192,10 +194,11 @@ public partial class AddProductViewModel : ObservableObject
             SupplierContact = "";
             SupplierPhone = "";
             StatusMessage = $"Supplier {supplier.Name} created and selected.";
+            _notifications.ShowSuccess("Supplier created", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            StatusMessage = FailureMessage(exception);
+            ShowError("Supplier not created", FailureMessage(exception));
         }
         finally
         {
@@ -209,7 +212,7 @@ public partial class AddProductViewModel : ObservableObject
         if (IsBusy) return;
         if (!TryBuildRequest(out var request, out var error))
         {
-            StatusMessage = error;
+            ShowError("Product not created", error);
             return;
         }
 
@@ -220,10 +223,11 @@ public partial class AddProductViewModel : ObservableObject
             var product = await _api.CreateProductAsync(request!);
             ClearProduct();
             StatusMessage = $"{product.Name} was created with {product.Units.Count} unit option{(product.Units.Count == 1 ? "" : "s")} and zero stock.";
+            _notifications.ShowSuccess("Product created", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            StatusMessage = FailureMessage(exception);
+            ShowError("Product not created", FailureMessage(exception));
         }
         finally
         {
@@ -300,6 +304,11 @@ public partial class AddProductViewModel : ObservableObject
     private static bool WholeNumber(decimal value) => value == decimal.Truncate(value) && value <= int.MaxValue;
     private static bool Fail(string message, out string error) { error = message; return false; }
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private void ShowError(string title, string message)
+    {
+        StatusMessage = message;
+        _notifications.ShowError(title, message);
+    }
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;
     private static string FailureMessage(Exception exception) => exception switch
     {

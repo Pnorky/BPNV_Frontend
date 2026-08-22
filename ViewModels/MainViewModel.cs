@@ -144,10 +144,9 @@ public partial class MainViewModel : ObservableObject
             return;
 
         var loginWindow = desktop.MainWindow;
-        var dashboard = new DashboardWindow
-        {
-            DataContext = new DashboardViewModel(_store, _authClient, _storeClient, _session)
-        };
+        var dashboard = new DashboardWindow();
+        var notifications = new NotificationService(dashboard);
+        dashboard.DataContext = new DashboardViewModel(_store, _authClient, _storeClient, _session, notifications);
         desktop.MainWindow = dashboard;
         dashboard.Show();
         loginWindow?.Close();

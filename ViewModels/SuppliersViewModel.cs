@@ -7,6 +7,7 @@ namespace AvaloniaApp.ViewModels;
 public partial class SuppliersViewModel : ObservableObject
 {
     private readonly StoreApiClient _api;
+    private readonly INotificationService _notifications;
     private IReadOnlyList<SupplierResponse> _suppliers = [];
 
     [ObservableProperty] private string _searchText = "";
@@ -17,9 +18,10 @@ public partial class SuppliersViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "Loading suppliers...";
     [ObservableProperty] private bool _isBusy;
 
-    public SuppliersViewModel(StoreApiClient api)
+    public SuppliersViewModel(StoreApiClient api, INotificationService notifications)
     {
         _api = api;
+        _notifications = notifications;
         _ = LoadAsync();
     }
 
@@ -43,7 +45,7 @@ public partial class SuppliersViewModel : ObservableObject
         {
             _suppliers = [];
             ApplyFilter();
-            StatusMessage = FailureMessage(exception);
+            ShowError("Suppliers could not be loaded", FailureMessage(exception));
         }
         finally
         {
@@ -54,7 +56,7 @@ public partial class SuppliersViewModel : ObservableObject
     public async Task UpdateSupplierAsync(SupplierResponse supplier, string name, string? contactPerson, string? phone)
     {
         if (IsBusy) return;
-        if (string.IsNullOrWhiteSpace(name)) { StatusMessage = "Supplier name is required."; return; }
+        if (string.IsNullOrWhiteSpace(name)) { ShowError("Supplier not updated", "Supplier name is required."); return; }
         IsBusy = true;
         try
         {
@@ -63,8 +65,9 @@ public partial class SuppliersViewModel : ObservableObject
             IsBusy = false;
             await LoadAsync();
             StatusMessage = $"Supplier {updated.Name} updated.";
+            _notifications.ShowSuccess("Supplier updated", StatusMessage);
         }
-        catch (Exception exception) when (IsApiFailure(exception)) { StatusMessage = FailureMessage(exception); }
+        catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Supplier not updated", FailureMessage(exception)); }
         finally { IsBusy = false; }
     }
 
@@ -79,8 +82,9 @@ public partial class SuppliersViewModel : ObservableObject
             IsBusy = false;
             await LoadAsync();
             StatusMessage = $"Supplier {supplier.Name} deactivated.";
+            _notifications.ShowSuccess("Supplier deactivated", StatusMessage);
         }
-        catch (Exception exception) when (IsApiFailure(exception)) { StatusMessage = FailureMessage(exception); }
+        catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Supplier not deactivated", FailureMessage(exception)); }
         finally { IsBusy = false; }
     }
 
@@ -95,8 +99,9 @@ public partial class SuppliersViewModel : ObservableObject
             IsBusy = false;
             await LoadAsync();
             StatusMessage = $"Supplier {supplier.Name} reactivated.";
+            _notifications.ShowSuccess("Supplier reactivated", StatusMessage);
         }
-        catch (Exception exception) when (IsApiFailure(exception)) { StatusMessage = FailureMessage(exception); }
+        catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Supplier not reactivated", FailureMessage(exception)); }
         finally { IsBusy = false; }
     }
 
@@ -106,7 +111,7 @@ public partial class SuppliersViewModel : ObservableObject
         if (IsBusy) return;
         if (string.IsNullOrWhiteSpace(SupplierName))
         {
-            StatusMessage = "Supplier name is required.";
+            ShowError("Supplier not created", "Supplier name is required.");
             return;
         }
 
@@ -122,10 +127,11 @@ public partial class SuppliersViewModel : ObservableObject
             Phone = "";
             ApplyFilter();
             StatusMessage = $"Supplier {supplier.Name} created.";
+            _notifications.ShowSuccess("Supplier created", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            StatusMessage = FailureMessage(exception);
+            ShowError("Supplier not created", FailureMessage(exception));
         }
         finally
         {
@@ -147,6 +153,11 @@ public partial class SuppliersViewModel : ObservableObject
     }
 
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private void ShowError(string title, string message)
+    {
+        StatusMessage = message;
+        _notifications.ShowError(title, message);
+    }
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;
     private static string FailureMessage(Exception exception) => exception switch
     {

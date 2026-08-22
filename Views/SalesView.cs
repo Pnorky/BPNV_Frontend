@@ -119,9 +119,16 @@ public class SalesView : UserControl
     private static Control CartRow()
     {
         var remove = Button("Remove", "RemoveLineCommand", true, ancestor: true); remove.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding()); Grid.SetColumn(remove, 1);
-        var minus = Button("-", "DecreaseQuantityCommand", false, ancestor: true); minus.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
+        var minus = Button("-", "DecreaseQuantityCommand", false, ancestor: true);
+        minus.Width = 36;
+        minus.Padding = new Thickness(0);
+        minus.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
         var count = Text("Count", FontWeight.Bold); count.HorizontalAlignment = HorizontalAlignment.Center; count.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(count, 1);
-        var plus = Button("+", "IncreaseQuantityCommand", false, ancestor: true); plus.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding()); Grid.SetColumn(plus, 2);
+        var plus = Button("+", "IncreaseQuantityCommand", false, ancestor: true);
+        plus.Width = 36;
+        plus.Padding = new Thickness(0);
+        plus.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
+        Grid.SetColumn(plus, 2);
         var amount = Text("AmountDisplay", FontWeight.Bold); amount.VerticalAlignment = VerticalAlignment.Center; amount.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumn(amount, 3);
         var border = new Border
         {

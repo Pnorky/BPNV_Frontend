@@ -107,6 +107,31 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         TransferStockRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<StockTransferResponse, TransferStockRequest>(HttpMethod.Post, "api/stock-transfers", request, cancellationToken);
 
+    public Task<PagedResponse<StockMovementResponse>> GetStockMovementsAsync(
+        string? search = null,
+        string? movementType = null,
+        string? reference = null,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        int page = 1,
+        int pageSize = 20,
+        string sortBy = "occurredAt",
+        string sortDirection = "desc",
+        CancellationToken cancellationToken = default) =>
+        SendAsync<PagedResponse<StockMovementResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery(
+                "api/stock-movements",
+                ("search", search),
+                ("movementType", movementType),
+                ("reference", reference),
+                ("fromUtc", fromUtc?.ToString("O")),
+                ("toUtc", toUtc?.ToString("O")),
+                ("sortBy", sortBy),
+                ("sortDirection", sortDirection),
+                ("page", page.ToString()),
+                ("pageSize", pageSize.ToString()))),
+            cancellationToken);
+
     public Task<SaleResponse> CreateSaleAsync(
         CreateSaleRequest request,
         CancellationToken cancellationToken = default) =>
