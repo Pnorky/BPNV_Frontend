@@ -105,7 +105,8 @@ public sealed class AuthenticationTests
 
     [TestMethod]
     [DataRow("Cashier", "Dashboard,Sales")]
-    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryImport,InventorySuppliers,InventoryMovements,Reports")]
+    [DataRow("Inventory", "Dashboard,Reports,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryImport,InventorySuppliers,InventoryMovements")]
+    [DataRow("Admin", "Dashboard,Sales,Reports,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryImport,InventorySuppliers,InventoryMovements")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));
@@ -126,6 +127,38 @@ public sealed class AuthenticationTests
             Assert.IsNotNull(viewModel.CurrentPage, $"Navigation did not create a page for {item.Tag}.");
             if (item.Tag == "InventorySuppliers") Assert.IsInstanceOfType<SuppliersViewModel>(viewModel.CurrentPage);
         }
+    }
+
+    [TestMethod]
+    public async Task CollapsedInventoryFlyoutNavigationAllowsInventoryAndRejectsCashier()
+    {
+        var (inventoryClient, inventorySession) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", "Inventory")));
+        await inventoryClient.LoginAsync("inventory", "strong-password");
+        var store = new StoreState(
+            new StorePersistenceService(Path.Combine(Path.GetTempPath(), $"bpnv-auth-{Guid.NewGuid():N}.json")),
+            seedPrototypeData: false);
+        var inventoryViewModel = new DashboardViewModel(
+            store, inventoryClient, new StoreApiClient(inventoryClient), inventorySession, new TestNotificationService());
+
+        inventoryViewModel.ToggleSidebarCommand.Execute(null);
+        CollectionAssert.AreEqual(
+            new[] { "Dashboard", "Reports", "InventoryProducts" },
+            inventoryViewModel.NavItems.Select(item => item.Tag).ToArray());
+        inventoryViewModel.OpenInventorySection("InventoryBatchReceive");
+
+        Assert.IsTrue(inventoryViewModel.SidebarCollapsed);
+        Assert.AreEqual("InventoryProducts", inventoryViewModel.SelectedNavItem?.Tag);
+        Assert.IsFalse(inventoryViewModel.SelectedNavItem?.IsChild);
+        Assert.IsInstanceOfType<BatchReceivingViewModel>(inventoryViewModel.CurrentPage);
+
+        var (cashierClient, cashierSession) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", "Cashier")));
+        await cashierClient.LoginAsync("cashier", "strong-password");
+        var cashierViewModel = new DashboardViewModel(
+            store, cashierClient, new StoreApiClient(cashierClient), cashierSession, new TestNotificationService());
+
+        cashierViewModel.OpenInventorySection("InventoryBatchReceive");
+
+        Assert.IsNotInstanceOfType<BatchReceivingViewModel>(cashierViewModel.CurrentPage);
     }
 
     private static (AuthApiClient Client, AuthSession Session) CreateClient(

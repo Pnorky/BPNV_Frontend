@@ -171,7 +171,7 @@ public sealed class StockMovement
             : Type == StockMovementType.TransferToShelf
                 ? Quantity.ToString()
                 : $"-{Quantity}";
-    public string TimeDisplay => OccurredAt.ToString("MMM d, yyyy h:mm tt");
+    public string TimeDisplay => StoreDateTime.FormatEvent(OccurredAt);
 }
 
 public sealed record ProductInput(
@@ -204,7 +204,7 @@ public sealed class SaleRecord
     public required IReadOnlyList<SaleLineRecord> Lines { get; init; }
     public decimal Total => Lines.Sum(line => line.Amount);
     public int ItemCount => Lines.Sum(line => line.Quantity);
-    public string TimeDisplay => SoldAt.ToString("h:mm tt");
+    public string TimeDisplay => StoreDateTime.FormatEvent(SoldAt);
     public string TotalDisplay => $"₱{Total:N2}";
 }
 
@@ -478,11 +478,11 @@ public sealed class StoreState
         }
 
         var number = $"S-{_nextSaleNumber:000000}";
-        var soldAt = DateTime.Now;
+        var soldAt = StoreDateTime.UtcNow;
         foreach (var line in lines)
         {
             line.Product.ShelfStock -= line.Quantity;
-            AddMovement(line.Product, StockMovementType.Sale, line.Quantity, number, customerType);
+            AddMovement(line.Product, StockMovementType.Sale, line.Quantity, number, customerType, soldAt);
         }
 
         Sales.Insert(0, new SaleRecord
@@ -498,7 +498,13 @@ public sealed class StoreState
         return true;
     }
 
-    private void AddMovement(ProductItem product, StockMovementType type, int quantity, string reference = "", string notes = "") =>
+    private void AddMovement(
+        ProductItem product,
+        StockMovementType type,
+        int quantity,
+        string reference = "",
+        string notes = "",
+        DateTime? occurredAtUtc = null) =>
         Movements.Insert(0, new StockMovement
         {
             ProductId = product.Id,
@@ -507,7 +513,7 @@ public sealed class StoreState
             SupplierName = product.SupplierName,
             Type = type,
             Quantity = quantity,
-            OccurredAt = DateTime.Now,
+            OccurredAt = occurredAtUtc ?? StoreDateTime.UtcNow,
             Reference = reference,
             Notes = notes
         });
@@ -554,11 +560,12 @@ public sealed class StoreState
 
     private void SeedPrototypeSales()
     {
-        AddPrototypeSale("SHP-001", 2, 25, "Regular", DateTime.Today.AddHours(9).AddMinutes(15));
-        AddPrototypeSale("DD-002", 3, 18, "Employee", DateTime.Today.AddHours(10).AddMinutes(5));
-        AddPrototypeSale("SHP-004", 4, 18, "Regular", DateTime.Today.AddHours(11).AddMinutes(20));
-        AddPrototypeSale("DD-001", 2, 25, "Regular", DateTime.Today.AddDays(-1).AddHours(15).AddMinutes(10));
-        AddPrototypeSale("LUB-002", 1, 195, "Employee", DateTime.Today.AddDays(-1).AddHours(16).AddMinutes(30));
+        var today = StoreDateTime.StoreToday;
+        AddPrototypeSale("SHP-001", 2, 25, "Regular", StoreDateTime.StoreTimeToUtc(today.AddHours(9).AddMinutes(15)));
+        AddPrototypeSale("DD-002", 3, 18, "Employee", StoreDateTime.StoreTimeToUtc(today.AddHours(10).AddMinutes(5)));
+        AddPrototypeSale("SHP-004", 4, 18, "Regular", StoreDateTime.StoreTimeToUtc(today.AddHours(11).AddMinutes(20)));
+        AddPrototypeSale("DD-001", 2, 25, "Regular", StoreDateTime.StoreTimeToUtc(today.AddDays(-1).AddHours(15).AddMinutes(10)));
+        AddPrototypeSale("LUB-002", 1, 195, "Employee", StoreDateTime.StoreTimeToUtc(today.AddDays(-1).AddHours(16).AddMinutes(30)));
     }
 
     private void AddPrototypeSale(string sku, int quantity, decimal unitPrice, string customerType, DateTime soldAt)

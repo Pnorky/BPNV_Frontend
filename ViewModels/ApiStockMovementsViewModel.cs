@@ -129,14 +129,13 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         HistoryError = null;
         try
         {
-            var fromUtc = HistoryFromDate?.LocalDateTime.Date.ToUniversalTime();
-            var toUtc = HistoryToDate?.LocalDateTime.Date.AddDays(1).AddTicks(-1).ToUniversalTime();
+            var (fromUtc, toUtcExclusive) = StoreDateTime.GetUtcDateRange(HistoryFromDate, HistoryToDate);
             var result = await _api.GetStockMovementsAsync(
                 NullIfWhiteSpace(HistorySearchText),
                 SelectedMovementType.Value,
                 NullIfWhiteSpace(HistoryReference),
                 fromUtc,
-                toUtc,
+                toUtcExclusive,
                 HistoryPage,
                 HistoryPageSize,
                 SelectedMovementSort.SortBy,

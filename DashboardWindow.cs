@@ -183,6 +183,18 @@ public class DashboardWindow : Window
 
     private Control CreateNavItem(NavItem item)
     {
+        var groupLabel = new TextBlock
+        {
+            Text = item.Group?.ToUpperInvariant(),
+            FontSize = 10,
+            FontWeight = FontWeight.SemiBold,
+            LetterSpacing = 0.8,
+            Margin = new Thickness(12, 8, 12, 2)
+        };
+        if (item.Group is null) groupLabel.IsVisible = false;
+        groupLabel.Classes.Add("nav-group");
+        groupLabel.BindResource(ForegroundProperty, "MutedForeground");
+
         var icon = new LucideIcon
         {
             Width = 20,
@@ -219,7 +231,11 @@ public class DashboardWindow : Window
 
             viewModel.SelectNavItem(item);
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
-        return content;
+        return new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { groupLabel, content }
+        };
     }
 
     private Border CreateInventoryFlyoutContent()
@@ -238,6 +254,7 @@ public class DashboardWindow : Window
                     CreateInventoryFlyoutItem("Products", "InventoryProducts", LucideIconKind.Package),
                     CreateInventoryFlyoutItem("Add Product", "InventoryAddProduct", LucideIconKind.Package),
                     CreateInventoryFlyoutItem("Receive Stock", "InventoryReceiveStock", LucideIconKind.Boxes),
+                    CreateInventoryFlyoutItem("Batch Receive", "InventoryBatchReceive", LucideIconKind.ScanBarcode),
                     CreateInventoryFlyoutItem("Import Excel", "InventoryImport", LucideIconKind.FileSpreadsheet),
                     CreateInventoryFlyoutItem("Suppliers", "InventorySuppliers", LucideIconKind.Truck),
                     CreateInventoryFlyoutItem("Stock Movements", "InventoryMovements", LucideIconKind.ArrowLeftRight)
@@ -289,8 +306,8 @@ public class DashboardWindow : Window
     private void ConfigureStyles()
     {
         AddStyle(x => x.OfType<ListBoxItem>(),
-            new Setter(TemplatedControl.PaddingProperty, new Thickness(12, 10)),
-            new Setter(Layoutable.MarginProperty, new Thickness(4, 2)),
+            new Setter(TemplatedControl.PaddingProperty, new Thickness(12, 7)),
+            new Setter(Layoutable.MarginProperty, new Thickness(4, 1)),
             new Setter(TemplatedControl.BackgroundProperty, Brushes.Transparent),
             new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(3, 0, 0, 0)),
             new Setter(TemplatedControl.BorderBrushProperty, Brushes.Transparent),
@@ -322,7 +339,8 @@ public class DashboardWindow : Window
         AddStyle(x => x.OfType<Button>().Class("inventory-flyout-item").Class(":pointerover"),
             new Setter(TemplatedControl.BackgroundProperty, new DynamicResourceExtension("NavHover")));
         AddStyle(x => x.OfType<Border>().Class("collapsed").Descendant().OfType<ListBoxItem>(),
-            new Setter(Layoutable.HeightProperty, 48d), new Setter(TemplatedControl.PaddingProperty, new Thickness(0, 0, 3, 0)),
+            new Setter(Layoutable.HeightProperty, 48d), new Setter(TemplatedControl.PaddingProperty, new Thickness(0)),
+            new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(0)),
             new Setter(Layoutable.MarginProperty, new Thickness(4, 2)),
             new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
         AddStyle(x => x.OfType<Border>().Class("collapsed").Descendant().OfType<TextBlock>().Class("nav-label"),
@@ -333,6 +351,8 @@ public class DashboardWindow : Window
             new Setter(TemplatedControl.FontSizeProperty, 13d));
         AddStyle(x => x.OfType<Border>().Class("collapsed").Descendant().OfType<Grid>().Class("nav-content").Class("inventory-child"),
             new Setter(Layoutable.MarginProperty, new Thickness(0)));
+        AddStyle(x => x.OfType<Border>().Class("collapsed").Descendant().OfType<TextBlock>().Class("nav-group"),
+            new Setter(Visual.IsVisibleProperty, false));
     }
 
     private void AddStyle(Func<Selector?, Selector> selector, params Setter[] setters)

@@ -103,6 +103,18 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         CancellationToken cancellationToken = default) =>
         SendJsonAsync<StockReceiptResponse, ReceiveStockRequest>(HttpMethod.Post, "api/stock-receipts", request, cancellationToken);
 
+    public Task<BatchReceiptValidationResponse> ValidateBatchReceiptAsync(
+        BatchReceiptRequest request,
+        CancellationToken cancellationToken = default) =>
+        SendJsonAsync<BatchReceiptValidationResponse, BatchReceiptRequest>(
+            HttpMethod.Post, "api/stock-receipts/batch/validate", request, cancellationToken);
+
+    public Task<BatchReceiptResponse> ReceiveBatchAsync(
+        BatchReceiptRequest request,
+        CancellationToken cancellationToken = default) =>
+        SendJsonAsync<BatchReceiptResponse, BatchReceiptRequest>(
+            HttpMethod.Post, "api/stock-receipts/batch", request, cancellationToken);
+
     public Task<StockTransferResponse> TransferToDisplayAsync(
         TransferStockRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<StockTransferResponse, TransferStockRequest>(HttpMethod.Post, "api/stock-transfers", request, cancellationToken);
@@ -111,8 +123,8 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         string? search = null,
         string? movementType = null,
         string? reference = null,
-        DateTime? fromUtc = null,
-        DateTime? toUtc = null,
+        DateTimeOffset? fromUtc = null,
+        DateTimeOffset? toUtcExclusive = null,
         int page = 1,
         int pageSize = 20,
         string sortBy = "occurredAt",
@@ -125,7 +137,7 @@ public sealed class StoreApiClient(AuthApiClient authClient)
                 ("movementType", movementType),
                 ("reference", reference),
                 ("fromUtc", fromUtc?.ToString("O")),
-                ("toUtc", toUtc?.ToString("O")),
+                ("toUtcExclusive", toUtcExclusive?.ToString("O")),
                 ("sortBy", sortBy),
                 ("sortDirection", sortDirection),
                 ("page", page.ToString()),

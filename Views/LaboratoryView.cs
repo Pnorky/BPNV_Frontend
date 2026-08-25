@@ -19,7 +19,7 @@ public class LaboratoryView : UserControl
             ViewCode.Column("Patient", "Patient", 1.3),
             ViewCode.Column("Test Type", "TestType", 1.3),
             ViewCode.Column("Ordered By", "OrderedBy", 1.2),
-            ViewCode.Column("Date Ordered", "DateOrdered", 1.1),
+            ViewCode.Column("Date Ordered", "DateOrderedDisplay", 1.1),
             ViewCode.Column("Priority", "Priority", template: ViewCode.StatusTemplate<LabOrderRecord>("Priority")));
 
         var completed = ViewCode.Table("CompletedPager.SourceItems", "laboratory result", "completed laboratory results");
@@ -33,7 +33,7 @@ public class LaboratoryView : UserControl
             ViewCode.Column("Patient", "Patient", 1.3),
             ViewCode.Column("Test Type", "TestType", 1.3),
             ViewCode.Column("Result", "Result", 1.2),
-            ViewCode.Column("Completed", "Completed", 1.1));
+            ViewCode.Column("Completed", "CompletedDisplay", 1.1));
 
         var tabs = new TabControl();
         tabs.Items.Add(new TabItem { Header = "Pending Orders", Content = pending });

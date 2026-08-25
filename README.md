@@ -6,6 +6,8 @@ Avalonia desktop prototype for sales and inventory management at **BPNV Convenie
 
 The Inventory > Import Excel workflow accepts the supported legacy workbook or the BPNV standard template. It provides section mappings and bulk defaults, performs local and backend validation, and imports suppliers, products, packages, and opening balances only after confirmation.
 
+Inventory > Batch Receive captures Eyoyo keyboard exports as tab-separated text, preserves exact barcode values, validates suppliers and unit conversions with the API, and atomically receives a confirmed batch into Bodega.
+
 The system deliberately keeps two inventory locations:
 
 - **Display**: sellable stock available at the counter. The internal model still calls this `ShelfStock` for persisted-data compatibility.
@@ -43,9 +45,12 @@ Inventory has sidebar children:
 - Products
 - Suppliers
 - Stock Movements
+- Batch Receive
 - Import Excel
 
 When the sidebar is collapsed, child icons are hidden. Selecting the Inventory icon opens a compact flyout with its destinations. The selected Inventory subsection is restored when the sidebar expands.
+
+Batch Receive follows `Capture -> local parse -> backend validate -> preview -> confirm -> commit`. Scanner rows must contain supplier library, barcode, and positive whole-number quantity separated by true tabs; the raw capture remains available when validation or receipt fails.
 
 ## Product Entry
 
@@ -185,4 +190,4 @@ At the time this README was created:
 
 - Application Release build: 0 warnings, 0 errors
 - Test Release build: 0 warnings, 0 errors
-- Tests: 8 passed
+- Tests: 65 passed

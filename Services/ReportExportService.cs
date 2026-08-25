@@ -24,7 +24,7 @@ public static class ReportExportService
                 {
                     header.Item().Text("BPNV CONVENIENCE STORE").Bold().FontSize(20).FontColor(Colors.Orange.Darken2);
                     header.Item().Text("Sales and Inventory Report").SemiBold().FontSize(12);
-                    header.Item().Text($"Generated {DateTime.Now:MMMM d, yyyy h:mm tt}")
+                    header.Item().Text($"Generated {StoreDateTime.FormatUtc(StoreDateTime.UtcNow)}")
                         .FontSize(8).FontColor(Colors.Grey.Darken1);
                 });
 
@@ -66,7 +66,7 @@ public static class ReportExportService
                         foreach (var sale in sales)
                         {
                             PdfCell(table.Cell(), sale.SaleNumber);
-                            PdfCell(table.Cell(), sale.SoldAt.ToString("MMM d, yyyy h:mm tt"));
+                            PdfCell(table.Cell(), StoreDateTime.FormatEvent(sale.SoldAt));
                             PdfCell(table.Cell(), sale.CustomerType);
                             PdfCell(table.Cell(), sale.ItemCount.ToString());
                             PdfCell(table.Cell(), sale.Total.ToString("₱#,##0.00"));
@@ -136,13 +136,13 @@ public static class ReportExportService
         sheet.Cell("A1").Value = "BPNV CONVENIENCE STORE SALES AND INVENTORY REPORT";
         sheet.Range("A1:B1").Merge().Style.Font.SetBold().Font.SetFontSize(16);
         sheet.Cell("A2").Value = "Generated";
-        sheet.Cell("B2").Value = DateTime.Now;
-        sheet.Cell("B2").Style.DateFormat.Format = "mmmm d, yyyy h:mm AM/PM";
+        sheet.Cell("B2").Value = StoreDateTime.StoreNow;
+        sheet.Cell("B2").Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
 
         var rows = new (string Label, object Value)[]
         {
             ("Gross sales", store.Sales.Sum(sale => sale.Total)),
-            ("Sales today", store.Sales.Where(sale => sale.SoldAt.Date == DateTime.Today).Sum(sale => sale.Total)),
+            ("Sales today", store.Sales.Where(sale => StoreDateTime.IsStoreToday(sale.SoldAt)).Sum(sale => sale.Total)),
             ("Transactions", store.Sales.Count),
             ("Units sold", store.Sales.Sum(sale => sale.ItemCount)),
             ("Display units", store.Products.Sum(product => product.ShelfStock)),
@@ -173,7 +173,7 @@ public static class ReportExportService
     private static void CreateSalesSheet(XLWorkbook workbook, StoreState store)
     {
         var sheet = workbook.Worksheets.Add("Sales");
-        string[] headers = ["Sale #", "Date", "Customer pricing", "SKU", "Product", "Quantity", "Unit price", "Amount"];
+        string[] headers = ["Sale #", "Date & time", "Customer pricing", "SKU", "Product", "Quantity", "Unit price", "Amount"];
         WriteHeaders(sheet, headers);
 
         var row = 2;
@@ -182,7 +182,7 @@ public static class ReportExportService
             foreach (var line in sale.Lines)
             {
                 sheet.Cell(row, 1).Value = sale.SaleNumber;
-                sheet.Cell(row, 2).Value = sale.SoldAt;
+                sheet.Cell(row, 2).Value = StoreDateTime.ToStoreTime(sale.SoldAt);
                 sheet.Cell(row, 3).Value = sale.CustomerType;
                 sheet.Cell(row, 4).Value = line.Sku;
                 sheet.Cell(row, 5).Value = line.ProductName;
@@ -193,7 +193,7 @@ public static class ReportExportService
             }
         }
 
-        sheet.Column(2).Style.DateFormat.Format = "yyyy-mm-dd h:mm AM/PM";
+        sheet.Column(2).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
         sheet.Columns(7, 8).Style.NumberFormat.Format = "₱#,##0.00";
         StyleDataSheet(sheet, headers.Length, headers.Length, row - 1);
     }
@@ -234,12 +234,12 @@ public static class ReportExportService
     private static void CreateMovementSheet(XLWorkbook workbook, StoreState store)
     {
         var sheet = workbook.Worksheets.Add("Stock Movements");
-        string[] headers = ["Date", "SKU", "Product", "Supplier", "Movement", "Quantity", "Reference", "Notes"];
+        string[] headers = ["Date & time", "SKU", "Product", "Supplier", "Movement", "Quantity", "Reference", "Notes"];
         WriteHeaders(sheet, headers);
         var row = 2;
         foreach (var movement in store.Movements.OrderByDescending(item => item.OccurredAt))
         {
-            sheet.Cell(row, 1).Value = movement.OccurredAt;
+            sheet.Cell(row, 1).Value = StoreDateTime.ToStoreTime(movement.OccurredAt);
             sheet.Cell(row, 2).Value = movement.Sku;
             sheet.Cell(row, 3).Value = movement.ProductName;
             sheet.Cell(row, 4).Value = movement.SupplierName;
@@ -249,7 +249,7 @@ public static class ReportExportService
             sheet.Cell(row, 8).Value = movement.Notes;
             row++;
         }
-        sheet.Column(1).Style.DateFormat.Format = "yyyy-mm-dd h:mm AM/PM";
+        sheet.Column(1).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
         StyleDataSheet(sheet, headers.Length, headers.Length, row - 1);
     }
 

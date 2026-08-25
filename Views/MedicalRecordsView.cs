@@ -28,7 +28,7 @@ public class MedicalRecordsView : UserControl
         ViewCode.AddColumns(table,
             ViewCode.Column("MRN", "MRN"),
             ViewCode.Column("Patient Name", "PatientName", 1.5),
-            ViewCode.Column("Last Visit", "LastVisit"),
+            ViewCode.Column("Last Visit", "LastVisitDisplay"),
             ViewCode.Column("Record Status", "RecordStatus", template: ViewCode.StatusTemplate<MedicalRecord>("RecordStatus")),
             ViewCode.Column("Chart", "ChartComplete", template: ViewCode.StatusTemplate<MedicalRecord>("ChartComplete")),
             ViewCode.Column("Location", "Location"));

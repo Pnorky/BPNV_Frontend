@@ -8,6 +8,7 @@ public class NavItem
     public string Text { get; set; } = "";
     public string Tag { get; set; } = "";
     public bool IsChild { get; set; }
+    public string? Group { get; set; }
 }
 
 public class PatientRecord
@@ -39,6 +40,7 @@ public class MedicineRecord
     public string Stock { get; set; } = "";
     public string UnitPrice { get; set; } = "";
     public string ExpiryDate { get; set; } = "";
+    public string ExpiryDateDisplay => Services.StoreDateTime.FormatDateOnly(ExpiryDate);
     public string Status { get; set; } = "";
 }
 
@@ -49,6 +51,7 @@ public class LabOrderRecord
     public string TestType { get; set; } = "";
     public string OrderedBy { get; set; } = "";
     public string DateOrdered { get; set; } = "";
+    public string DateOrderedDisplay => Services.StoreDateTime.FormatDateOnly(DateOrdered);
     public string Priority { get; set; } = "";
 }
 
@@ -59,6 +62,7 @@ public class LabResultRecord
     public string TestType { get; set; } = "";
     public string Result { get; set; } = "";
     public string Completed { get; set; } = "";
+    public string CompletedDisplay => Services.StoreDateTime.FormatDateOnly(Completed);
 }
 
 public class RadiologyRecord
@@ -68,6 +72,7 @@ public class RadiologyRecord
     public string Procedure { get; set; } = "";
     public string OrderedBy { get; set; } = "";
     public string Schedule { get; set; } = "";
+    public string ScheduleDisplay => Services.StoreDateTime.FormatDateOnly(Schedule);
     public string Status { get; set; } = "";
 }
 
@@ -76,6 +81,7 @@ public class MedicalRecord
     public string MRN { get; set; } = "";
     public string PatientName { get; set; } = "";
     public string LastVisit { get; set; } = "";
+    public string LastVisitDisplay => Services.StoreDateTime.FormatDateOnly(LastVisit);
     public string RecordStatus { get; set; } = "";
     public string ChartComplete { get; set; } = "";
     public string Location { get; set; } = "";
@@ -96,14 +102,15 @@ public static class SampleData
     {
         new() { Icon = "LayoutDashboard", Text = "Overview", Tag = "Dashboard" },
         new() { Icon = "ShoppingBasket", Text = "New Sale", Tag = "Sales" },
-        new() { Icon = "Boxes", Text = "Inventory", Tag = "InventoryProducts" },
-        new() { Icon = "Package", Text = "Products", Tag = "InventoryProducts", IsChild = true },
-        new() { Icon = "Package", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
-        new() { Icon = "Boxes", Text = "Receive Stock", Tag = "InventoryReceiveStock", IsChild = true },
-        new() { Icon = "FileSpreadsheet", Text = "Import Excel", Tag = "InventoryImport", IsChild = true },
-        new() { Icon = "Truck", Text = "Suppliers", Tag = "InventorySuppliers", IsChild = true },
-        new() { Icon = "ArrowLeftRight", Text = "Stock Movements", Tag = "InventoryMovements", IsChild = true },
         new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports" },
+        new() { Icon = "Boxes", Text = "Inventory", Tag = "InventoryProducts" },
+        new() { Icon = "Package", Text = "Products", Tag = "InventoryProducts", IsChild = true, Group = "Catalog" },
+        new() { Icon = "Package", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
+        new() { Icon = "Boxes", Text = "Receive Stock", Tag = "InventoryReceiveStock", IsChild = true, Group = "Receiving" },
+        new() { Icon = "ScanBarcode", Text = "Batch Receive", Tag = "InventoryBatchReceive", IsChild = true },
+        new() { Icon = "FileSpreadsheet", Text = "Import Excel", Tag = "InventoryImport", IsChild = true },
+        new() { Icon = "Truck", Text = "Suppliers", Tag = "InventorySuppliers", IsChild = true, Group = "Operations" },
+        new() { Icon = "ArrowLeftRight", Text = "Stock Movements", Tag = "InventoryMovements", IsChild = true },
     };
 
     public static List<PatientRecord> Patients => AddGenerated(new()

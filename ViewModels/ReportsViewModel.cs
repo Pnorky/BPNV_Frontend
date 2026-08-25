@@ -32,7 +32,7 @@ public partial class ReportsViewModel : ObservableObject
     private string _exportStatus = "";
 
     public string GrossSalesDisplay => $"₱{_store.Sales.Sum(sale => sale.Total):N2}";
-    public string TodaySalesDisplay => $"₱{_store.Sales.Where(sale => sale.SoldAt.Date == DateTime.Today).Sum(sale => sale.Total):N2}";
+    public string TodaySalesDisplay => $"₱{_store.Sales.Where(sale => StoreDateTime.IsStoreToday(sale.SoldAt)).Sum(sale => sale.Total):N2}";
     public int Transactions => _store.Sales.Count;
     public int UnitsSold => _store.Sales.Sum(sale => sale.ItemCount);
     public int LowStockItems => _store.Products.Count(product => product.IsLowStock);

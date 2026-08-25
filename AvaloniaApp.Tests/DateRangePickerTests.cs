@@ -10,6 +10,7 @@ public sealed class DateRangePickerTests
     {
         var range = DateRangePicker.UpdateRange(null, null, new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero));
         Assert.AreEqual(new DateTime(2026, 8, 20), range.Start!.Value.Date);
+        Assert.AreEqual(TimeSpan.FromHours(8), range.Start.Value.Offset);
         Assert.IsNull(range.End);
 
         range = DateRangePicker.UpdateRange(range.Start, range.End, new DateTimeOffset(2026, 8, 10, 0, 0, 0, TimeSpan.Zero));

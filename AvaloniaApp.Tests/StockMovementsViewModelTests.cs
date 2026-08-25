@@ -37,6 +37,8 @@ public sealed class StockMovementsViewModelTests
 
         viewModel.HistorySearchText = "coffee";
         viewModel.HistoryReference = "DR-1";
+        viewModel.HistoryFromDate = StoreDateTime.AtStoreMidnight(new DateTime(2025, 8, 26));
+        viewModel.HistoryToDate = StoreDateTime.AtStoreMidnight(new DateTime(2025, 8, 27));
         viewModel.SelectedMovementType = viewModel.MovementTypes.Single(item => item.Value == "Receipt");
         await viewModel.ApplyHistoryFiltersCommand.ExecuteAsync(null);
 
@@ -44,6 +46,9 @@ public sealed class StockMovementsViewModelTests
         StringAssert.Contains(movementRequests[^1].Query, "search=coffee");
         StringAssert.Contains(movementRequests[^1].Query, "movementType=Receipt");
         StringAssert.Contains(movementRequests[^1].Query, "reference=DR-1");
+        var query = Uri.UnescapeDataString(movementRequests[^1].Query);
+        StringAssert.Contains(query, "fromUtc=2025-08-25T16:00:00.0000000+00:00");
+        StringAssert.Contains(query, "toUtcExclusive=2025-08-27T16:00:00.0000000+00:00");
 
         await viewModel.NextHistoryPageCommand.ExecuteAsync(null);
 

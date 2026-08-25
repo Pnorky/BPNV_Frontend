@@ -21,14 +21,14 @@ public sealed class StorePersistenceService
         try
         {
             using var stream = File.OpenRead(_path);
-            return JsonSerializer.Deserialize<StoreDocument>(stream, JsonOptions) ?? new StoreDocument();
+            return NormalizeEventTimes(JsonSerializer.Deserialize<StoreDocument>(stream, JsonOptions) ?? new StoreDocument());
         }
         catch (JsonException)
         {
             var backup = _path + ".bak";
             if (!File.Exists(backup)) return new StoreDocument();
             using var stream = File.OpenRead(backup);
-            return JsonSerializer.Deserialize<StoreDocument>(stream, JsonOptions) ?? new StoreDocument();
+            return NormalizeEventTimes(JsonSerializer.Deserialize<StoreDocument>(stream, JsonOptions) ?? new StoreDocument());
         }
     }
 
@@ -53,6 +53,34 @@ public sealed class StorePersistenceService
         if (File.Exists(_path)) File.Copy(_path, backupPath, true);
         File.Move(temporaryPath, _path, true);
     }
+
+    private static StoreDocument NormalizeEventTimes(StoreDocument document) => new()
+    {
+        Version = document.Version,
+        NextSaleNumber = document.NextSaleNumber,
+        Suppliers = document.Suppliers,
+        Products = document.Products,
+        Sales = document.Sales.Select(sale => new SaleRecord
+        {
+            SaleNumber = sale.SaleNumber,
+            SoldAt = StoreDateTime.NormalizeEventToUtc(sale.SoldAt),
+            CustomerType = sale.CustomerType,
+            Lines = sale.Lines
+        }).ToList(),
+        Movements = document.Movements.Select(movement => new StockMovement
+        {
+            Id = movement.Id,
+            ProductId = movement.ProductId,
+            Sku = movement.Sku,
+            ProductName = movement.ProductName,
+            SupplierName = movement.SupplierName,
+            Type = movement.Type,
+            Quantity = movement.Quantity,
+            OccurredAt = StoreDateTime.NormalizeEventToUtc(movement.OccurredAt),
+            Reference = movement.Reference,
+            Notes = movement.Notes
+        }).ToList()
+    };
 }
 
 public sealed class StoreDocument

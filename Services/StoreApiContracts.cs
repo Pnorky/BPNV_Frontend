@@ -197,8 +197,107 @@ public sealed record StockReceiptResponse(
     int DisplayStock,
     int BodegaStock,
     ulong ProductVersion,
-    DateTime OccurredAtUtc);
-public sealed record StockTransferResponse(Guid MovementId, Guid ProductId, int Quantity, int DisplayStock, int BodegaStock, ulong ProductVersion, DateTime OccurredAtUtc);
+    DateTime OccurredAtUtc)
+{
+    public string OccurredAtDisplay => StoreDateTime.FormatUtc(OccurredAtUtc);
+}
+
+public sealed record BatchReceiptRecordRequest(
+    int SourceRecord,
+    string SupplierLibrary,
+    string Barcode,
+    int UnitQuantity);
+
+public sealed record BatchReceiptRequest(
+    Guid IdempotencyKey,
+    string? Reference,
+    string? Notes,
+    IReadOnlyList<BatchReceiptRecordRequest> Records);
+
+public sealed record BatchReceiptIssueResponse(
+    string Code,
+    string Field,
+    int? SourceRecord,
+    string Message,
+    string Severity);
+
+public sealed record BatchReceiptPreviewRowResponse(
+    IReadOnlyList<int> SourceRecords,
+    string SupplierLibrary,
+    string Barcode,
+    Guid? SupplierId,
+    string? SupplierName,
+    Guid? ProductId,
+    string? ProductName,
+    string? Sku,
+    Guid? UnitId,
+    string? UnitLabel,
+    int InputUnitQuantity,
+    int? PiecesPerUnit,
+    int? BasePieceQuantity,
+    int? CurrentBodegaBalance,
+    int? ProjectedBodegaBalance,
+    string Status,
+    IReadOnlyList<BatchReceiptIssueResponse> Issues)
+{
+    public string SourceRecordsDisplay => string.Join(", ", SourceRecords);
+    public string SupplierNameDisplay => SupplierName ?? "Unknown";
+    public string SupplierResolutionDisplay => $"{SupplierLibrary} -> {SupplierNameDisplay}";
+    public string ProductNameDisplay => ProductName ?? "Unknown barcode";
+    public string SkuDisplay => Sku ?? "-";
+    public string UnitLabelDisplay => UnitLabel ?? "-";
+    public string ScannedQuantityDisplay => PiecesPerUnit is > 1
+        ? $"{InputUnitQuantity:N0} {UnitLabelDisplay} x {PiecesPerUnit:N0}"
+        : string.IsNullOrWhiteSpace(UnitLabel)
+            ? InputUnitQuantity.ToString("N0")
+            : $"{InputUnitQuantity:N0} {UnitLabel}";
+    public string PiecesPerUnitDisplay => PiecesPerUnit?.ToString("N0") ?? "-";
+    public string BasePieceQuantityDisplay => BasePieceQuantity?.ToString("N0") ?? "-";
+    public string CurrentBodegaDisplay => CurrentBodegaBalance?.ToString("N0") ?? "-";
+    public string ProjectedBodegaDisplay => ProjectedBodegaBalance?.ToString("N0") ?? "-";
+    public string BodegaChangeDisplay => $"{CurrentBodegaDisplay} -> {ProjectedBodegaDisplay}";
+    public string StatusDisplay => Issues.Count == 0 ? Status : $"{Status} ({Issues.Count})";
+}
+
+public sealed record BatchReceiptValidationSummaryResponse(
+    int InputRecordCount,
+    int NormalizedLineCount,
+    int AffectedProductCount,
+    int? TotalBasePieces,
+    int WarningCount,
+    int ErrorCount,
+    int IssueCount);
+
+public sealed record BatchReceiptValidationResponse(
+    Guid IdempotencyKey,
+    string? Reference,
+    string? Notes,
+    bool CanCommit,
+    IReadOnlyList<BatchReceiptPreviewRowResponse> Rows,
+    IReadOnlyList<BatchReceiptIssueResponse> Issues,
+    BatchReceiptValidationSummaryResponse Summary);
+
+public sealed record BatchReceiptResponse(
+    Guid BatchId,
+    Guid IdempotencyKey,
+    string? Reference,
+    int AcceptedRecordCount,
+    int NormalizedLineCount,
+    int AffectedProductCount,
+    int TotalBasePieces,
+    IReadOnlyList<string> Suppliers,
+    DateTime CompletedAtUtc,
+    bool IsIdempotentReplay)
+{
+    public string ReferenceDisplay => string.IsNullOrWhiteSpace(Reference) ? BatchId.ToString() : Reference;
+    public string SuppliersDisplay => string.Join(", ", Suppliers);
+    public string CompletedAtDisplay => StoreDateTime.FormatUtc(CompletedAtUtc);
+}
+
+public sealed record StockTransferResponse(Guid MovementId, Guid ProductId, int Quantity, int DisplayStock, int BodegaStock, ulong ProductVersion, DateTime OccurredAtUtc)
+{
+    public string OccurredAtDisplay => StoreDateTime.FormatUtc(OccurredAtUtc);
+}
 
 public sealed record StockMovementResponse(
     Guid Id,
@@ -224,7 +323,7 @@ public sealed record StockMovementResponse(
     Guid CreatedByUserId,
     string CreatedByName)
 {
-    public string OccurredAtDisplay => OccurredAtUtc.ToLocalTime().ToString("MMMM d, yyyy");
+    public string OccurredAtDisplay => StoreDateTime.FormatUtc(OccurredAtUtc);
     public string ProductDisplay => $"{ProductName} | {Sku} | {SupplierName}";
     public string MovementTypeDisplay => MovementType switch
     {
@@ -289,7 +388,10 @@ public sealed record SaleResponse(
     DateTime SoldAtUtc,
     Guid SoldByUserId,
     bool IsIdempotentReplay,
-    IReadOnlyList<SaleLineResponse> Lines);
+    IReadOnlyList<SaleLineResponse> Lines)
+{
+    public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
+}
 
 public sealed record ApiProblemDetails(
     string? Type,

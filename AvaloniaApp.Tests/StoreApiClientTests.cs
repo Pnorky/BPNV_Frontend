@@ -148,6 +148,96 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
+    public async Task BatchReceiptEndpointsSerializeExactRequestAndResponses()
+    {
+        var paths = new List<string>();
+        var bodies = new List<string>();
+        var key = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var row = new BatchReceiptPreviewRowResponse(
+            [1, 2], "Supplier A", "0000123", Guid.NewGuid(), "Supplier A", Guid.NewGuid(), "Product", "SKU-1",
+            Guid.NewGuid(), "case", 5, 12, 60, 10, 70, "Valid", []);
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            paths.Add(request.RequestUri.AbsolutePath);
+            bodies.Add(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+            if (request.RequestUri.AbsolutePath.EndsWith("/validate"))
+                return Json(new BatchReceiptValidationResponse(key, "DR-1", "Delivery", true, [row], [],
+                    new BatchReceiptValidationSummaryResponse(2, 1, 1, 60, 0, 0, 0)));
+            return Json(new BatchReceiptResponse(
+                Guid.NewGuid(), key, "DR-1", 2, 1, 1, 60, ["Supplier A"], DateTime.UtcNow, false));
+        });
+        await auth.LoginAsync("inventory", "password");
+        var client = new StoreApiClient(auth);
+        var request = new BatchReceiptRequest(key, "DR-1", "Delivery",
+        [
+            new BatchReceiptRecordRequest(1, "Supplier A", "0000123", 2),
+            new BatchReceiptRecordRequest(2, "Supplier A", "0000123", 3)
+        ]);
+
+        var validation = await client.ValidateBatchReceiptAsync(request);
+        var result = await client.ReceiveBatchAsync(request);
+
+        Assert.IsTrue(validation.CanCommit);
+        Assert.AreEqual(2, validation.Rows.Single().SourceRecords.Count);
+        Assert.AreEqual(2, result.AcceptedRecordCount);
+        CollectionAssert.AreEqual(new[] { "/api/stock-receipts/batch/validate", "/api/stock-receipts/batch" }, paths);
+        Assert.IsTrue(bodies.All(body => body.Contains("\"idempotencyKey\":\"22222222-2222-2222-2222-222222222222\"")));
+        Assert.IsTrue(bodies.All(body => body.Contains("\"reference\":\"DR-1\"")));
+        Assert.IsTrue(bodies.All(body => body.Contains("\"notes\":\"Delivery\"")));
+        Assert.IsTrue(bodies.All(body => body.Contains("\"records\":[{\"sourceRecord\":1,\"supplierLibrary\":\"Supplier A\",\"barcode\":\"0000123\",\"unitQuantity\":2}")));
+    }
+
+    [TestMethod]
+    public async Task BatchValidationDeserializesWarningAndErrorSeverityJson()
+    {
+        const string key = "33333333-3333-3333-3333-333333333333";
+        var json = "{" +
+            $"\"idempotencyKey\":\"{key}\",\"reference\":null,\"notes\":null,\"canCommit\":false," +
+            "\"rows\":[],\"issues\":[" +
+            "{\"code\":\"supplierLibraryNotFound\",\"field\":\"supplierLibrary\",\"sourceRecord\":1,\"message\":\"Uses registered supplier.\",\"severity\":\"Warning\"}," +
+            "{\"code\":\"unknownBarcode\",\"field\":\"barcode\",\"sourceRecord\":2,\"message\":\"Barcode is unknown.\",\"severity\":\"Error\"}]," +
+            "\"summary\":{\"inputRecordCount\":2,\"normalizedLineCount\":2,\"affectedProductCount\":1,\"totalBasePieces\":2,\"warningCount\":1,\"errorCount\":1,\"issueCount\":2}}";
+        var (auth, _) = Client(request => request.RequestUri!.AbsolutePath.EndsWith("/login")
+            ? Json(Tokens("access", "refresh"))
+            : new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        await auth.LoginAsync("inventory", "password");
+
+        var response = await new StoreApiClient(auth).ValidateBatchReceiptAsync(
+            new BatchReceiptRequest(Guid.Parse(key), null, null, [new(1, "Scanner", "0001", 1)]));
+
+        CollectionAssert.AreEqual(new[] { "Warning", "Error" }, response.Issues.Select(issue => issue.Severity).ToArray());
+        Assert.AreEqual(1, response.Summary.WarningCount);
+        Assert.AreEqual(1, response.Summary.ErrorCount);
+        Assert.AreEqual(2, response.Summary.IssueCount);
+    }
+
+    [TestMethod]
+    public async Task BatchValidationProblemResponseIsExposed()
+    {
+        var (auth, _) = Client(request => request.RequestUri!.AbsolutePath.EndsWith("/login")
+            ? Json(Tokens("access", "refresh"))
+            : new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = new StringContent(
+                    "{\"title\":\"Validation failed\",\"detail\":\"Batch request is invalid.\",\"status\":400,\"errors\":{\"records\":[\"At least one record is required.\"]}}",
+                    Encoding.UTF8,
+                    "application/problem+json")
+            });
+        await auth.LoginAsync("inventory", "password");
+
+        var exception = await Assert.ThrowsExactlyAsync<ApiClientException>(() =>
+            new StoreApiClient(auth).ValidateBatchReceiptAsync(new BatchReceiptRequest(Guid.NewGuid(), null, null, [])));
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, exception.StatusCode);
+        Assert.AreEqual("Batch request is invalid.", exception.Message);
+        Assert.AreEqual("At least one record is required.", exception.Problem!.Errors!["records"][0]);
+    }
+
+    [TestMethod]
     public async Task StockMovementHistorySendsServerPagingAndAuditFilters()
     {
         Uri? requestedUri = null;
@@ -164,8 +254,8 @@ public sealed class StoreApiClientTests
         await auth.LoginAsync("inventory", "password");
 
         var result = await new StoreApiClient(auth).GetStockMovementsAsync(
-            "coffee", "Receipt", "DR-1", new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 8, 31, 23, 59, 59, DateTimeKind.Utc), 2, 20, "product", "asc");
+            "coffee", "Receipt", "DR-1", new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero), 2, 20, "product", "asc");
 
         Assert.AreEqual(21, result.TotalCount);
         Assert.AreEqual("Inventory User", result.Items.Single().CreatedByName);
@@ -176,6 +266,7 @@ public sealed class StoreApiClientTests
         StringAssert.Contains(requestedUri.Query, "pageSize=20");
         StringAssert.Contains(requestedUri.Query, "sortBy=product");
         StringAssert.Contains(requestedUri.Query, "sortDirection=asc");
+        StringAssert.Contains(requestedUri.Query, "toUtcExclusive=");
     }
 
     [TestMethod]

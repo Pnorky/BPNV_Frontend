@@ -122,7 +122,7 @@ public sealed class ApiStockMovementsView : UserControl
         table.Bind(PagedTable.IsFilteredProperty, new Binding("IsHistoryFiltered"));
         table.Bind(PagedTable.RetryCommandProperty, new Binding("LoadHistoryCommand"));
         table.Bind(PagedTable.ClearFiltersCommandProperty, new Binding("ClearHistoryFiltersCommand"));
-        table.Columns.Add(Column("Date", item => item.OccurredAtDisplay, 1.1));
+        table.Columns.Add(Column("Date & time", item => item.OccurredAtDisplay, 1.25));
         table.Columns.Add(Column("Product", item => item.ProductName, 1.35));
         table.Columns.Add(Column("Movement", item => item.MovementTypeDisplay, 1.15));
         table.Columns.Add(Column("Quantity", item => item.QuantityDisplay, 0.7, HorizontalAlignment.Right));

@@ -1,3 +1,4 @@
+using AvaloniaApp.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -13,8 +14,8 @@ public partial class DashboardPageViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<SaleRecord> _recentSales = [];
 
-    public string TodaySalesDisplay => $"₱{_store.Sales.Where(sale => sale.SoldAt.Date == DateTime.Today).Sum(sale => sale.Total):N2}";
-    public int TodayTransactions => _store.Sales.Count(sale => sale.SoldAt.Date == DateTime.Today);
+    public string TodaySalesDisplay => $"₱{_store.Sales.Where(sale => StoreDateTime.IsStoreToday(sale.SoldAt)).Sum(sale => sale.Total):N2}";
+    public int TodayTransactions => _store.Sales.Count(sale => StoreDateTime.IsStoreToday(sale.SoldAt));
     public int ShelfUnits => _store.Products.Sum(product => product.ShelfStock);
     public int BodegaUnits => _store.Products.Sum(product => product.BodegaStock);
     public int AttentionCount => AttentionItems.Count;

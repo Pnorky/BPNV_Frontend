@@ -32,7 +32,7 @@ public class PharmacyView : UserControl
             ViewCode.Column("Category", "Category", 1.1),
             ViewCode.Column("Stock", "Stock", 0.6),
             ViewCode.Column("Unit Price", "UnitPrice", 0.9),
-            ViewCode.Column("Expiry Date", "ExpiryDate"),
+            ViewCode.Column("Expiry Date", "ExpiryDateDisplay"),
             ViewCode.Column("Status", "Status", template: ViewCode.StatusTemplate<MedicineRecord>("Status")));
         var border = ViewCode.Resource(new Border { CornerRadius = new CornerRadius(8), Child = table },
             Border.BackgroundProperty, "Card");

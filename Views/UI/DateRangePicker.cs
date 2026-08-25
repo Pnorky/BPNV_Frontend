@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using AvaloniaApp.Services;
 using Lucide.Avalonia;
 
 namespace AvaloniaApp.Views.UI;
@@ -27,7 +28,7 @@ public sealed class DateRangePicker : Grid
     private readonly Border _popupCard;
     private readonly Grid _months;
     private readonly List<(Button Button, DateTimeOffset Date, bool OutsideMonth)> _dayButtons = [];
-    private DateTime _displayMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime _displayMonth = new(StoreDateTime.StoreToday.Year, StoreDateTime.StoreToday.Month, 1);
     private DateTimeOffset? _hoverDate;
 
     public DateRangePicker()
@@ -160,7 +161,7 @@ public sealed class DateRangePicker : Grid
         DateTimeOffset? end,
         DateTimeOffset selectedDate)
     {
-        var selected = AtLocalMidnight(selectedDate.Date);
+        var selected = StoreDateTime.AtStoreMidnight(selectedDate.Date);
         if (!start.HasValue || end.HasValue) return (selected, null);
         return selected < start.Value ? (selected, start) : (start, selected);
     }
@@ -221,7 +222,7 @@ public sealed class DateRangePicker : Grid
         var gridStart = first.AddDays(-(int)first.DayOfWeek);
         for (var index = 0; index < 42; index++)
         {
-            var date = AtLocalMidnight(gridStart.AddDays(index));
+            var date = StoreDateTime.AtStoreMidnight(gridStart.AddDays(index));
             var outside = date.Month != month.Month;
             var button = new Button
             {
@@ -352,7 +353,6 @@ public sealed class DateRangePicker : Grid
 
     private IBrush GetResourceBrush(string key, IBrush fallback) => this.FindResource(key) as IBrush ?? fallback;
     private static bool SameDay(DateTimeOffset date, DateTimeOffset? other) => other.HasValue && date.Date == other.Value.Date;
-    private static DateTimeOffset Today() => AtLocalMidnight(DateTime.Today);
-    private static DateTimeOffset AtLocalMidnight(DateTime date) => new(date.Year, date.Month, date.Day, 0, 0, 0, TimeZoneInfo.Local.GetUtcOffset(date));
+    private static DateTimeOffset Today() => StoreDateTime.AtStoreMidnight(StoreDateTime.StoreToday);
     private static T At<T>(T control, int column) where T : Control { Grid.SetColumn(control, column); return control; }
 }

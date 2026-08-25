@@ -30,7 +30,7 @@ public class RadiologyView : UserControl
             ViewCode.Column("Patient", "Patient", 1.3),
             ViewCode.Column("Procedure", "Procedure", 1.3),
             ViewCode.Column("Ordered By", "OrderedBy", 1.2),
-            ViewCode.Column("Schedule", "Schedule", 1.1),
+            ViewCode.Column("Schedule", "ScheduleDisplay", 1.1),
             ViewCode.Column("Status", "Status", template: ViewCode.StatusTemplate<RadiologyRecord>("Status")));
         var border = ViewCode.Resource(new Border { CornerRadius = new CornerRadius(8), Child = table },
             Border.BackgroundProperty, "Card");

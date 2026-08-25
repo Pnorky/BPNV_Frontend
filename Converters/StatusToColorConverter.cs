@@ -12,9 +12,9 @@ public class StatusToColorConverter : IValueConverter
         var status = value?.ToString() ?? "";
         var resourceKey = status.ToLowerInvariant() switch
         {
-            "admitted" or "active" or "in stock" or "paid" or "completed" or "scheduled" => "SuccessGreen",
+            "admitted" or "active" or "in stock" or "paid" or "completed" or "scheduled" or "valid" => "SuccessGreen",
             "outpatient" or "low stock" or "warning" or "partial" or "pending" => "Pending",
-            "er" or "stat" or "out of stock" or "critical" or "inactive" or "delinquent" => "DestructiveRed",
+            "er" or "stat" or "out of stock" or "critical" or "inactive" or "delinquent" or "invalid" => "DestructiveRed",
             _ => "GrayBlue"
         };
         return FindBrush(resourceKey, "#6B7280");
@@ -39,9 +39,9 @@ public class StatusToForegroundConverter : IValueConverter
         var status = value?.ToString() ?? "";
         var resourceKey = status.ToLowerInvariant() switch
         {
-            "admitted" or "active" or "in stock" or "paid" or "completed" or "scheduled" => "SuccessForeground",
+            "admitted" or "active" or "in stock" or "paid" or "completed" or "scheduled" or "valid" => "SuccessForeground",
             "outpatient" or "low stock" or "warning" or "partial" or "pending" => "PendingForeground",
-            "er" or "stat" or "out of stock" or "critical" or "inactive" or "delinquent" => "DestructiveForeground",
+            "er" or "stat" or "out of stock" or "critical" or "inactive" or "delinquent" or "invalid" => "DestructiveForeground",
             _ => "InformationForeground"
         };
         return FindBrush(resourceKey);
