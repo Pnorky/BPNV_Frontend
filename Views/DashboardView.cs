@@ -6,6 +6,7 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using AvaloniaApp.Services;
 using Lucide.Avalonia;
 
 namespace AvaloniaApp.Views;
@@ -36,10 +37,8 @@ public class DashboardView : UserControl
         var title = new TextBlock { Text = "Store overview" };
         title.Classes.Add("h1");
 
-        var subtitle = new TextBlock
-        {
-            Text = "Sales performance and stock position across the display and bodega"
-        };
+        var subtitle = new TextBlock();
+        subtitle.Bind(TextBlock.TextProperty, new Binding("StatusMessage"));
         Resource(subtitle, TextBlock.ForegroundProperty, "MutedForeground");
 
         var refresh = new Button
@@ -174,14 +173,14 @@ public class DashboardView : UserControl
     {
         var items = new ItemsControl();
         items.Bind(ItemsControl.ItemsSourceProperty, new Binding("AttentionItems"));
-        items.ItemTemplate = new FuncDataTemplate<ProductItem>((_, _) =>
+        items.ItemTemplate = new FuncDataTemplate<InventoryReportProductResponse>((_, _) =>
         {
             var name = BoundText("Name", FontWeight.SemiBold);
             var sku = BoundText("Sku", fontSize: 11, resource: "MutedForeground");
             var displayLabel = MutedLabel("Display");
-            var display = BoundText("ShelfDisplay", FontWeight.SemiBold);
+            var display = BoundText("DisplayStock", FontWeight.SemiBold);
             var bodegaLabel = MutedLabel("Bodega");
-            var bodega = BoundText("BodegaDisplay", FontWeight.SemiBold);
+            var bodega = BoundText("BodegaStock", FontWeight.SemiBold);
 
             var displayStack = new StackPanel { Children = { displayLabel, display } };
             Grid.SetColumn(displayStack, 1);
@@ -214,7 +213,7 @@ public class DashboardView : UserControl
     {
         var items = new ItemsControl();
         items.Bind(ItemsControl.ItemsSourceProperty, new Binding("RecentSales"));
-        items.ItemTemplate = new FuncDataTemplate<SaleRecord>((_, _) =>
+        items.ItemTemplate = new FuncDataTemplate<ReportSaleResponse>((_, _) =>
         {
             var number = BoundText("SaleNumber", FontWeight.SemiBold);
             var customer = BoundText("CustomerType", fontSize: 11, resource: "MutedForeground", stringFormat: "{0} price");

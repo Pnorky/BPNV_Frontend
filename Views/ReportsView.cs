@@ -6,6 +6,7 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using AvaloniaApp.Services;
 using AvaloniaApp.Views.UI;
 using Lucide.Avalonia;
 
@@ -27,7 +28,8 @@ public class ReportsView : UserControl
     private static Control BuildHeader()
     {
         var title = Heading("Reports", "h1");
-        var status = Muted(path: "ExportStatus", fontSize: 11);
+        var status = Muted(path: "StatusMessage", fontSize: 11);
+        var exportStatus = Muted(path: "ExportStatus", fontSize: 11);
         var actions = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -40,13 +42,30 @@ public class ReportsView : UserControl
                 Button("Refresh", "RefreshCommand", true)
             }
         };
+        var dateRange = new DateRangePicker { PlaceholderText = "Pick a date range" };
+        Bind(dateRange, DateRangePicker.StartDateProperty, "FromDate");
+        Bind(dateRange, DateRangePicker.EndDateProperty, "ToDate");
+        var applyDateRange = Button("Apply filters", "RefreshCommand", true);
+        applyDateRange.VerticalAlignment = VerticalAlignment.Bottom;
+        var customerType = new SelectDropdown();
+        Bind(customerType, SelectDropdown.ItemsSourceProperty, "CustomerTypeOptions");
+        Bind(customerType, SelectDropdown.SelectedItemProperty, "SelectedCustomerType");
+        actions.HorizontalAlignment = HorizontalAlignment.Right;
+        Grid.SetColumnSpan(actions, 2);
+
         return new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("1.4*,0.85*,Auto"),
+            ColumnSpacing = 10,
+            RowSpacing = 12,
             Children =
             {
-                new StackPanel { Spacing = 4, Children = { title, Muted("Sales, inventory, and supplier ordering summaries"), status } },
-                At(actions, column: 1)
+                new StackPanel { Spacing = 4, Children = { title, Muted("Sales, inventory, and supplier ordering summaries"), status, exportStatus } },
+                At(actions, column: 1),
+                At(Field("DATE RANGE", dateRange), row: 1),
+                At(Field("SALES TYPE", customerType), column: 1, row: 1),
+                At(applyDateRange, column: 2, row: 1)
             }
         };
     }
@@ -79,7 +98,7 @@ public class ReportsView : UserControl
         Items =
         {
             new TabItem { Header = "Sales Summary", Content = Scroll(BuildSales()) },
-            new TabItem { Header = "Inventory Summary", Content = Scroll(BuildInventory()) },
+            new TabItem { Header = "Inventory Summary", Content = BuildInventory() },
             new TabItem { Header = "Order Summary", Content = Scroll(BuildOrders()) }
         }
     };
@@ -93,7 +112,7 @@ public class ReportsView : UserControl
 
         var topProducts = new ItemsControl();
         Bind(topProducts, ItemsControl.ItemsSourceProperty, "TopProducts");
-        topProducts.ItemTemplate = new FuncDataTemplate<ViewModels.ProductSalesSummary>((_, _) =>
+        topProducts.ItemTemplate = new FuncDataTemplate<TopProductResponse>((_, _) =>
         {
             var quantity = BoundText("Quantity", "{0} sold");
             Resource(quantity, TextBlock.ForegroundProperty, "MutedForeground");
@@ -102,18 +121,19 @@ public class ReportsView : UserControl
             {
                 ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
                 ColumnSpacing = 20,
-                Children = { Ellipsis("Product", true), At(quantity, column: 1), At(sales, column: 2) }
+                Children = { Ellipsis("ProductName", true), At(quantity, column: 1), At(sales, column: 2) }
             }, new Thickness(0, 13), new Thickness(0, 1, 0, 0));
         }, true);
 
         var recentSales = new ItemsControl();
         Bind(recentSales, ItemsControl.ItemsSourceProperty, "RecentSales");
-        recentSales.ItemTemplate = new FuncDataTemplate<SaleRecord>((_, _) => RowBorder(new Grid
+        recentSales.ItemTemplate = new FuncDataTemplate<ReportSaleResponse>((_, _) => RowBorder(new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("0.8*,1*,0.8*,0.8*"),
+            ColumnDefinitions = new ColumnDefinitions("1.15*,0.9*,0.45*,0.75*"),
+            ColumnSpacing = 12,
             Children =
             {
-                new StackPanel { Children = { SemiBold("SaleNumber"), Muted(path: "TimeDisplay", fontSize: 10) } },
+                new StackPanel { Children = { Ellipsis("SaleNumber", true), Muted(path: "TimeDisplay", fontSize: 10) } },
                 At(Cell("CustomerType"), column: 1), At(Cell("ItemCount"), column: 2), At(Cell("TotalDisplay", true, TextAlignment.Right), column: 3)
             }
         }, new Thickness(4, 11)), true);
@@ -128,7 +148,7 @@ public class ReportsView : UserControl
                 At(Card(new StackPanel
                 {
                     Spacing = 15,
-                    Children = { Heading("Recent sales", "h2"), SmallHeader("0.8*,1*,0.8*,0.8*", "SALE", "PRICE TYPE", "ITEMS", "TOTAL"), recentSales }
+                    Children = { Heading("Recent sales", "h2"), SmallHeader("1.15*,0.9*,0.45*,0.75*", "SALE", "PRICE TYPE", "ITEMS", "TOTAL"), recentSales }
                 }, new Thickness(22), VerticalAlignment.Top), column: 1)
             }
         };
@@ -138,7 +158,12 @@ public class ReportsView : UserControl
 
     private static Control BuildInventory()
     {
-        var content = PageStack();
+        var content = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowSpacing = 18,
+            Margin = new Thickness(10, 28, 10, 12)
+        };
         content.Children.Add(Stats(4,
             ("TOTAL UNITS", "TotalInventoryUnits"), ("DISPLAY", "DisplayUnits"),
             ("BODEGA", "BodegaUnits"), ("SELLING VALUE", "InventoryValueDisplay")));
@@ -149,23 +174,32 @@ public class ReportsView : UserControl
         summary.Children.Add(BoundText("SupplyCount", "{0} supplies"));
         var low = BoundText("LowStockItems", "{0} low stock"); low.FontWeight = FontWeight.SemiBold; summary.Children.Add(low);
 
-        var items = new ItemsControl();
-        Bind(items, ItemsControl.ItemsSourceProperty, "InventoryItems");
-        items.ItemTemplate = new FuncDataTemplate<ProductItem>((_, _) => RowBorder(new Grid
+        var table = new PagedTable
         {
-            ColumnDefinitions = new ColumnDefinitions("1.6*,1.1*,0.8*,0.6*,0.6*,0.6*,0.9*"),
-            ColumnSpacing = 12,
-            Children =
-            {
-                new StackPanel { Children = { SemiBold("Name"), Muted(path: "Sku", fontSize: 10) } },
-                At(Ellipsis("SupplierName", verticalCenter: true), column: 1), At(Cell("ItemTypeDisplay"), column: 2),
-                At(Cell("ShelfStock"), column: 3), At(Cell("BodegaStock"), column: 4),
-                At(Cell("TotalStock", true), column: 5), At(Badge("StockStatus"), column: 6)
-            }
-        }, new Thickness(16, 10)), true);
+            ItemName = "product",
+            ItemNamePlural = "products",
+            PageSize = 10,
+            MinHeight = 0,
+            MinTableWidth = 1050,
+            IsSelectable = false
+        };
+        Bind(table, PagedTable.ItemsSourceProperty, "InventoryItems");
+        var product = PagedTableColumn.Create<InventoryReportProductResponse, string>("PRODUCT", item => item.Name, new GridLength(1.6, GridUnitType.Star));
+        product.CellTemplate = new FuncDataTemplate<InventoryReportProductResponse>((_, _) =>
+            new StackPanel { Children = { SemiBold("Name"), Muted(path: "Sku", fontSize: 10) } }, true);
+        var statusColumn = PagedTableColumn.Create<InventoryReportProductResponse, string>("STATUS", item => item.StockStatus, new GridLength(0.9, GridUnitType.Star));
+        statusColumn.CellTemplate = new FuncDataTemplate<InventoryReportProductResponse>((_, _) => Badge("StockStatus"), true);
+        table.Columns.Add(product);
+        table.Columns.Add(PagedTableColumn.Create<InventoryReportProductResponse, string>("SUPPLIER", item => item.SupplierName, new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<InventoryReportProductResponse, string>("TYPE", item => item.ItemTypeDisplay, new GridLength(0.8, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<InventoryReportProductResponse, int>("DISPLAY", item => item.DisplayStock, new GridLength(0.6, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<InventoryReportProductResponse, int>("BODEGA", item => item.BodegaStock, new GridLength(0.6, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<InventoryReportProductResponse, int>("TOTAL", item => item.TotalStock, new GridLength(0.6, GridUnitType.Star)));
+        table.Columns.Add(statusColumn);
 
-        var table = new StackPanel
+        var tableContent = new Grid
         {
+            RowDefinitions = new RowDefinitions("Auto,*"),
             Children =
             {
                 new Grid
@@ -173,11 +207,10 @@ public class ReportsView : UserControl
                     ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(18, 16),
                     Children = { Heading("Inventory by location", "h2"), summary }
                 },
-                SmallHeader("1.6*,1.1*,0.8*,0.6*,0.6*,0.6*,0.9*", "PRODUCT", "SUPPLIER", "TYPE", "DISPLAY", "BODEGA", "TOTAL", "STATUS", new Thickness(16, 9)),
-                items
+                At(table, row: 1)
             }
         };
-        content.Children.Add(Card(table, clip: true));
+        content.Children.Add(At(tableContent, row: 1));
         return content;
     }
 
@@ -190,22 +223,22 @@ public class ReportsView : UserControl
 
         var summaries = new ItemsControl();
         Bind(summaries, ItemsControl.ItemsSourceProperty, "OrderSummaries");
-        summaries.ItemTemplate = new FuncDataTemplate<ViewModels.SupplierOrderSummary>((_, _) =>
+        summaries.ItemTemplate = new FuncDataTemplate<SupplierOrderResponse>((_, _) =>
         {
             var products = new ItemsControl();
             Bind(products, ItemsControl.ItemsSourceProperty, "Products");
-            products.ItemTemplate = new FuncDataTemplate<ViewModels.ReorderProductSummary>((_, _) =>
+            products.ItemTemplate = new FuncDataTemplate<OrderProductResponse>((_, _) =>
             {
-                var order = BoundText("OrderQuantity"); order.FontWeight = FontWeight.Bold; Resource(order, TextBlock.ForegroundProperty, "Primary");
+                var order = BoundText("SuggestedOrderQuantity"); order.FontWeight = FontWeight.Bold; Resource(order, TextBlock.ForegroundProperty, "Primary");
                 return RowBorder(new Grid
                 {
-                    ColumnDefinitions = new ColumnDefinitions("1.8*,0.8*,0.7*,0.7*,0.7*,0.7*,0.8*"),
+                    ColumnDefinitions = new ColumnDefinitions("1.65*,1.1*,0.7*,0.7*,0.7*,0.7*,0.8*"),
                     ColumnSpacing = 12,
                     Children =
                     {
-                        SemiBold("Name"), At(BoundText("Sku"), column: 1), At(BoundText("OnHand"), column: 2),
-                        At(BoundText("Tier"), column: 3), At(BoundText("CriticalLevel"), column: 4),
-                        At(BoundText("WarningLevel"), column: 5), At(order, column: 6)
+                        SemiBold("ProductName"), At(BoundText("Sku"), column: 1), At(BoundText("TotalStock"), column: 2),
+                        At(BoundText("ReorderTier"), column: 3), At(BoundText("CriticalReorderLevel"), column: 4),
+                        At(BoundText("WarningReorderLevel"), column: 5), At(order, column: 6)
                     }
                 }, new Thickness(12, 9));
             }, true);
@@ -217,10 +250,10 @@ public class ReportsView : UserControl
                 Children =
                 {
                     new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { supplier, At(Muted(path: "Summary"), column: 1) } },
-                    SmallHeader("1.8*,0.8*,0.7*,0.7*,0.7*,0.7*,0.8*", "PRODUCT", "SKU", "ON HAND", "TIER", "CRITICAL", "WARNING", "ORDER", new Thickness(12, 8)),
+                    SmallHeader("1.65*,1.1*,0.7*,0.7*,0.7*,0.7*,0.8*", "PRODUCT", "SKU", "ON HAND", "TIER", "CRITICAL", "WARNING", "ORDER", new Thickness(12, 8)),
                     products
                 }
-            }, new Thickness(18), margin: new Thickness(0, 0, 0, 14));
+            }, new Thickness(18), margin: new Thickness(8, 0, 8, 14));
         }, true);
         content.Children.Add(summaries);
         return content;
@@ -262,7 +295,12 @@ public class ReportsView : UserControl
     }
 
     private static StackPanel PageStack() => new() { Spacing = 18, Margin = new Thickness(0, 16, 0, 0) };
-    private static ScrollViewer Scroll(Control content) => new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = content };
+    private static ScrollViewer Scroll(Control content) => new()
+    {
+        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        Padding = new Thickness(10, 4, 10, 12),
+        Content = content
+    };
 
     private static Button Button(object? content, string command, bool primary = false)
     {
@@ -278,6 +316,9 @@ public class ReportsView : UserControl
         block.Classes.Add(className);
         return block;
     }
+
+    private static StackPanel Field(string label, Control control) =>
+        new() { Spacing = 5, Children = { new TextBlock { Text = label, Classes = { "form-label" } }, control } };
 
     private static TextBlock BoundText(string path, string? format = null)
     {

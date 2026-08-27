@@ -102,15 +102,16 @@ public static class SampleData
     {
         new() { Icon = "LayoutDashboard", Text = "Overview", Tag = "Dashboard" },
         new() { Icon = "ShoppingBasket", Text = "New Sale", Tag = "Sales" },
-        new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports" },
         new() { Icon = "Boxes", Text = "Inventory", Tag = "InventoryProducts" },
         new() { Icon = "Package", Text = "Products", Tag = "InventoryProducts", IsChild = true, Group = "Catalog" },
-        new() { Icon = "Package", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
+        new() { Icon = "PackagePlus", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
         new() { Icon = "Boxes", Text = "Receive Stock", Tag = "InventoryReceiveStock", IsChild = true, Group = "Receiving" },
         new() { Icon = "ScanBarcode", Text = "Batch Receive", Tag = "InventoryBatchReceive", IsChild = true },
         new() { Icon = "FileSpreadsheet", Text = "Import Excel", Tag = "InventoryImport", IsChild = true },
         new() { Icon = "Truck", Text = "Suppliers", Tag = "InventorySuppliers", IsChild = true, Group = "Operations" },
         new() { Icon = "ArrowLeftRight", Text = "Stock Movements", Tag = "InventoryMovements", IsChild = true },
+        new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports" },
+        new() { Icon = "Users", Text = "Users", Tag = "Users" },
     };
 
     public static List<PatientRecord> Patients => AddGenerated(new()

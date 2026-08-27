@@ -50,13 +50,6 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var user = await _authClient.LoginAsync(Username, Password);
-            if (user.MustChangePassword)
-            {
-                RequiresPasswordChange = true;
-                ShowStatus("Create a new password before continuing.", Colors.DarkOrange);
-                return;
-            }
-
             Password = "";
             OpenDashboard();
         }

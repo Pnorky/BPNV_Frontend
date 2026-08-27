@@ -7,11 +7,8 @@ namespace AvaloniaApp.Services;
 
 public static class ReportExportService
 {
-    public static void ExportPdf(StoreState store, Stream output)
+    public static void ExportPdf(ApiReportSnapshot report, Stream output)
     {
-        var sales = store.Sales.OrderByDescending(sale => sale.SoldAt).ToList();
-        var inventory = store.Products.OrderBy(product => product.Name).ToList();
-
         Document.Create(document =>
         {
             document.Page(page =>
@@ -33,43 +30,48 @@ public static class ReportExportService
                     content.Spacing(16);
                     content.Item().Row(row =>
                     {
-                        SummaryCard(row.RelativeItem(), "Gross sales", sales.Sum(sale => sale.Total).ToString("₱#,##0.00"));
+                        SummaryCard(row.RelativeItem(), "Gross sales", report.Sales.Summary.GrossSales.ToString("₱#,##0.00"));
                         row.Spacing(8);
-                        SummaryCard(row.RelativeItem(), "Transactions", sales.Count.ToString());
+                        SummaryCard(row.RelativeItem(), "Transactions", report.Sales.Summary.Transactions.ToString());
                         row.Spacing(8);
-                        SummaryCard(row.RelativeItem(), "Units sold", sales.Sum(sale => sale.ItemCount).ToString());
+                        SummaryCard(row.RelativeItem(), "Units sold", report.Sales.Summary.UnitsSold.ToString());
                         row.Spacing(8);
-                        SummaryCard(row.RelativeItem(), "Low stock", inventory.Count(product => product.IsLowStock).ToString());
+                        SummaryCard(row.RelativeItem(), "Low stock", report.Inventory.Summary.LowStockItems.ToString());
                     });
 
-                    content.Item().Text("Sales summary").Bold().FontSize(13);
+                    content.Item().Text("Sales lines").Bold().FontSize(13);
                     content.Item().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.ConstantColumn(58);
+                            columns.ConstantColumn(52);
+                            columns.ConstantColumn(76);
+                            columns.ConstantColumn(48);
                             columns.RelativeColumn();
-                            columns.ConstantColumn(70);
+                            columns.ConstantColumn(38);
                             columns.ConstantColumn(58);
-                            columns.ConstantColumn(72);
-                            columns.ConstantColumn(68);
                         });
                         table.Header(header =>
                         {
                             PdfHeader(header.Cell(), "Sale");
                             PdfHeader(header.Cell(), "Date and time");
-                            PdfHeader(header.Cell(), "Pricing");
-                            PdfHeader(header.Cell(), "Items");
-                            PdfHeader(header.Cell(), "Total");
+                            PdfHeader(header.Cell(), "SKU");
+                            PdfHeader(header.Cell(), "Product / unit");
+                            PdfHeader(header.Cell(), "Qty");
+                            PdfHeader(header.Cell(), "Amount");
                         });
 
-                        foreach (var sale in sales)
+                        foreach (var sale in report.Sales.Sales.OrderByDescending(sale => sale.SoldAtUtc))
                         {
-                            PdfCell(table.Cell(), sale.SaleNumber);
-                            PdfCell(table.Cell(), StoreDateTime.FormatEvent(sale.SoldAt));
-                            PdfCell(table.Cell(), sale.CustomerType);
-                            PdfCell(table.Cell(), sale.ItemCount.ToString());
-                            PdfCell(table.Cell(), sale.Total.ToString("₱#,##0.00"));
+                            foreach (var line in sale.Lines)
+                            {
+                                PdfCell(table.Cell(), sale.SaleNumber);
+                                PdfCell(table.Cell(), StoreDateTime.FormatUtc(sale.SoldAtUtc));
+                                PdfCell(table.Cell(), line.Sku);
+                                PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})");
+                                PdfCell(table.Cell(), line.BasePieceQuantity.ToString());
+                                PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                            }
                         }
                     });
 
@@ -78,12 +80,13 @@ public static class ReportExportService
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.ConstantColumn(58);
+                            columns.ConstantColumn(48);
                             columns.RelativeColumn();
                             columns.ConstantColumn(58);
+                            columns.ConstantColumn(42);
+                            columns.ConstantColumn(42);
+                            columns.ConstantColumn(38);
                             columns.ConstantColumn(58);
-                            columns.ConstantColumn(58);
-                            columns.ConstantColumn(66);
                         });
                         table.Header(header =>
                         {
@@ -96,15 +99,51 @@ public static class ReportExportService
                             PdfHeader(header.Cell(), "Status");
                         });
 
-                        foreach (var product in inventory)
+                        foreach (var product in report.Inventory.Products.OrderBy(product => product.Name))
                         {
                             PdfCell(table.Cell(), product.Sku);
                             PdfCell(table.Cell(), product.Name);
                             PdfCell(table.Cell(), product.SupplierName);
-                            PdfCell(table.Cell(), product.ShelfStock.ToString());
+                            PdfCell(table.Cell(), product.DisplayStock.ToString());
                             PdfCell(table.Cell(), product.BodegaStock.ToString());
                             PdfCell(table.Cell(), product.TotalStock.ToString());
                             PdfCell(table.Cell(), product.StockStatus);
+                        }
+                    });
+
+                    content.Item().Text("Suggested orders").Bold().FontSize(13);
+                    content.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(70);
+                            columns.ConstantColumn(52);
+                            columns.RelativeColumn();
+                            columns.ConstantColumn(42);
+                            columns.ConstantColumn(52);
+                            columns.ConstantColumn(48);
+                        });
+                        table.Header(header =>
+                        {
+                            PdfHeader(header.Cell(), "Supplier");
+                            PdfHeader(header.Cell(), "SKU");
+                            PdfHeader(header.Cell(), "Product");
+                            PdfHeader(header.Cell(), "On hand");
+                            PdfHeader(header.Cell(), "Tier");
+                            PdfHeader(header.Cell(), "Order");
+                        });
+
+                        foreach (var supplier in report.Orders.Suppliers)
+                        {
+                            foreach (var product in supplier.Products)
+                            {
+                                PdfCell(table.Cell(), supplier.SupplierName);
+                                PdfCell(table.Cell(), product.Sku);
+                                PdfCell(table.Cell(), product.ProductName);
+                                PdfCell(table.Cell(), product.TotalStock.ToString());
+                                PdfCell(table.Cell(), product.ReorderTier);
+                                PdfCell(table.Cell(), product.SuggestedOrderQuantity.ToString());
+                            }
                         }
                     });
                 });
@@ -120,17 +159,17 @@ public static class ReportExportService
         }).GeneratePdf(output);
     }
 
-    public static void ExportExcel(StoreState store, Stream output)
+    public static void ExportExcel(ApiReportSnapshot report, Stream output)
     {
         using var workbook = new XLWorkbook();
-        CreateSummarySheet(workbook, store);
-        CreateSalesSheet(workbook, store);
-        CreateInventorySheet(workbook, store);
-        CreateMovementSheet(workbook, store);
+        CreateSummarySheet(workbook, report);
+        CreateSalesSheet(workbook, report.Sales);
+        CreateInventorySheet(workbook, report.Inventory);
+        CreateOrdersSheet(workbook, report.Orders);
         workbook.SaveAs(output);
     }
 
-    private static void CreateSummarySheet(XLWorkbook workbook, StoreState store)
+    private static void CreateSummarySheet(XLWorkbook workbook, ApiReportSnapshot report)
     {
         var sheet = workbook.Worksheets.Add("Summary");
         sheet.Cell("A1").Value = "BPNV CONVENIENCE STORE SALES AND INVENTORY REPORT";
@@ -141,14 +180,16 @@ public static class ReportExportService
 
         var rows = new (string Label, object Value)[]
         {
-            ("Gross sales", store.Sales.Sum(sale => sale.Total)),
-            ("Sales today", store.Sales.Where(sale => StoreDateTime.IsStoreToday(sale.SoldAt)).Sum(sale => sale.Total)),
-            ("Transactions", store.Sales.Count),
-            ("Units sold", store.Sales.Sum(sale => sale.ItemCount)),
-            ("Display units", store.Products.Sum(product => product.ShelfStock)),
-            ("Bodega units", store.Products.Sum(product => product.BodegaStock)),
-            ("Low-stock products", store.Products.Count(product => product.IsLowStock)),
-            ("Inventory value", store.Products.Sum(product => product.TotalStock * product.RegularPrice))
+            ("Gross sales", report.Sales.Summary.GrossSales),
+            ("Sales today", report.Sales.Summary.TodaySales),
+            ("Transactions", report.Sales.Summary.Transactions),
+            ("Units sold", report.Sales.Summary.UnitsSold),
+            ("Display units", report.Inventory.Summary.DisplayUnits),
+            ("Bodega units", report.Inventory.Summary.BodegaUnits),
+            ("Low-stock products", report.Inventory.Summary.LowStockItems),
+            ("Inventory value", report.Inventory.Summary.InventoryValue),
+            ("Suppliers to order", report.Orders.Summary.SuppliersToOrder),
+            ("Suggested order units", report.Orders.Summary.SuggestedOrderUnits)
         };
 
         for (var index = 0; index < rows.Length; index++)
@@ -163,94 +204,103 @@ public static class ReportExportService
 
         sheet.Range("B4:B5").Style.NumberFormat.Format = "₱#,##0.00";
         sheet.Cell("B11").Style.NumberFormat.Format = "₱#,##0.00";
-        sheet.Range("A4:A11").Style.Font.Bold = true;
-        sheet.Range("A4:B11").Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-        sheet.Range("A4:B11").Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        sheet.Range("A4:A13").Style.Font.Bold = true;
+        sheet.Range("A4:B13").Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        sheet.Range("A4:B13").Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         sheet.SheetView.FreezeRows(3);
         sheet.Columns().AdjustToContents(12, 36);
     }
 
-    private static void CreateSalesSheet(XLWorkbook workbook, StoreState store)
+    private static void CreateSalesSheet(XLWorkbook workbook, SalesReportResponse sales)
     {
         var sheet = workbook.Worksheets.Add("Sales");
-        string[] headers = ["Sale #", "Date & time", "Customer pricing", "SKU", "Product", "Quantity", "Unit price", "Amount"];
+        string[] headers = ["Sale #", "Date & time", "Customer pricing", "Cashier", "SKU", "Product", "Unit", "Unit count", "Base pieces", "Unit price", "Amount"];
         WriteHeaders(sheet, headers);
 
         var row = 2;
-        foreach (var sale in store.Sales.OrderByDescending(sale => sale.SoldAt))
+        foreach (var sale in sales.Sales.OrderByDescending(sale => sale.SoldAtUtc))
         {
             foreach (var line in sale.Lines)
             {
                 sheet.Cell(row, 1).Value = sale.SaleNumber;
-                sheet.Cell(row, 2).Value = StoreDateTime.ToStoreTime(sale.SoldAt);
-                sheet.Cell(row, 3).Value = sale.CustomerType;
-                sheet.Cell(row, 4).Value = line.Sku;
-                sheet.Cell(row, 5).Value = line.ProductName;
-                sheet.Cell(row, 6).Value = line.Quantity;
-                sheet.Cell(row, 7).Value = line.UnitPrice;
-                sheet.Cell(row, 8).Value = line.Amount;
+                sheet.Cell(row, 2).Value = StoreDateTime.ToStoreTimeFromUtc(sale.SoldAtUtc);
+                sheet.Cell(row, 3).Value = sale.CustomerType.ToString();
+                sheet.Cell(row, 4).Value = sale.SoldByName;
+                sheet.Cell(row, 5).Value = line.Sku;
+                sheet.Cell(row, 6).Value = line.ProductName;
+                sheet.Cell(row, 7).Value = line.UnitLabel;
+                sheet.Cell(row, 8).Value = line.Count;
+                sheet.Cell(row, 9).Value = line.BasePieceQuantity;
+                sheet.Cell(row, 10).Value = line.UnitPrice;
+                sheet.Cell(row, 11).Value = line.LineTotal;
                 row++;
             }
         }
 
         sheet.Column(2).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
-        sheet.Columns(7, 8).Style.NumberFormat.Format = "₱#,##0.00";
-        StyleDataSheet(sheet, headers.Length, headers.Length, row - 1);
+        sheet.Columns(10, 11).Style.NumberFormat.Format = "₱#,##0.00";
+        StyleDataSheet(sheet, headers.Length, row - 1);
     }
 
-    private static void CreateInventorySheet(XLWorkbook workbook, StoreState store)
+    private static void CreateInventorySheet(XLWorkbook workbook, InventoryReportResponse inventory)
     {
         var sheet = workbook.Worksheets.Add("Inventory");
-        string[] headers = ["SKU", "Product", "Supplier", "Type", "Category", "Unit", "Display", "Bodega", "Total", "Critical level", "Warning level", "Reorder tier", "Suggested order", "Purchase price", "Selling price", "Employee price", "Status"];
+        string[] headers = ["SKU", "Product", "Supplier", "Type", "Category", "Unit", "Display", "Bodega", "Total", "Critical level", "Critical order", "Warning level", "Warning order", "Reorder tier", "Suggested order", "Purchase price", "Selling price", "Employee price", "Status"];
         WriteHeaders(sheet, headers);
 
         var row = 2;
-        foreach (var product in store.Products.OrderBy(product => product.Name))
+        foreach (var product in inventory.Products.OrderBy(product => product.Name))
         {
             sheet.Cell(row, 1).Value = product.Sku;
             sheet.Cell(row, 2).Value = product.Name;
             sheet.Cell(row, 3).Value = product.SupplierName;
-            sheet.Cell(row, 4).Value = product.ItemTypeDisplay;
+            sheet.Cell(row, 4).Value = product.ItemType.ToString();
             sheet.Cell(row, 5).Value = product.Category;
             sheet.Cell(row, 6).Value = product.Unit;
-            sheet.Cell(row, 7).Value = product.ShelfStock;
+            sheet.Cell(row, 7).Value = product.DisplayStock;
             sheet.Cell(row, 8).Value = product.BodegaStock;
             sheet.Cell(row, 9).Value = product.TotalStock;
-            if (product.EffectiveCriticalReorderLevel is int criticalLevel) sheet.Cell(row, 10).Value = criticalLevel;
-            if (product.EffectiveWarningReorderLevel is int warningLevel) sheet.Cell(row, 11).Value = warningLevel;
-            sheet.Cell(row, 12).Value = product.ReorderTier;
-            sheet.Cell(row, 13).Value = product.SuggestedOrderQuantity;
-            sheet.Cell(row, 14).Value = product.CostPrice;
-            sheet.Cell(row, 15).Value = product.RegularPrice;
-            sheet.Cell(row, 16).Value = product.EmployeePrice;
-            sheet.Cell(row, 17).Value = product.StockStatus;
+            sheet.Cell(row, 10).Value = product.CriticalReorderLevel;
+            sheet.Cell(row, 11).Value = product.CriticalOrderQuantity;
+            sheet.Cell(row, 12).Value = product.WarningReorderLevel;
+            sheet.Cell(row, 13).Value = product.WarningOrderQuantity;
+            sheet.Cell(row, 14).Value = product.ReorderTier;
+            sheet.Cell(row, 15).Value = product.SuggestedOrderQuantity;
+            sheet.Cell(row, 16).Value = product.CostPrice;
+            sheet.Cell(row, 17).Value = product.RegularPrice;
+            sheet.Cell(row, 18).Value = product.EmployeePrice;
+            sheet.Cell(row, 19).Value = product.StockStatus;
             row++;
         }
 
-        sheet.Columns(14, 16).Style.NumberFormat.Format = "₱#,##0.00";
-        StyleDataSheet(sheet, headers.Length, headers.Length, row - 1);
+        sheet.Columns(16, 18).Style.NumberFormat.Format = "₱#,##0.00";
+        StyleDataSheet(sheet, headers.Length, row - 1);
     }
 
-    private static void CreateMovementSheet(XLWorkbook workbook, StoreState store)
+    private static void CreateOrdersSheet(XLWorkbook workbook, OrderReportResponse orders)
     {
-        var sheet = workbook.Worksheets.Add("Stock Movements");
-        string[] headers = ["Date & time", "SKU", "Product", "Supplier", "Movement", "Quantity", "Reference", "Notes"];
+        var sheet = workbook.Worksheets.Add("Orders");
+        string[] headers = ["Supplier", "SKU", "Product", "Display", "Bodega", "Total", "Critical level", "Warning level", "Reorder tier", "Suggested order"];
         WriteHeaders(sheet, headers);
         var row = 2;
-        foreach (var movement in store.Movements.OrderByDescending(item => item.OccurredAt))
+        foreach (var supplier in orders.Suppliers)
         {
-            sheet.Cell(row, 1).Value = StoreDateTime.ToStoreTime(movement.OccurredAt);
-            sheet.Cell(row, 2).Value = movement.Sku;
-            sheet.Cell(row, 3).Value = movement.ProductName;
-            sheet.Cell(row, 4).Value = movement.SupplierName;
-            sheet.Cell(row, 5).Value = movement.TypeDisplay;
-            sheet.Cell(row, 6).Value = movement.QuantityDisplay;
-            sheet.Cell(row, 7).Value = movement.Reference;
-            sheet.Cell(row, 8).Value = movement.Notes;
-            row++;
+            foreach (var product in supplier.Products)
+            {
+                sheet.Cell(row, 1).Value = supplier.SupplierName;
+                sheet.Cell(row, 2).Value = product.Sku;
+                sheet.Cell(row, 3).Value = product.ProductName;
+                sheet.Cell(row, 4).Value = product.DisplayStock;
+                sheet.Cell(row, 5).Value = product.BodegaStock;
+                sheet.Cell(row, 6).Value = product.TotalStock;
+                sheet.Cell(row, 7).Value = product.CriticalReorderLevel;
+                sheet.Cell(row, 8).Value = product.WarningReorderLevel;
+                sheet.Cell(row, 9).Value = product.ReorderTier;
+                sheet.Cell(row, 10).Value = product.SuggestedOrderQuantity;
+                row++;
+            }
         }
-        sheet.Column(1).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
-        StyleDataSheet(sheet, headers.Length, headers.Length, row - 1);
+        StyleDataSheet(sheet, headers.Length, row - 1);
     }
 
     private static void WriteHeaders(IXLWorksheet sheet, IReadOnlyList<string> headers)
@@ -259,14 +309,14 @@ public static class ReportExportService
             sheet.Cell(1, index + 1).Value = headers[index];
     }
 
-    private static void StyleDataSheet(IXLWorksheet sheet, int headerColumns, int lastColumn, int lastRow)
+    private static void StyleDataSheet(IXLWorksheet sheet, int columns, int lastRow)
     {
-        var header = sheet.Range(1, 1, 1, headerColumns);
+        var header = sheet.Range(1, 1, 1, columns);
         header.Style.Font.Bold = true;
         header.Style.Fill.BackgroundColor = XLColor.FromHtml("#F59E0B");
         header.Style.Font.FontColor = XLColor.Black;
-        if (lastRow >= 1)
-            sheet.Range(1, 1, lastRow, lastColumn).CreateTable();
+        if (lastRow > 1)
+            sheet.Range(1, 1, lastRow, columns).CreateTable();
         sheet.SheetView.FreezeRows(1);
         sheet.Columns().AdjustToContents(8, 36);
     }

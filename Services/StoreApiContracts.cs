@@ -73,6 +73,21 @@ public sealed record SupplierResponse(
     public override string ToString() => Name;
 }
 
+public sealed record UserResponse(
+    Guid Id,
+    string Username,
+    string DisplayName,
+    bool IsActive,
+    bool MustChangePassword,
+    IReadOnlyList<string> Roles)
+{
+    public string RoleDisplay => string.Join(" / ", Roles);
+    public string Status => IsActive ? "Active" : "Inactive";
+}
+
+public sealed record CreateUserRequest(string Username, string DisplayName, string Password, IReadOnlyList<string> Roles);
+public sealed record UpdateUserRequest(string Username, string DisplayName, bool IsActive, string? Password, IReadOnlyList<string> Roles);
+
 public sealed record PosProductResponse(
     Guid Id,
     string SupplierName,
@@ -392,6 +407,140 @@ public sealed record SaleResponse(
 {
     public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
 }
+
+public sealed record ReportSaleLineResponse(
+    Guid Id,
+    Guid ProductId,
+    Guid UnitId,
+    string Sku,
+    string ProductName,
+    string UnitLabel,
+    string? UnitBarcode,
+    int PiecesPerUnit,
+    int Count,
+    int BasePieceQuantity,
+    decimal UnitPrice,
+    decimal LineTotal)
+{
+    public string UnitPriceDisplay => $"₱{UnitPrice:N2}";
+    public string LineTotalDisplay => $"₱{LineTotal:N2}";
+}
+
+public sealed record ReportSaleResponse(
+    Guid Id,
+    string SaleNumber,
+    ApiCustomerType CustomerType,
+    decimal Subtotal,
+    decimal Total,
+    DateTime SoldAtUtc,
+    Guid SoldByUserId,
+    string SoldByName,
+    IReadOnlyList<ReportSaleLineResponse> Lines)
+{
+    public int ItemCount => Lines.Sum(line => line.BasePieceQuantity);
+    public string TotalDisplay => $"₱{Total:N2}";
+    public string TimeDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
+}
+
+public sealed record TopProductResponse(
+    Guid ProductId,
+    string Sku,
+    string ProductName,
+    int Quantity,
+    decimal Sales)
+{
+    public string SalesDisplay => $"₱{Sales:N2}";
+}
+
+public sealed record SalesReportSummaryResponse(decimal GrossSales, decimal TodaySales, int Transactions, int UnitsSold);
+
+public sealed record SalesReportResponse(
+    SalesReportSummaryResponse Summary,
+    IReadOnlyList<TopProductResponse> TopProducts,
+    IReadOnlyList<ReportSaleResponse> RecentSales,
+    IReadOnlyList<ReportSaleResponse> Sales);
+
+public sealed record InventoryReportProductResponse(
+    Guid Id,
+    Guid SupplierId,
+    string SupplierName,
+    ApiInventoryItemType ItemType,
+    string Sku,
+    string Name,
+    string Category,
+    string Unit,
+    decimal CostPrice,
+    decimal RegularPrice,
+    decimal EmployeePrice,
+    int DisplayStock,
+    int BodegaStock,
+    int TotalStock,
+    int CriticalReorderLevel,
+    int CriticalOrderQuantity,
+    int WarningReorderLevel,
+    int WarningOrderQuantity,
+    string ReorderTier,
+    int SuggestedOrderQuantity,
+    string StockStatus,
+    bool IsActive)
+{
+    public string ItemTypeDisplay => ItemType.ToString();
+}
+
+public sealed record InventoryReportSummaryResponse(
+    int LowStockItems,
+    decimal InventoryValue,
+    int DisplayUnits,
+    int BodegaUnits,
+    int TotalInventoryUnits,
+    int MerchandiseCount,
+    int ConsumableCount,
+    int SupplyCount);
+
+public sealed record InventoryReportResponse(
+    InventoryReportSummaryResponse Summary,
+    IReadOnlyList<InventoryReportProductResponse> Products);
+
+public sealed record OrderProductResponse(
+    Guid ProductId,
+    string Sku,
+    string ProductName,
+    int DisplayStock,
+    int BodegaStock,
+    int TotalStock,
+    int CriticalReorderLevel,
+    int WarningReorderLevel,
+    string ReorderTier,
+    int SuggestedOrderQuantity);
+
+public sealed record SupplierOrderResponse(
+    Guid SupplierId,
+    string SupplierName,
+    int ProductCount,
+    int TotalOrderQuantity,
+    IReadOnlyList<OrderProductResponse> Products)
+{
+    public string Summary => $"{ProductCount} product{(ProductCount == 1 ? "" : "s")} · {TotalOrderQuantity} total units";
+}
+
+public sealed record OrderReportSummaryResponse(int SuppliersToOrder, int ProductsToOrder, int SuggestedOrderUnits);
+
+public sealed record OrderReportResponse(
+    OrderReportSummaryResponse Summary,
+    IReadOnlyList<SupplierOrderResponse> Suppliers);
+
+public sealed record DashboardResponse(
+    decimal TodaySales,
+    int TodayTransactions,
+    int DisplayUnits,
+    int BodegaUnits,
+    IReadOnlyList<InventoryReportProductResponse> AttentionItems,
+    IReadOnlyList<ReportSaleResponse> RecentSales);
+
+public sealed record ApiReportSnapshot(
+    SalesReportResponse Sales,
+    InventoryReportResponse Inventory,
+    OrderReportResponse Orders);
 
 public sealed record ApiProblemDetails(
     string? Type,

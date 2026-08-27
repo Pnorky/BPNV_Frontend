@@ -9,6 +9,26 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public bool IsSuperAdmin => authClient.IsSuperAdmin;
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
+    public Task<IReadOnlyList<UserResponse>> GetUsersAsync(bool includeInactive = true, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<UserResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/users", ("includeInactive", includeInactive ? "true" : "false"))), cancellationToken);
+
+    public Task<UserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<UserResponse, CreateUserRequest>(HttpMethod.Post, "api/users", request, cancellationToken);
+
+    public Task<UserResponse> UpdateUserAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<UserResponse, UpdateUserRequest>(HttpMethod.Put, $"api/users/{id}", request, cancellationToken);
+
+    public async Task DeactivateUserAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        using var response = await authClient.SendAuthorizedAsync(() => new HttpRequestMessage(HttpMethod.Delete, $"api/users/{id}"), cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var problem = await ReadProblemAsync(response, cancellationToken);
+            throw new ApiClientException(response.StatusCode, ProblemMessage(problem, response), problem);
+        }
+    }
+
     public Task<IReadOnlyList<SupplierResponse>> GetSuppliersAsync(
         string? search = null,
         bool includeInactive = false,
@@ -148,6 +168,28 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         CreateSaleRequest request,
         CancellationToken cancellationToken = default) =>
         SendJsonAsync<SaleResponse, CreateSaleRequest>(HttpMethod.Post, "api/sales", request, cancellationToken);
+
+    public Task<DashboardResponse> GetDashboardAsync(CancellationToken cancellationToken = default) =>
+        SendAsync<DashboardResponse>(() => new HttpRequestMessage(HttpMethod.Get, "api/dashboard"), cancellationToken);
+
+    public Task<SalesReportResponse> GetSalesReportAsync(
+        DateTimeOffset? fromUtc = null,
+        DateTimeOffset? toUtcExclusive = null,
+        ApiCustomerType? customerType = null,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<SalesReportResponse>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery(
+                "api/reports/sales",
+                ("fromUtc", fromUtc?.ToString("O")),
+                ("toUtcExclusive", toUtcExclusive?.ToString("O")),
+                ("customerType", customerType?.ToString()))),
+            cancellationToken);
+
+    public Task<InventoryReportResponse> GetInventoryReportAsync(CancellationToken cancellationToken = default) =>
+        SendAsync<InventoryReportResponse>(() => new HttpRequestMessage(HttpMethod.Get, "api/reports/inventory"), cancellationToken);
+
+    public Task<OrderReportResponse> GetOrderReportAsync(CancellationToken cancellationToken = default) =>
+        SendAsync<OrderReportResponse>(() => new HttpRequestMessage(HttpMethod.Get, "api/reports/orders"), cancellationToken);
 
     public Task<InventoryImportValidationResult> ValidateInventoryImportAsync(
         InventoryImportRequest request,

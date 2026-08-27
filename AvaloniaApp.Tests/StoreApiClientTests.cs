@@ -270,6 +270,112 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
+    public async Task ReportingEndpointsUseExpectedPathsAndUtcRange()
+    {
+        var uris = new List<Uri>();
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            uris.Add(request.RequestUri);
+            return request.RequestUri.AbsolutePath switch
+            {
+                "/api/dashboard" => Json(Dashboard()),
+                "/api/reports/sales" => Json(SalesReport()),
+                "/api/reports/inventory" => Json(InventoryReport()),
+                "/api/reports/orders" => Json(OrderReport()),
+                _ => throw new InvalidOperationException(request.RequestUri.ToString())
+            };
+        });
+        await auth.LoginAsync("inventory", "password");
+        var client = new StoreApiClient(auth);
+        var from = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero);
+
+        await client.GetDashboardAsync();
+        await client.GetSalesReportAsync(from, to);
+        await client.GetInventoryReportAsync();
+        await client.GetOrderReportAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { "/api/dashboard", "/api/reports/sales", "/api/reports/inventory", "/api/reports/orders" },
+            uris.Select(uri => uri.AbsolutePath).ToArray());
+        StringAssert.Contains(uris[1].Query, "fromUtc=");
+        StringAssert.Contains(uris[1].Query, "toUtcExclusive=");
+    }
+
+    [TestMethod]
+    public async Task DashboardViewModelMapsApiSnapshotAndClearsDataOnFailure()
+    {
+        var dashboardCalls = 0;
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            dashboardCalls++;
+            return dashboardCalls == 1
+                ? Json(Dashboard())
+                : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                {
+                    Content = new StringContent("{\"title\":\"Unavailable\",\"detail\":\"Database unavailable.\",\"status\":503}", Encoding.UTF8, "application/problem+json")
+                };
+        });
+        await auth.LoginAsync("inventory", "password");
+        var notifications = new TestNotificationService();
+        var viewModel = new DashboardPageViewModel(new StoreApiClient(auth), notifications);
+        while (viewModel.IsLoading) await Task.Delay(5);
+
+        Assert.AreEqual("₱125.50", viewModel.TodaySalesDisplay);
+        Assert.AreEqual(2, viewModel.TodayTransactions);
+        Assert.AreEqual(7, viewModel.ShelfUnits);
+        Assert.AreEqual("Product", viewModel.AttentionItems.Single().Name);
+        Assert.AreEqual("August 26, 2025 8:00 AM", viewModel.RecentSales.Single().TimeDisplay);
+
+        await viewModel.RefreshAsync();
+
+        Assert.AreEqual(0, viewModel.TodayTransactions);
+        Assert.AreEqual(0, viewModel.AttentionItems.Count);
+        Assert.AreEqual("Database unavailable.", viewModel.ErrorMessage);
+        Assert.AreEqual("Error", notifications.Notifications.Single().Type);
+    }
+
+    [TestMethod]
+    public async Task ReportsViewModelCombinesApiSnapshotsAndExposesFailureState()
+    {
+        var fail = false;
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            if (fail) return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+            {
+                Content = new StringContent("{\"title\":\"Unavailable\",\"detail\":\"Reports unavailable.\",\"status\":503}", Encoding.UTF8, "application/problem+json")
+            };
+            return request.RequestUri.AbsolutePath switch
+            {
+                "/api/reports/sales" => Json(SalesReport()),
+                "/api/reports/inventory" => Json(InventoryReport()),
+                "/api/reports/orders" => Json(OrderReport()),
+                _ => throw new InvalidOperationException(request.RequestUri.ToString())
+            };
+        });
+        await auth.LoginAsync("inventory", "password");
+        var viewModel = new ReportsViewModel(new StoreApiClient(auth));
+        while (viewModel.IsLoading) await Task.Delay(5);
+
+        Assert.IsNotNull(viewModel.Snapshot);
+        Assert.AreEqual("₱500.00", viewModel.GrossSalesDisplay);
+        Assert.AreEqual(3, viewModel.UnitsSold);
+        Assert.AreEqual(15, viewModel.TotalInventoryUnits);
+        Assert.AreEqual(4, viewModel.SuggestedOrderUnits);
+        Assert.AreEqual("Product", viewModel.TopProducts.Single().ProductName);
+
+        fail = true;
+        await viewModel.RefreshAsync();
+
+        Assert.IsNull(viewModel.Snapshot);
+        Assert.AreEqual(0, viewModel.InventoryItems.Count);
+        Assert.AreEqual("Reports unavailable.", viewModel.ErrorMessage);
+    }
+
+    [TestMethod]
     public async Task PosScannerUsesSelectedPackageAndEnforcesBasePieceDisplayLimit()
     {
         var productId = Guid.NewGuid();
@@ -349,6 +455,32 @@ public sealed class StoreApiClientTests
         var unit = new ProductUnitResponse(productId, "0000123", "piece", 1, 10, 9, true, true);
         return new PosProductResponse(productId, "Supplier", "SKU", "0000123", "Product", "piece", 10, 9, 5, 1, [unit], unit);
     }
+
+    private static DashboardResponse Dashboard() => new(125.50m, 2, 7, 8, [InventoryProduct()], [ReportSale()]);
+
+    private static SalesReportResponse SalesReport() => new(
+        new SalesReportSummaryResponse(500, 125.50m, 2, 3),
+        [new TopProductResponse(Guid.NewGuid(), "SKU", "Product", 3, 125.50m)],
+        [ReportSale()],
+        [ReportSale()]);
+
+    private static InventoryReportResponse InventoryReport() => new(
+        new InventoryReportSummaryResponse(1, 150, 7, 8, 15, 1, 0, 0),
+        [InventoryProduct()]);
+
+    private static OrderReportResponse OrderReport() => new(
+        new OrderReportSummaryResponse(1, 1, 4),
+        [new SupplierOrderResponse(Guid.NewGuid(), "Supplier", 1, 4,
+            [new OrderProductResponse(Guid.NewGuid(), "SKU", "Product", 7, 8, 15, 5, 10, "Warning", 4)])]);
+
+    private static InventoryReportProductResponse InventoryProduct() => new(
+        Guid.NewGuid(), Guid.NewGuid(), "Supplier", ApiInventoryItemType.Merchandise, "SKU", "Product", "Category", "piece",
+        5, 10, 9, 7, 8, 15, 5, 4, 10, 4, "Warning", 4, "Warning", true);
+
+    private static ReportSaleResponse ReportSale() => new(
+        Guid.NewGuid(), "SALE-1", ApiCustomerType.Regular, 125.50m, 125.50m,
+        new DateTime(2025, 8, 26, 0, 0, 0, DateTimeKind.Utc), Guid.NewGuid(), "Cashier",
+        [new ReportSaleLineResponse(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SKU", "Product", "piece", null, 1, 3, 3, 10, 30)]);
 
     private static HttpResponseMessage Json<T>(T value) => new(HttpStatusCode.OK) { Content = JsonContent.Create(value) };
 }

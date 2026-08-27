@@ -75,7 +75,7 @@ public partial class DashboardViewModel : ObservableObject
         if (!CanNavigateTo(tag)) tag = "Dashboard";
         CurrentPage = tag switch
         {
-            "Dashboard" => new DashboardPageViewModel(_store),
+            "Dashboard" => new DashboardPageViewModel(_storeClient, _notifications),
             "Sales" => new SalesViewModel(_storeClient, _notifications),
             "InventoryProducts" => new ProductCatalogViewModel(_storeClient),
             "InventoryAddProduct" => new AddProductViewModel(_storeClient, _notifications),
@@ -84,8 +84,9 @@ public partial class DashboardViewModel : ObservableObject
             "InventoryImport" => new ExcelInventoryImportViewModel(_storeClient, _notifications),
             "InventorySuppliers" => new SuppliersViewModel(_storeClient, _notifications),
             "InventoryMovements" => new ApiStockMovementsViewModel(_storeClient, _notifications),
-            "Reports" => new ReportsViewModel(_store),
-            _ => new DashboardPageViewModel(_store)
+            "Reports" => new ReportsViewModel(_storeClient),
+            "Users" => new UsersViewModel(_storeClient, _notifications),
+            _ => new DashboardPageViewModel(_storeClient, _notifications)
         };
     }
 
@@ -187,6 +188,7 @@ public partial class DashboardViewModel : ObservableObject
         "InventoryProducts" or "InventoryAddProduct" or "InventoryReceiveStock" or
         "InventoryBatchReceive" or "InventoryImport" or "InventorySuppliers" or "InventoryMovements" or "Reports" =>
             _session.HasRole("Admin") || _session.HasRole("Inventory"),
+        "Users" => _session.HasRole("Admin"),
         _ => false
     };
 

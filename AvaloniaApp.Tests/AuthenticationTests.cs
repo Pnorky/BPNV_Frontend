@@ -105,8 +105,8 @@ public sealed class AuthenticationTests
 
     [TestMethod]
     [DataRow("Cashier", "Dashboard,Sales")]
-    [DataRow("Inventory", "Dashboard,Reports,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryImport,InventorySuppliers,InventoryMovements")]
-    [DataRow("Admin", "Dashboard,Sales,Reports,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryImport,InventorySuppliers,InventoryMovements")]
+    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryImport,InventorySuppliers,InventoryMovements,Reports")]
+    [DataRow("Admin", "Dashboard,Sales,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryImport,InventorySuppliers,InventoryMovements,Reports,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));
@@ -142,7 +142,7 @@ public sealed class AuthenticationTests
 
         inventoryViewModel.ToggleSidebarCommand.Execute(null);
         CollectionAssert.AreEqual(
-            new[] { "Dashboard", "Reports", "InventoryProducts" },
+            new[] { "Dashboard", "InventoryProducts", "Reports" },
             inventoryViewModel.NavItems.Select(item => item.Tag).ToArray());
         inventoryViewModel.OpenInventorySection("InventoryBatchReceive");
 

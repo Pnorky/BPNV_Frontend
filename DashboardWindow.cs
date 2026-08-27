@@ -252,7 +252,7 @@ public class DashboardWindow : Window
                 Children =
                 {
                     CreateInventoryFlyoutItem("Products", "InventoryProducts", LucideIconKind.Package),
-                    CreateInventoryFlyoutItem("Add Product", "InventoryAddProduct", LucideIconKind.Package),
+                    CreateInventoryFlyoutItem("Add Product", "InventoryAddProduct", LucideIconKind.PackagePlus),
                     CreateInventoryFlyoutItem("Receive Stock", "InventoryReceiveStock", LucideIconKind.Boxes),
                     CreateInventoryFlyoutItem("Batch Receive", "InventoryBatchReceive", LucideIconKind.ScanBarcode),
                     CreateInventoryFlyoutItem("Import Excel", "InventoryImport", LucideIconKind.FileSpreadsheet),
