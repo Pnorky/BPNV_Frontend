@@ -72,11 +72,24 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         CancellationToken cancellationToken = default) =>
         SendJsonAsync<ProductResponse, CreateProductRequest>(HttpMethod.Post, "api/products", request, cancellationToken);
 
+    public Task<ProductResponse> UpdateProductAsync(
+        Guid id,
+        UpdateProductRequest request,
+        CancellationToken cancellationToken = default) =>
+        SendJsonAsync<ProductResponse, UpdateProductRequest>(HttpMethod.Put, $"api/products/{id}", request, cancellationToken);
+
+    public Task DeactivateProductAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/products/{id}/deactivate", cancellationToken);
+
+    public Task ReactivateProductAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/products/{id}/reactivate", cancellationToken);
+
     public Task<PagedResponse<ProductResponse>> GetProductsAsync(
         string? search = null,
         ApiInventoryItemType? itemType = null,
         Guid? supplierId = null,
         bool? sellable = null,
+        bool includeInactive = false,
         int page = 1,
         int pageSize = 50,
         CancellationToken cancellationToken = default) =>
@@ -87,6 +100,7 @@ public sealed class StoreApiClient(AuthApiClient authClient)
                 ("itemType", itemType?.ToString()),
                 ("supplierId", supplierId?.ToString()),
                 ("sellable", sellable?.ToString().ToLowerInvariant()),
+                ("includeInactive", includeInactive ? "true" : null),
                 ("page", page.ToString()),
                 ("pageSize", pageSize.ToString()))),
             cancellationToken);
@@ -226,6 +240,20 @@ public sealed class StoreApiClient(AuthApiClient authClient)
                 Content = JsonContent.Create(body, options: JsonOptions)
             },
             cancellationToken);
+
+    private async Task SendWithoutResponseAsync(
+        HttpMethod method,
+        string uri,
+        CancellationToken cancellationToken)
+    {
+        using var response = await authClient.SendAuthorizedAsync(
+            () => new HttpRequestMessage(method, uri), cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var problem = await ReadProblemAsync(response, cancellationToken);
+            throw new ApiClientException(response.StatusCode, ProblemMessage(problem, response), problem);
+        }
+    }
 
     private async Task<T> SendAsync<T>(
         Func<HttpRequestMessage> requestFactory,

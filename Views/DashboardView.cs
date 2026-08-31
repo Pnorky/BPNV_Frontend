@@ -217,6 +217,7 @@ public class DashboardView : UserControl
         {
             var number = BoundText("SaleNumber", FontWeight.SemiBold);
             var customer = BoundText("CustomerType", fontSize: 11, resource: "MutedForeground", stringFormat: "{0} price");
+            var payment = BoundText("PaymentMethodDisplay", fontSize: 11, resource: "MutedForeground");
             var total = BoundText("TotalDisplay", FontWeight.Bold);
             total.HorizontalAlignment = HorizontalAlignment.Right;
             var time = BoundText("TimeDisplay", fontSize: 11, resource: "MutedForeground");
@@ -238,7 +239,7 @@ public class DashboardView : UserControl
                     ColumnDefinitions = new ColumnDefinitions("*,Auto"),
                     Children =
                     {
-                        new StackPanel { Children = { number, customer } },
+                        new StackPanel { Children = { number, customer, payment } },
                         values
                     }
                 }

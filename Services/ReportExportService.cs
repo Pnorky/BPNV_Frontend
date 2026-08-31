@@ -46,6 +46,7 @@ public static class ReportExportService
                         {
                             columns.ConstantColumn(52);
                             columns.ConstantColumn(76);
+                            columns.ConstantColumn(42);
                             columns.ConstantColumn(48);
                             columns.RelativeColumn();
                             columns.ConstantColumn(38);
@@ -55,6 +56,7 @@ public static class ReportExportService
                         {
                             PdfHeader(header.Cell(), "Sale");
                             PdfHeader(header.Cell(), "Date and time");
+                            PdfHeader(header.Cell(), "Payment");
                             PdfHeader(header.Cell(), "SKU");
                             PdfHeader(header.Cell(), "Product / unit");
                             PdfHeader(header.Cell(), "Qty");
@@ -67,6 +69,7 @@ public static class ReportExportService
                             {
                                 PdfCell(table.Cell(), sale.SaleNumber);
                                 PdfCell(table.Cell(), StoreDateTime.FormatUtc(sale.SoldAtUtc));
+                                PdfCell(table.Cell(), sale.PaymentMethodDisplay);
                                 PdfCell(table.Cell(), line.Sku);
                                 PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})");
                                 PdfCell(table.Cell(), line.BasePieceQuantity.ToString());
@@ -214,7 +217,7 @@ public static class ReportExportService
     private static void CreateSalesSheet(XLWorkbook workbook, SalesReportResponse sales)
     {
         var sheet = workbook.Worksheets.Add("Sales");
-        string[] headers = ["Sale #", "Date & time", "Customer pricing", "Cashier", "SKU", "Product", "Unit", "Unit count", "Base pieces", "Unit price", "Amount"];
+        string[] headers = ["Sale #", "Date & time", "Customer pricing", "Payment method", "Cashier", "SKU", "Product", "Unit", "Unit count", "Base pieces", "Unit price", "Amount"];
         WriteHeaders(sheet, headers);
 
         var row = 2;
@@ -225,20 +228,21 @@ public static class ReportExportService
                 sheet.Cell(row, 1).Value = sale.SaleNumber;
                 sheet.Cell(row, 2).Value = StoreDateTime.ToStoreTimeFromUtc(sale.SoldAtUtc);
                 sheet.Cell(row, 3).Value = sale.CustomerType.ToString();
-                sheet.Cell(row, 4).Value = sale.SoldByName;
-                sheet.Cell(row, 5).Value = line.Sku;
-                sheet.Cell(row, 6).Value = line.ProductName;
-                sheet.Cell(row, 7).Value = line.UnitLabel;
-                sheet.Cell(row, 8).Value = line.Count;
-                sheet.Cell(row, 9).Value = line.BasePieceQuantity;
-                sheet.Cell(row, 10).Value = line.UnitPrice;
-                sheet.Cell(row, 11).Value = line.LineTotal;
+                sheet.Cell(row, 4).Value = sale.PaymentMethodDisplay;
+                sheet.Cell(row, 5).Value = sale.SoldByName;
+                sheet.Cell(row, 6).Value = line.Sku;
+                sheet.Cell(row, 7).Value = line.ProductName;
+                sheet.Cell(row, 8).Value = line.UnitLabel;
+                sheet.Cell(row, 9).Value = line.Count;
+                sheet.Cell(row, 10).Value = line.BasePieceQuantity;
+                sheet.Cell(row, 11).Value = line.UnitPrice;
+                sheet.Cell(row, 12).Value = line.LineTotal;
                 row++;
             }
         }
 
         sheet.Column(2).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
-        sheet.Columns(10, 11).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Columns(11, 12).Style.NumberFormat.Format = "₱#,##0.00";
         StyleDataSheet(sheet, headers.Length, row - 1);
     }
 

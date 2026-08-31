@@ -2,7 +2,10 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Net;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using AvaloniaApp.Services;
+using AvaloniaApp.Views.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -202,6 +205,23 @@ public partial class SalesViewModel : ObservableObject
             return;
         }
 
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner })
+        {
+            ShowError("Payment unavailable", "Cannot open checkout payment because the main application window is unavailable.");
+            return;
+        }
+
+        var payment = await new PaymentDialog
+        {
+            DataContext = new PaymentDialogViewModel(Cart.Sum(line => line.Amount))
+        }.ShowDialog<PaymentDialogResult?>(owner);
+        if (payment is null)
+        {
+            StatusMessage = "Payment cancelled. The sale remains in the cart.";
+            RequestScannerFocus();
+            return;
+        }
+
         _idempotencyKey ??= Guid.NewGuid();
         StatusMessage = "Submitting the sale for server pricing and stock validation...";
         IsBusy = true;
@@ -210,12 +230,13 @@ public partial class SalesViewModel : ObservableObject
             var sale = await _api.CreateSaleAsync(new CreateSaleRequest(
                 _idempotencyKey.Value,
                 SelectedCustomerType,
+                payment.PaymentMethod,
                 Cart.Select(line => new CreateSaleLineRequest(line.UnitId, line.Count)).ToArray()));
             _suppressCartMutation = true;
             Cart.Clear();
             _suppressCartMutation = false;
             _idempotencyKey = null;
-            StatusMessage = $"{sale.SaleNumber} completed. Server total: ₱{sale.Total:N2}{(sale.IsIdempotentReplay ? " (confirmed retry)" : "")}.";
+            StatusMessage = $"{sale.SaleNumber} completed via {sale.PaymentMethod}. Server total: ₱{sale.Total:N2}{(sale.IsIdempotentReplay ? " (confirmed retry)" : "")}.";
             _notifications.ShowSuccess("Sale completed", StatusMessage);
             await TryRefreshCatalogAsync();
         }

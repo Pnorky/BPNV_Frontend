@@ -77,7 +77,7 @@ public partial class DashboardViewModel : ObservableObject
         {
             "Dashboard" => new DashboardPageViewModel(_storeClient, _notifications),
             "Sales" => new SalesViewModel(_storeClient, _notifications),
-            "InventoryProducts" => new ProductCatalogViewModel(_storeClient),
+            "InventoryProducts" => new ProductCatalogViewModel(_storeClient, _notifications),
             "InventoryAddProduct" => new AddProductViewModel(_storeClient, _notifications),
             "InventoryReceiveStock" => new StockReceivingViewModel(_storeClient, _notifications),
             "InventoryBatchReceive" => new BatchReceivingViewModel(_storeClient, _notifications),

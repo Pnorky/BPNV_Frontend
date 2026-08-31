@@ -13,6 +13,12 @@ public enum ApiCustomerType
     Employee
 }
 
+public enum ApiPaymentMethod
+{
+    Cash,
+    GCash
+}
+
 public sealed record ProductUnitResponse(
     Guid Id,
     string? Barcode,
@@ -50,6 +56,8 @@ public sealed record ProductResponse(
     bool IsActive,
     IReadOnlyList<ProductUnitResponse> Units)
 {
+    public string ActivityStatus => IsActive ? "Active" : "Inactive";
+    public bool IsInactive => !IsActive;
     public string StockStatus => TotalStock == 0 ? "Out of stock" : IsCriticalStock ? "Critical" : IsLowStock ? "Warning" : "In stock";
     public string ReorderActionDisplay => SuggestedOrderQuantity > 0
         ? $"Order {SuggestedOrderQuantity} pieces"
@@ -133,6 +141,33 @@ public sealed record CreateProductRequest(
     int WarningOrderQuantity,
     IReadOnlyList<CreateProductUnitRequest>? Packages);
 
+public sealed record UpdateProductUnitRequest(
+    Guid? Id,
+    string Barcode,
+    string Label,
+    int PiecesPerUnit,
+    decimal RegularPrice,
+    decimal EmployeePrice,
+    bool IsActive);
+
+public sealed record UpdateProductRequest(
+    Guid SupplierId,
+    ApiInventoryItemType ItemType,
+    string Sku,
+    string PieceBarcode,
+    string Name,
+    string Category,
+    string Unit,
+    decimal CostPrice,
+    decimal RegularPrice,
+    decimal EmployeePrice,
+    int CriticalReorderLevel,
+    int CriticalOrderQuantity,
+    int WarningReorderLevel,
+    int WarningOrderQuantity,
+    ulong Version,
+    IReadOnlyList<UpdateProductUnitRequest>? Packages);
+
 public sealed record InventoryImportSupplierRequest(
     string Key,
     string Name,
@@ -198,7 +233,7 @@ public sealed record InventoryImportCommitResult(
 
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
 
-public sealed record ReceiveStockRequest(Guid ProductId, Guid UnitId, int Count, string? Reference, string? Notes);
+public sealed record ReceiveStockRequest(Guid ProductId, Guid UnitId, int Count, decimal UnitCost, decimal SellingPrice, decimal EmployeePrice, string? Reference, string? Notes);
 public sealed record TransferStockRequest(Guid ProductId, int Quantity, string? Reference, string? Notes);
 
 public sealed record StockReceiptResponse(
@@ -377,6 +412,7 @@ public sealed record CreateSaleLineRequest(Guid UnitId, int Count);
 public sealed record CreateSaleRequest(
     Guid IdempotencyKey,
     ApiCustomerType CustomerType,
+    ApiPaymentMethod PaymentMethod,
     IReadOnlyList<CreateSaleLineRequest> Lines);
 
 public sealed record SaleLineResponse(
@@ -398,6 +434,7 @@ public sealed record SaleResponse(
     string SaleNumber,
     Guid IdempotencyKey,
     ApiCustomerType CustomerType,
+    ApiPaymentMethod PaymentMethod,
     decimal Subtotal,
     decimal Total,
     DateTime SoldAtUtc,
@@ -430,6 +467,7 @@ public sealed record ReportSaleResponse(
     Guid Id,
     string SaleNumber,
     ApiCustomerType CustomerType,
+    ApiPaymentMethod PaymentMethod,
     decimal Subtotal,
     decimal Total,
     DateTime SoldAtUtc,
@@ -438,6 +476,7 @@ public sealed record ReportSaleResponse(
     IReadOnlyList<ReportSaleLineResponse> Lines)
 {
     public int ItemCount => Lines.Sum(line => line.BasePieceQuantity);
+    public string PaymentMethodDisplay => PaymentMethod.ToString();
     public string TotalDisplay => $"₱{Total:N2}";
     public string TimeDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
 }

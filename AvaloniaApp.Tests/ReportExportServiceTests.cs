@@ -21,6 +21,7 @@ public sealed class ReportExportServiceTests
             new[] { "Summary", "Sales", "Inventory", "Orders" },
             workbook.Worksheets.Select(sheet => sheet.Name).ToArray());
         Assert.AreEqual("SALE-1", workbook.Worksheet("Sales").Cell("A2").GetString());
+        Assert.AreEqual("Cash", workbook.Worksheet("Sales").Cell("D2").GetString());
         Assert.AreEqual("SKU-1", workbook.Worksheet("Inventory").Cell("A2").GetString());
         Assert.AreEqual("Supplier A", workbook.Worksheet("Orders").Cell("A2").GetString());
     }
@@ -45,6 +46,7 @@ public sealed class ReportExportServiceTests
             Guid.Parse("33333333-3333-3333-3333-333333333333"),
             "SALE-1",
             ApiCustomerType.Regular,
+            ApiPaymentMethod.Cash,
             25m,
             25m,
             new DateTime(2026, 8, 27, 1, 0, 0, DateTimeKind.Utc),

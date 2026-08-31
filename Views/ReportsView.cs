@@ -129,12 +129,13 @@ public class ReportsView : UserControl
         Bind(recentSales, ItemsControl.ItemsSourceProperty, "RecentSales");
         recentSales.ItemTemplate = new FuncDataTemplate<ReportSaleResponse>((_, _) => RowBorder(new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.15*,0.9*,0.45*,0.75*"),
+            ColumnDefinitions = new ColumnDefinitions("1.15*,0.8*,0.75*,0.45*,0.75*"),
             ColumnSpacing = 12,
             Children =
             {
                 new StackPanel { Children = { Ellipsis("SaleNumber", true), Muted(path: "TimeDisplay", fontSize: 10) } },
-                At(Cell("CustomerType"), column: 1), At(Cell("ItemCount"), column: 2), At(Cell("TotalDisplay", true, TextAlignment.Right), column: 3)
+                At(Cell("CustomerType"), column: 1), At(Cell("PaymentMethodDisplay"), column: 2),
+                At(Cell("ItemCount"), column: 3), At(Cell("TotalDisplay", true, TextAlignment.Right), column: 4)
             }
         }, new Thickness(4, 11)), true);
 
@@ -148,7 +149,7 @@ public class ReportsView : UserControl
                 At(Card(new StackPanel
                 {
                     Spacing = 15,
-                    Children = { Heading("Recent sales", "h2"), SmallHeader("1.15*,0.9*,0.45*,0.75*", "SALE", "PRICE TYPE", "ITEMS", "TOTAL"), recentSales }
+                    Children = { Heading("Recent sales", "h2"), SmallHeader("1.15*,0.8*,0.75*,0.45*,0.75*", ["SALE", "PRICE", "PAYMENT", "ITEMS", "TOTAL"]), recentSales }
                 }, new Thickness(22), VerticalAlignment.Top), column: 1)
             }
         };

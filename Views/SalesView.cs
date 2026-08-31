@@ -155,7 +155,13 @@ public class SalesView : UserControl
         var totalHost = new Border { Padding = new Thickness(14), CornerRadius = new CornerRadius(7), Child = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { new TextBlock { Text = "Client estimate", VerticalAlignment = VerticalAlignment.Center }, total } } };
         totalHost.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Muted"));
         var status = Text("StatusMessage", resource: "MutedForeground"); status.TextWrapping = TextWrapping.Wrap;
-        return new StackPanel { Spacing = 10, Children = { totalHost, status, Button("Complete sale", "CompleteSaleCommand", true) } };
+        var complete = Button("Complete sale", "CompleteSaleCommand", true);
+        var completeHost = new StackPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Children = { complete }
+        };
+        return new StackPanel { Spacing = 10, Children = { totalHost, status, completeHost } };
     }
 
     private async void OnScannerKeyDown(object? sender, KeyEventArgs e)

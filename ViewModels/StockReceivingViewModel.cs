@@ -11,6 +11,9 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
     [ObservableProperty] private ProductUnitResponse? _selectedUnit;
     [ObservableProperty] private ProductResponse? _selectedCatalogProduct;
     [ObservableProperty] private decimal _count = 1;
+    [ObservableProperty] private decimal _unitCost;
+    [ObservableProperty] private decimal _sellingPrice;
+    [ObservableProperty] private decimal _employeePrice;
     [ObservableProperty] private string _reference = "";
     [ObservableProperty] private string _notes = "";
     [ObservableProperty] private string _statusMessage = "Scan a piece or package barcode and press Enter.";
@@ -21,6 +24,9 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
     public string UnitDetails => SelectedUnit is null || SelectedProduct is null
         ? "The scanned unit conversion and balances will appear here."
         : $"{SelectedUnit.Label}: {SelectedUnit.PiecesPerUnit} base piece{(SelectedUnit.PiecesPerUnit == 1 ? "" : "s")} · Display {SelectedCatalogProduct?.DisplayStock ?? SelectedProduct.DisplayStock} · Bodega {SelectedCatalogProduct?.BodegaStock.ToString() ?? "loading"}.";
+    public string TotalCostDisplay => SelectedUnit is null || !WholeNumber(Count) || Count <= 0
+        ? "-"
+        : $"₱{UnitCost * Count:N2}";
     public string ConversionPreview => SelectedUnit is null || !WholeNumber(Count) || Count <= 0 || Count > int.MaxValue
         ? ""
         : $"Will receive {(long)Count * SelectedUnit.PiecesPerUnit:N0} base pieces into bodega.";
@@ -28,7 +34,12 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
     partial void OnSelectedProductChanged(PosProductResponse? value) => NotifySelection();
     partial void OnSelectedUnitChanged(ProductUnitResponse? value) => NotifySelection();
     partial void OnSelectedCatalogProductChanged(ProductResponse? value) => NotifySelection();
-    partial void OnCountChanged(decimal value) => OnPropertyChanged(nameof(ConversionPreview));
+    partial void OnCountChanged(decimal value)
+    {
+        OnPropertyChanged(nameof(ConversionPreview));
+        OnPropertyChanged(nameof(TotalCostDisplay));
+    }
+    partial void OnUnitCostChanged(decimal value) => OnPropertyChanged(nameof(TotalCostDisplay));
 
     public async Task LookupBarcodeAsync()
     {
@@ -50,6 +61,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             SelectedUnit = product.SelectedUnit;
             var catalog = await api.GetProductsAsync(search: barcode, pageSize: 50);
             SelectedCatalogProduct = catalog.Items.FirstOrDefault(item => item.Id == product.Id);
+            InitializePrices();
             StatusMessage = product.SelectedUnit is null
                 ? "The API did not identify the scanned unit."
                 : $"Selected {product.Name}, {product.SelectedUnit.Label}.";
@@ -91,6 +103,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         {
             var result = await api.ReceiveStockAsync(new ReceiveStockRequest(
                 SelectedProduct.Id, SelectedUnit.Id, (int)Count,
+                UnitCost, SellingPrice, EmployeePrice,
                 NullIfWhiteSpace(Reference), NullIfWhiteSpace(Notes)));
             StatusMessage = $"Received {result.Count} {result.UnitLabel} = {result.BasePieceQuantity} base pieces. Bodega balance: {result.BodegaStock}; display: {result.DisplayStock}.";
             notifications.ShowSuccess("Stock received", StatusMessage);
@@ -98,6 +111,9 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             SelectedUnit = null;
             SelectedCatalogProduct = null;
             Count = 1;
+            UnitCost = 0;
+            SellingPrice = 0;
+            EmployeePrice = 0;
             Reference = "";
             Notes = "";
             ScannerText = "";
@@ -118,6 +134,15 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         OnPropertyChanged(nameof(SelectedName));
         OnPropertyChanged(nameof(UnitDetails));
         OnPropertyChanged(nameof(ConversionPreview));
+        OnPropertyChanged(nameof(TotalCostDisplay));
+    }
+
+    private void InitializePrices()
+    {
+        if (SelectedUnit is null) return;
+        UnitCost = (SelectedCatalogProduct?.CostPrice ?? 0) * SelectedUnit.PiecesPerUnit;
+        SellingPrice = SelectedUnit.RegularPrice;
+        EmployeePrice = SelectedUnit.EmployeePrice;
     }
 
     private void RequestScannerFocus() => ScannerFocusRequested?.Invoke(this, EventArgs.Empty);

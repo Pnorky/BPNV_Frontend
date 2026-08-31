@@ -36,13 +36,15 @@ public sealed class StoreApiClientTests
         var client = new StoreApiClient(auth);
 
         var result = await client.CreateSaleAsync(new CreateSaleRequest(
-            Guid.NewGuid(), ApiCustomerType.Employee, [new CreateSaleLineRequest(Guid.NewGuid(), 2)]));
+            Guid.NewGuid(), ApiCustomerType.Employee, ApiPaymentMethod.GCash,
+            [new CreateSaleLineRequest(Guid.NewGuid(), 2)]));
 
         Assert.AreEqual("SALE-1", result.SaleNumber);
         Assert.AreEqual(2, saleCalls);
         Assert.AreNotSame(requests[0], requests[1]);
         Assert.AreEqual(bodies[0], bodies[1]);
         StringAssert.Contains(bodies[0], "\"customerType\":\"Employee\"");
+        StringAssert.Contains(bodies[0], "\"paymentMethod\":\"GCash\"");
     }
 
     [TestMethod]
@@ -79,6 +81,59 @@ public sealed class StoreApiClientTests
         await new StoreApiClient(auth).GetProductForReceivingByBarcodeAsync("0000123");
 
         StringAssert.EndsWith(requestedUri!.AbsolutePath, "/products/receiving/by-barcode/0000123");
+    }
+
+    [TestMethod]
+    public async Task ProductMutationEndpointsUseExactMethodsAndSerializeUpdateContract()
+    {
+        var product = CatalogProduct();
+        var packageId = product.Units.Single(unit => !unit.IsBasePiece).Id;
+        var requests = new List<(HttpMethod Method, string Path, string Query, string? Body)>();
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            requests.Add((
+                request.Method,
+                request.RequestUri.AbsolutePath,
+                request.RequestUri.Query,
+                request.Content?.ReadAsStringAsync().GetAwaiter().GetResult()));
+            if (request.Method == HttpMethod.Get)
+                return Json(new PagedResponse<ProductResponse>([product], 1, 200, 1));
+            return request.Method == HttpMethod.Put
+                ? Json(product with { Name = "Updated" })
+                : new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+        await auth.LoginAsync("inventory", "password");
+        var client = new StoreApiClient(auth);
+        var update = new UpdateProductRequest(
+            product.SupplierId, ApiInventoryItemType.Supply, "SKU-2", "0002", "Updated", "Supplies", "piece",
+            12.5m, 15, 14, 2, 3, 5, 4, product.Version,
+            [new UpdateProductUnitRequest(packageId, "0012", "Case", 12, 170, 160, false)]);
+
+        var updated = await client.UpdateProductAsync(product.Id, update);
+        await client.DeactivateProductAsync(product.Id);
+        await client.ReactivateProductAsync(product.Id);
+        await client.GetProductsAsync(includeInactive: true, pageSize: 200);
+
+        Assert.AreEqual("Updated", updated.Name);
+        CollectionAssert.AreEqual(
+            new[] { HttpMethod.Put, HttpMethod.Post, HttpMethod.Post, HttpMethod.Get },
+            requests.Select(request => request.Method).ToArray());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                $"/api/products/{product.Id}",
+                $"/api/products/{product.Id}/deactivate",
+                $"/api/products/{product.Id}/reactivate",
+                "/api/products"
+            },
+            requests.Select(request => request.Path).ToArray());
+        StringAssert.Contains(requests[0].Body!, "\"itemType\":\"Supply\"");
+        StringAssert.Contains(requests[0].Body!, $"\"id\":\"{packageId}\"");
+        StringAssert.Contains(requests[0].Body!, "\"pieceBarcode\":\"0002\"");
+        StringAssert.Contains(requests[0].Body!, "\"isActive\":false");
+        StringAssert.Contains(requests[0].Body!, $"\"version\":{product.Version}");
+        StringAssert.Contains(requests[3].Query, "includeInactive=true");
     }
 
     [TestMethod]
@@ -404,6 +459,12 @@ public sealed class StoreApiClientTests
         Assert.AreEqual(3, viewModel.Cart[0].BasePieceQuantity);
         Assert.AreEqual(25m, viewModel.Cart[0].UnitPrice);
 
+        viewModel.AddProductCommand.Execute(catalogProduct);
+
+        Assert.AreEqual(2, viewModel.Cart.Count);
+        Assert.AreEqual(4, viewModel.Cart.Sum(line => line.BasePieceQuantity));
+        Assert.AreEqual(34m, viewModel.Cart.Sum(line => line.Amount));
+
         viewModel.ScannerText = "0003";
         await viewModel.ScanBarcodeAsync();
 
@@ -446,7 +507,7 @@ public sealed class StoreApiClientTests
         new AuthenticatedUser(Guid.NewGuid(), "user", "User", ["Admin"], false));
 
     private static SaleResponse SaleResponse() => new(
-        Guid.NewGuid(), "SALE-1", Guid.NewGuid(), ApiCustomerType.Employee, 20, 20,
+        Guid.NewGuid(), "SALE-1", Guid.NewGuid(), ApiCustomerType.Employee, ApiPaymentMethod.GCash, 20, 20,
         DateTime.UtcNow, Guid.NewGuid(), false, []);
 
     private static PosProductResponse PosProduct()
@@ -454,6 +515,19 @@ public sealed class StoreApiClientTests
         var productId = Guid.NewGuid();
         var unit = new ProductUnitResponse(productId, "0000123", "piece", 1, 10, 9, true, true);
         return new PosProductResponse(productId, "Supplier", "SKU", "0000123", "Product", "piece", 10, 9, 5, 1, [unit], unit);
+    }
+
+    private static ProductResponse CatalogProduct()
+    {
+        var productId = Guid.NewGuid();
+        return new ProductResponse(
+            productId, Guid.NewGuid(), "Supplier", ApiInventoryItemType.Merchandise,
+            "SKU", "0001", "Product", "Category", "piece", 8, 10, 9,
+            2, 3, 5, 4, 2, 3, 5, false, false, 0, 7, true,
+            [
+                new ProductUnitResponse(productId, "0001", "piece", 1, 10, 9, true, true),
+                new ProductUnitResponse(Guid.NewGuid(), "0012", "Case", 12, 110, 100, false, true)
+            ]);
     }
 
     private static DashboardResponse Dashboard() => new(125.50m, 2, 7, 8, [InventoryProduct()], [ReportSale()]);
@@ -478,7 +552,7 @@ public sealed class StoreApiClientTests
         5, 10, 9, 7, 8, 15, 5, 4, 10, 4, "Warning", 4, "Warning", true);
 
     private static ReportSaleResponse ReportSale() => new(
-        Guid.NewGuid(), "SALE-1", ApiCustomerType.Regular, 125.50m, 125.50m,
+        Guid.NewGuid(), "SALE-1", ApiCustomerType.Regular, ApiPaymentMethod.Cash, 125.50m, 125.50m,
         new DateTime(2025, 8, 26, 0, 0, 0, DateTimeKind.Utc), Guid.NewGuid(), "Cashier",
         [new ReportSaleLineResponse(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SKU", "Product", "piece", null, 1, 3, 3, 10, 30)]);
 

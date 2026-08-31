@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -22,13 +23,25 @@ public class StockReceivingView : UserControl
         _scanner = Input("ScannerText", "Scan piece or package barcode, then press Enter");
         _scanner.KeyDown += OnScannerKeyDown;
 
-        var selection = Card(new StackPanel
+        var selection = Card(new Grid
         {
-            Spacing = 8,
+            ColumnDefinitions = new ColumnDefinitions("1.4*,*,*,*,*"),
+            ColumnSpacing = 16,
             Children =
             {
-                Heading("Selected unit"), Bound("SelectedName", 18, FontWeight.SemiBold),
-                Muted("UnitDetails"), Bound("ConversionPreview", 13, FontWeight.SemiBold)
+                new StackPanel
+                {
+                    Spacing = 5,
+                    Children =
+                    {
+                        Heading("Selected unit"), Bound("SelectedName", 18, FontWeight.SemiBold),
+                        Muted("UnitDetails"), Bound("ConversionPreview", 13, FontWeight.SemiBold)
+                    }
+                },
+                At(Price("TOTAL COST", "TotalCostDisplay"), 1),
+                At(PriceInput("UNIT COST", "UnitCost"), 2),
+                At(PriceInput("SELLING PRICE", "SellingPrice"), 3),
+                At(PriceInput("EMPLOYEE PRICE", "EmployeePrice"), 4)
             }
         });
 
@@ -49,6 +62,7 @@ public class StockReceivingView : UserControl
 
         var root = new StackPanel
         {
+            Margin = new Thickness(8),
             Spacing = 16,
             Children =
             {
@@ -56,7 +70,13 @@ public class StockReceivingView : UserControl
                 Card(Field("BARCODE SCANNER", _scanner)), selection, Card(form), Status()
             }
         };
-        Content = new ScrollViewer { Margin = new Thickness(30), Content = root };
+        Content = new ScrollViewer
+        {
+            Margin = new Thickness(30),
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = root
+        };
         DataContextChanged += OnDataContextChanged;
         AttachedToVisualTree += (_, _) => FocusScanner();
     }
@@ -85,6 +105,35 @@ public class StockReceivingView : UserControl
     private static TextBlock Bound(string path, double size, FontWeight weight) { var value = new TextBlock { FontSize = size, FontWeight = weight, TextWrapping = TextWrapping.Wrap }; value.Bind(TextBlock.TextProperty, new Binding(path)); return value; }
     private static TextBlock Muted(string path) { var value = Bound(path, 12, FontWeight.Normal); value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
     private static TextBlock StaticMuted(string text) { var value = new TextBlock { Text = text }; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
+    private static StackPanel Price(string label, string path) => new()
+    {
+        Spacing = 3,
+        VerticalAlignment = VerticalAlignment.Bottom,
+        Children = { StaticLabel(label), PriceValue(path) }
+    };
+    private static Border PriceValue(string path)
+    {
+        var text = Bound(path, 16, FontWeight.SemiBold);
+        text.VerticalAlignment = VerticalAlignment.Center;
+        var value = new Border
+        {
+            MinHeight = 42,
+            Padding = new Thickness(12, 8),
+            CornerRadius = new CornerRadius(7),
+            Child = text
+        };
+        value.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("Input"));
+        value.BorderThickness = new Thickness(1);
+        return value;
+    }
+    private static StackPanel PriceInput(string label, string path) => new()
+    {
+        Spacing = 3,
+        VerticalAlignment = VerticalAlignment.Bottom,
+        Children = { StaticLabel(label), Amount(path) }
+    };
+    private static AmountInput Amount(string path) { var value = new AmountInput(); value.Bind(AmountInput.ValueProperty, new Binding(path)); return value; }
+    private static TextBlock StaticLabel(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("form-label"); return value; }
     private static Button Button(string text, string command, bool primary) { var value = new ActionButton(text, primary ? ActionButtonVariant.Primary : ActionButtonVariant.Secondary); value.Bind(Avalonia.Controls.Button.CommandProperty, new Binding(command)); return value; }
     private static Border Card(Control child) { var value = new Border { Padding = new Thickness(20), Child = child }; value.Classes.Add("theme-card"); value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return value; }
     private static Border Status() { var value = new Border { Padding = new Thickness(14, 10), CornerRadius = new CornerRadius(7), Child = Bound("StatusMessage", 12, FontWeight.Normal) }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }
