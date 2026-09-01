@@ -57,11 +57,14 @@ public partial class SalesViewModel : ObservableObject
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private string _scannerText = "";
     [ObservableProperty] private ApiCustomerType _selectedCustomerType = ApiCustomerType.Regular;
+    [ObservableProperty] private EmployeeResponse? _selectedEmployee;
+    [ObservableProperty] private IReadOnlyList<EmployeeResponse> _employees = [];
     [ObservableProperty] private IReadOnlyList<PosProductResponse> _filteredProducts = [];
     [ObservableProperty] private string _statusMessage = "Loading the current POS catalog...";
     [ObservableProperty] private bool _isBusy;
 
     public IReadOnlyList<ApiCustomerType> CustomerTypes { get; } = Enum.GetValues<ApiCustomerType>();
+    public bool IsEmployeeSale => SelectedCustomerType == ApiCustomerType.Employee;
     public ObservableCollection<ApiCartLine> Cart { get; } = [];
     public string CartSummary => Cart.Count == 0 ? "No units added" : $"{Cart.Sum(line => line.Count)} units / {Cart.Sum(line => line.BasePieceQuantity)} pieces";
     public string TotalDisplay => $"₱{Cart.Sum(line => line.Amount):N2}";
@@ -79,10 +82,14 @@ public partial class SalesViewModel : ObservableObject
 
     partial void OnSelectedCustomerTypeChanged(ApiCustomerType value)
     {
+        if (value != ApiCustomerType.Employee) SelectedEmployee = null;
         foreach (var line in Cart) line.ApplyCustomerType(value);
+        OnPropertyChanged(nameof(IsEmployeeSale));
         NotifyCartTotals();
         MarkCartChanged();
     }
+
+    partial void OnSelectedEmployeeChanged(EmployeeResponse? value) => MarkCartChanged();
 
     [RelayCommand]
     public async Task LoadCatalogAsync()
@@ -92,8 +99,12 @@ public partial class SalesViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var page = await _api.GetPosProductsAsync(pageSize: 200);
+            var productsTask = _api.GetPosProductsAsync(pageSize: 200);
+            var employeesTask = _api.GetEmployeesAsync();
+            await Task.WhenAll(productsTask, employeesTask);
+            var page = await productsTask;
             _products = page.Items;
+            Employees = (await employeesTask).Where(employee => employee.IsActive).OrderBy(employee => employee.Name).ToArray();
             ApplyFilter();
             StatusMessage = $"Loaded {_products.Count} sellable database products. Scan a barcode or add a base piece.";
         }
@@ -205,6 +216,12 @@ public partial class SalesViewModel : ObservableObject
             return;
         }
 
+        if (IsEmployeeSale && SelectedEmployee is null)
+        {
+            ShowError("Employee required", "Select the employee making this purchase before completing the sale.");
+            return;
+        }
+
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner })
         {
             ShowError("Payment unavailable", "Cannot open checkout payment because the main application window is unavailable.");
@@ -231,11 +248,13 @@ public partial class SalesViewModel : ObservableObject
                 _idempotencyKey.Value,
                 SelectedCustomerType,
                 payment.PaymentMethod,
-                Cart.Select(line => new CreateSaleLineRequest(line.UnitId, line.Count)).ToArray()));
+                Cart.Select(line => new CreateSaleLineRequest(line.UnitId, line.Count)).ToArray(),
+                IsEmployeeSale ? SelectedEmployee?.Id : null));
             _suppressCartMutation = true;
             Cart.Clear();
             _suppressCartMutation = false;
             _idempotencyKey = null;
+            SelectedEmployee = null;
             StatusMessage = $"{sale.SaleNumber} completed via {sale.PaymentMethod}. Server total: ₱{sale.Total:N2}{(sale.IsIdempotentReplay ? " (confirmed retry)" : "")}.";
             _notifications.ShowSuccess("Sale completed", StatusMessage);
             await TryRefreshCatalogAsync();
@@ -307,8 +326,14 @@ public partial class SalesViewModel : ObservableObject
 
     private async Task RefreshCatalogCoreAsync()
     {
-        var page = await _api.GetPosProductsAsync(pageSize: 200);
+        var selectedEmployeeId = SelectedEmployee?.Id;
+        var productsTask = _api.GetPosProductsAsync(pageSize: 200);
+        var employeesTask = _api.GetEmployeesAsync();
+        await Task.WhenAll(productsTask, employeesTask);
+        var page = await productsTask;
         _products = page.Items;
+        Employees = (await employeesTask).Where(employee => employee.IsActive).OrderBy(employee => employee.Name).ToArray();
+        SelectedEmployee = Employees.FirstOrDefault(employee => employee.Id == selectedEmployeeId);
         ApplyFilter();
     }
 

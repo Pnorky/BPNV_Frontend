@@ -125,6 +125,7 @@ public class App : Application
         DataTemplates.Add(new FuncDataTemplate<BatchReceivingViewModel>((_, _) => new BatchReceivingView(), true));
         DataTemplates.Add(new FuncDataTemplate<ExcelInventoryImportViewModel>((_, _) => new ExcelInventoryImportView(), true));
         DataTemplates.Add(new FuncDataTemplate<SuppliersViewModel>((_, _) => new SuppliersView(), true));
+        DataTemplates.Add(new FuncDataTemplate<EmployeesViewModel>((_, _) => new EmployeesView(), true));
         DataTemplates.Add(new FuncDataTemplate<ApiStockMovementsViewModel>((_, _) => new ApiStockMovementsView(), true));
          DataTemplates.Add(new FuncDataTemplate<ReportsViewModel>((_, _) => new ReportsView(), true));
          DataTemplates.Add(new FuncDataTemplate<UsersViewModel>((_, _) => new UsersView(), true));

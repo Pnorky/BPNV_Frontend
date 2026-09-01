@@ -50,13 +50,18 @@ public class ReportsView : UserControl
         var customerType = new SelectDropdown();
         Bind(customerType, SelectDropdown.ItemsSourceProperty, "CustomerTypeOptions");
         Bind(customerType, SelectDropdown.SelectedItemProperty, "SelectedCustomerType");
+        var employee = new SearchableSelect { PlaceholderText = "All employees", MinWidth = 220 };
+        Bind(employee, SearchableSelect.ItemsSourceProperty, "Employees");
+        Bind(employee, SearchableSelect.SelectedItemProperty, "SelectedEmployee");
+        var clearEmployee = Button("All", "ClearEmployeeFilterCommand");
+        var employeeFilter = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 6, Children = { employee, At(clearEmployee, column: 1) } };
         actions.HorizontalAlignment = HorizontalAlignment.Right;
         Grid.SetColumnSpan(actions, 2);
 
         return new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,Auto"),
-            ColumnDefinitions = new ColumnDefinitions("1.4*,0.85*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("1.2*,0.7*,1*,Auto"),
             ColumnSpacing = 10,
             RowSpacing = 12,
             Children =
@@ -65,7 +70,8 @@ public class ReportsView : UserControl
                 At(actions, column: 1),
                 At(Field("DATE RANGE", dateRange), row: 1),
                 At(Field("SALES TYPE", customerType), column: 1, row: 1),
-                At(applyDateRange, column: 2, row: 1)
+                At(Field("EMPLOYEE", employeeFilter), column: 2, row: 1),
+                At(applyDateRange, column: 3, row: 1)
             }
         };
     }
@@ -98,10 +104,32 @@ public class ReportsView : UserControl
         Items =
         {
             new TabItem { Header = "Sales Summary", Content = Scroll(BuildSales()) },
+            new TabItem { Header = "Employee Purchases", Content = BuildEmployeePurchases() },
             new TabItem { Header = "Inventory Summary", Content = BuildInventory() },
             new TabItem { Header = "Order Summary", Content = Scroll(BuildOrders()) }
         }
     };
+
+    private static Control BuildEmployeePurchases()
+    {
+        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 18, Margin = new Thickness(10, 28, 10, 12) };
+        content.Children.Add(Stats(3,
+            ("TOTAL DEDUCTIONS", "EmployeeDeductionsDisplay"),
+            ("EMPLOYEE SALES", "EmployeeTransactions"),
+            ("EMPLOYEES", "EmployeesRepresented")));
+        var table = new PagedTable { ItemName = "purchase line", ItemNamePlural = "purchase lines", PageSize = 12, MinHeight = 0, MinTableWidth = 1100, IsSelectable = false };
+        Bind(table, PagedTable.ItemsSourceProperty, "EmployeePurchaseLines");
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("DATE", item => item.SoldAtDisplay, new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SALE", item => item.SaleNumber, new GridLength(0.8, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("EMPLOYEE", item => item.EmployeeDisplay, new GridLength(1.5, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SKU", item => item.Sku, new GridLength(0.7, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("PRODUCT", item => item.ProductName, new GridLength(1.4, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("QUANTITY", item => item.QuantityDisplay, new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("UNIT PRICE", item => item.UnitPriceDisplay, new GridLength(0.8, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("LINE TOTAL", item => item.LineTotalDisplay, new GridLength(0.8, GridUnitType.Star)));
+        content.Children.Add(At(table, row: 1));
+        return content;
+    }
 
     private static Control BuildSales()
     {

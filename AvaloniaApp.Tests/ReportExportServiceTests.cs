@@ -18,12 +18,13 @@ public sealed class ReportExportServiceTests
         output.Position = 0;
         using var workbook = new XLWorkbook(output);
         CollectionAssert.AreEqual(
-            new[] { "Summary", "Sales", "Inventory", "Orders" },
+            new[] { "Summary", "Sales", "Inventory", "Orders", "Employee Purchases" },
             workbook.Worksheets.Select(sheet => sheet.Name).ToArray());
         Assert.AreEqual("SALE-1", workbook.Worksheet("Sales").Cell("A2").GetString());
         Assert.AreEqual("Cash", workbook.Worksheet("Sales").Cell("D2").GetString());
         Assert.AreEqual("SKU-1", workbook.Worksheet("Inventory").Cell("A2").GetString());
         Assert.AreEqual("Supplier A", workbook.Worksheet("Orders").Cell("A2").GetString());
+        Assert.AreEqual("EMP-000001", workbook.Worksheet("Employee Purchases").Cell("C2").GetString());
     }
 
     [TestMethod]
@@ -74,6 +75,11 @@ public sealed class ReportExportServiceTests
                 [inventoryProduct]),
             new OrderReportResponse(
                 new OrderReportSummaryResponse(1, 1, 10),
-                [new SupplierOrderResponse(supplierId, "Supplier A", 1, 10, [orderProduct])]));
+                [new SupplierOrderResponse(supplierId, "Supplier A", 1, 10, [orderProduct])]),
+            new EmployeePurchaseReportResponse(
+                new EmployeePurchaseSummaryResponse(25m, 1, 1),
+                [new EmployeePurchaseLineResponse(
+                    sale.Id, sale.SaleNumber, sale.SoldAtUtc, Guid.NewGuid(), "EMP-000001", "Employee One",
+                    productId, "SKU-1", "Product", "piece", 2, 2, 12.5m, 25m, 25m)]));
     }
 }

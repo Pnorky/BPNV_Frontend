@@ -81,6 +81,16 @@ public sealed record SupplierResponse(
     public override string ToString() => Name;
 }
 
+public sealed record EmployeeResponse(Guid Id, string EmployeeNumber, string Name, bool IsActive)
+{
+    public string Status => IsActive ? "Active" : "Inactive";
+    public string SearchText => $"{EmployeeNumber} {Name}";
+    public override string ToString() => $"{EmployeeNumber} · {Name}";
+}
+
+public sealed record CreateEmployeeRequest(string Name);
+public sealed record UpdateEmployeeRequest(string Name);
+
 public sealed record UserResponse(
     Guid Id,
     string Username,
@@ -413,7 +423,8 @@ public sealed record CreateSaleRequest(
     Guid IdempotencyKey,
     ApiCustomerType CustomerType,
     ApiPaymentMethod PaymentMethod,
-    IReadOnlyList<CreateSaleLineRequest> Lines);
+    IReadOnlyList<CreateSaleLineRequest> Lines,
+    Guid? EmployeeId = null);
 
 public sealed record SaleLineResponse(
     Guid Id,
@@ -440,7 +451,10 @@ public sealed record SaleResponse(
     DateTime SoldAtUtc,
     Guid SoldByUserId,
     bool IsIdempotentReplay,
-    IReadOnlyList<SaleLineResponse> Lines)
+    IReadOnlyList<SaleLineResponse> Lines,
+    Guid? EmployeeId = null,
+    string? EmployeeNumber = null,
+    string? EmployeeName = null)
 {
     public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
 }
@@ -473,13 +487,46 @@ public sealed record ReportSaleResponse(
     DateTime SoldAtUtc,
     Guid SoldByUserId,
     string SoldByName,
-    IReadOnlyList<ReportSaleLineResponse> Lines)
+    IReadOnlyList<ReportSaleLineResponse> Lines,
+    Guid? EmployeeId = null,
+    string? EmployeeNumber = null,
+    string? EmployeeName = null)
 {
     public int ItemCount => Lines.Sum(line => line.BasePieceQuantity);
     public string PaymentMethodDisplay => PaymentMethod.ToString();
     public string TotalDisplay => $"₱{Total:N2}";
     public string TimeDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
 }
+
+public sealed record EmployeePurchaseSummaryResponse(decimal TotalDeductions, int Transactions, int Employees);
+
+public sealed record EmployeePurchaseLineResponse(
+    Guid SaleId,
+    string SaleNumber,
+    DateTime SoldAtUtc,
+    Guid? EmployeeId,
+    string? EmployeeNumber,
+    string? EmployeeName,
+    Guid ProductId,
+    string Sku,
+    string ProductName,
+    string UnitLabel,
+    int Count,
+    int BasePieceQuantity,
+    decimal UnitPrice,
+    decimal LineTotal,
+    decimal SaleTotal)
+{
+    public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
+    public string EmployeeDisplay => EmployeeNumber is null ? "Unattributed" : $"{EmployeeNumber} · {EmployeeName}";
+    public string QuantityDisplay => $"{Count} {UnitLabel} / {BasePieceQuantity} pieces";
+    public string UnitPriceDisplay => $"₱{UnitPrice:N2}";
+    public string LineTotalDisplay => $"₱{LineTotal:N2}";
+}
+
+public sealed record EmployeePurchaseReportResponse(
+    EmployeePurchaseSummaryResponse Summary,
+    IReadOnlyList<EmployeePurchaseLineResponse> Lines);
 
 public sealed record TopProductResponse(
     Guid ProductId,
@@ -579,7 +626,8 @@ public sealed record DashboardResponse(
 public sealed record ApiReportSnapshot(
     SalesReportResponse Sales,
     InventoryReportResponse Inventory,
-    OrderReportResponse Orders);
+    OrderReportResponse Orders,
+    EmployeePurchaseReportResponse? EmployeePurchases = null);
 
 public sealed record ApiProblemDetails(
     string? Type,

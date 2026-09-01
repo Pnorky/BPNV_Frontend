@@ -114,6 +114,31 @@ public static class ReportExportService
                         }
                     });
 
+                    if (report.EmployeePurchases is { } employeePurchases)
+                    {
+                        content.Item().Text($"Employee purchases · Total deductions {employeePurchases.Summary.TotalDeductions:₱#,##0.00}").Bold().FontSize(13);
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(52); columns.ConstantColumn(65); columns.RelativeColumn();
+                                columns.ConstantColumn(46); columns.RelativeColumn(); columns.ConstantColumn(34); columns.ConstantColumn(58);
+                            });
+                            table.Header(header =>
+                            {
+                                PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date"); PdfHeader(header.Cell(), "Employee");
+                                PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product / unit"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Amount");
+                            });
+                            foreach (var line in employeePurchases.Lines.OrderByDescending(line => line.SoldAtUtc))
+                            {
+                                PdfCell(table.Cell(), line.SaleNumber); PdfCell(table.Cell(), StoreDateTime.FormatUtc(line.SoldAtUtc));
+                                PdfCell(table.Cell(), line.EmployeeDisplay); PdfCell(table.Cell(), line.Sku);
+                                PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})"); PdfCell(table.Cell(), line.Count.ToString());
+                                PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                            }
+                        });
+                    }
+
                     content.Item().Text("Suggested orders").Bold().FontSize(13);
                     content.Item().Table(table =>
                     {
@@ -169,6 +194,7 @@ public static class ReportExportService
         CreateSalesSheet(workbook, report.Sales);
         CreateInventorySheet(workbook, report.Inventory);
         CreateOrdersSheet(workbook, report.Orders);
+        if (report.EmployeePurchases is not null) CreateEmployeePurchasesSheet(workbook, report.EmployeePurchases);
         workbook.SaveAs(output);
     }
 
@@ -305,6 +331,36 @@ public static class ReportExportService
             }
         }
         StyleDataSheet(sheet, headers.Length, row - 1);
+    }
+
+    private static void CreateEmployeePurchasesSheet(XLWorkbook workbook, EmployeePurchaseReportResponse report)
+    {
+        var sheet = workbook.Worksheets.Add("Employee Purchases");
+        string[] headers = ["Sale #", "Date & time", "Employee ID", "Employee", "SKU", "Product", "Unit", "Unit count", "Base pieces", "Unit price", "Line total", "Sale total"];
+        WriteHeaders(sheet, headers);
+        var row = 2;
+        foreach (var line in report.Lines.OrderByDescending(line => line.SoldAtUtc))
+        {
+            sheet.Cell(row, 1).Value = line.SaleNumber;
+            sheet.Cell(row, 2).Value = StoreDateTime.ToStoreTimeFromUtc(line.SoldAtUtc);
+            sheet.Cell(row, 3).Value = line.EmployeeNumber ?? "Unattributed";
+            sheet.Cell(row, 4).Value = line.EmployeeName ?? "Unattributed";
+            sheet.Cell(row, 5).Value = line.Sku;
+            sheet.Cell(row, 6).Value = line.ProductName;
+            sheet.Cell(row, 7).Value = line.UnitLabel;
+            sheet.Cell(row, 8).Value = line.Count;
+            sheet.Cell(row, 9).Value = line.BasePieceQuantity;
+            sheet.Cell(row, 10).Value = line.UnitPrice;
+            sheet.Cell(row, 11).Value = line.LineTotal;
+            sheet.Cell(row, 12).Value = line.SaleTotal;
+            row++;
+        }
+        sheet.Column(2).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
+        sheet.Columns(10, 12).Style.NumberFormat.Format = "₱#,##0.00";
+        StyleDataSheet(sheet, headers.Length, row - 1);
+        sheet.Cell(row + 1, 11).Value = "Total deductions";
+        sheet.Cell(row + 1, 12).Value = report.Summary.TotalDeductions;
+        sheet.Cell(row + 1, 12).Style.NumberFormat.Format = "₱#,##0.00";
     }
 
     private static void WriteHeaders(IXLWorksheet sheet, IReadOnlyList<string> headers)

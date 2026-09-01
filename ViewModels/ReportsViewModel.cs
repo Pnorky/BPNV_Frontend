@@ -16,6 +16,9 @@ public partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<ReportSaleResponse> _recentSales = [];
     [ObservableProperty] private IReadOnlyList<InventoryReportProductResponse> _inventoryItems = [];
     [ObservableProperty] private IReadOnlyList<SupplierOrderResponse> _orderSummaries = [];
+    [ObservableProperty] private IReadOnlyList<EmployeePurchaseLineResponse> _employeePurchaseLines = [];
+    [ObservableProperty] private IReadOnlyList<EmployeeResponse> _employees = [];
+    [ObservableProperty] private EmployeeResponse? _selectedEmployee;
     [ObservableProperty] private string _exportStatus = "";
     [ObservableProperty] private string _statusMessage = "Loading reports...";
     [ObservableProperty] private string? _errorMessage;
@@ -41,12 +44,18 @@ public partial class ReportsViewModel : ObservableObject
     public int SuppliersToOrder => Snapshot?.Orders.Summary.SuppliersToOrder ?? 0;
     public int ProductsToOrder => Snapshot?.Orders.Summary.ProductsToOrder ?? 0;
     public int SuggestedOrderUnits => Snapshot?.Orders.Summary.SuggestedOrderUnits ?? 0;
+    public string EmployeeDeductionsDisplay => $"₱{Snapshot?.EmployeePurchases?.Summary.TotalDeductions ?? 0:N2}";
+    public int EmployeeTransactions => Snapshot?.EmployeePurchases?.Summary.Transactions ?? 0;
+    public int EmployeesRepresented => Snapshot?.EmployeePurchases?.Summary.Employees ?? 0;
 
     public ReportsViewModel(StoreApiClient api)
     {
         _api = api;
         _ = RefreshAsync();
     }
+
+    [RelayCommand]
+    private void ClearEmployeeFilter() => SelectedEmployee = null;
 
     [RelayCommand]
     public async Task RefreshAsync()
@@ -67,16 +76,21 @@ public partial class ReportsViewModel : ObservableObject
             var salesTask = _api.GetSalesReportAsync(fromUtc, toUtcExclusive, customerType);
             var inventoryTask = _api.GetInventoryReportAsync();
             var ordersTask = _api.GetOrderReportAsync();
-            await Task.WhenAll(salesTask, inventoryTask, ordersTask);
+            var employeeReportTask = _api.GetEmployeePurchaseReportAsync(fromUtc, toUtcExclusive, SelectedEmployee?.Id);
+            var employeesTask = _api.GetEmployeesAsync(includeInactive: true);
+            await Task.WhenAll(salesTask, inventoryTask, ordersTask, employeeReportTask, employeesTask);
 
             Snapshot = new ApiReportSnapshot(
                 await salesTask,
                 await inventoryTask,
-                await ordersTask);
+                await ordersTask,
+                await employeeReportTask);
             TopProducts = Snapshot.Sales.TopProducts;
             RecentSales = Snapshot.Sales.RecentSales;
             InventoryItems = Snapshot.Inventory.Products;
             OrderSummaries = Snapshot.Orders.Suppliers;
+            EmployeePurchaseLines = Snapshot.EmployeePurchases!.Lines;
+            Employees = (await employeesTask).OrderBy(employee => employee.Name).ToArray();
             StatusMessage = "Reports are up to date.";
             NotifySummaryChanged();
         }
@@ -87,6 +101,7 @@ public partial class ReportsViewModel : ObservableObject
             RecentSales = [];
             InventoryItems = [];
             OrderSummaries = [];
+            EmployeePurchaseLines = [];
             ErrorMessage = exception is TaskCanceledException ? "The report request timed out." : exception.Message;
             StatusMessage = ErrorMessage;
             NotifySummaryChanged();
@@ -164,6 +179,9 @@ public partial class ReportsViewModel : ObservableObject
         OnPropertyChanged(nameof(SuppliersToOrder));
         OnPropertyChanged(nameof(ProductsToOrder));
         OnPropertyChanged(nameof(SuggestedOrderUnits));
+        OnPropertyChanged(nameof(EmployeeDeductionsDisplay));
+        OnPropertyChanged(nameof(EmployeeTransactions));
+        OnPropertyChanged(nameof(EmployeesRepresented));
     }
 
     private static async Task<IStorageFile?> SelectExportFileAsync(

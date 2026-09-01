@@ -111,6 +111,7 @@ public static class SampleData
         new() { Icon = "Truck", Text = "Suppliers", Tag = "InventorySuppliers", IsChild = true, Group = "Operations" },
         new() { Icon = "ArrowLeftRight", Text = "Stock Movements", Tag = "InventoryMovements", IsChild = true },
         new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports" },
+        new() { Icon = "Users", Text = "Employees", Tag = "Employees" },
         new() { Icon = "Users", Text = "Users", Tag = "Users" },
     };
 

@@ -51,14 +51,19 @@ public class SalesView : UserControl
         var pricing = new SearchableSelect { MinWidth = 150, PlaceholderText = "Pricing type" };
         pricing.Bind(SearchableSelect.ItemsSourceProperty, new Binding("CustomerTypes"));
         pricing.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedCustomerType"));
-        Grid.SetColumn(pricing, 1);
+        var employee = new SearchableSelect { MinWidth = 260, PlaceholderText = "Select employee" };
+        employee.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Employees"));
+        employee.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedEmployee"));
+        employee.Bind(Visual.IsVisibleProperty, new Binding("IsEmployeeSale"));
+        var selectors = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { pricing, employee } };
+        Grid.SetColumn(selectors, 1);
         return new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             Children =
             {
                 new StackPanel { Spacing = 4, Children = { title, StaticMuted("Server-priced package-aware point of sale") } },
-                pricing
+                selectors
             }
         };
     }

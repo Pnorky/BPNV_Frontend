@@ -67,6 +67,26 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         }
     }
 
+    public Task<IReadOnlyList<EmployeeResponse>> GetEmployeesAsync(
+        string? search = null,
+        bool includeInactive = false,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<EmployeeResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/employees", ("search", search), ("includeInactive", includeInactive ? "true" : null))),
+            cancellationToken);
+
+    public Task<EmployeeResponse> CreateEmployeeAsync(CreateEmployeeRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<EmployeeResponse, CreateEmployeeRequest>(HttpMethod.Post, "api/employees", request, cancellationToken);
+
+    public Task<EmployeeResponse> UpdateEmployeeAsync(Guid id, UpdateEmployeeRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<EmployeeResponse, UpdateEmployeeRequest>(HttpMethod.Put, $"api/employees/{id}", request, cancellationToken);
+
+    public Task DeactivateEmployeeAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Delete, $"api/employees/{id}", cancellationToken);
+
+    public Task ReactivateEmployeeAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/employees/{id}/reactivate", cancellationToken);
+
     public Task<ProductResponse> CreateProductAsync(
         CreateProductRequest request,
         CancellationToken cancellationToken = default) =>
@@ -204,6 +224,19 @@ public sealed class StoreApiClient(AuthApiClient authClient)
 
     public Task<OrderReportResponse> GetOrderReportAsync(CancellationToken cancellationToken = default) =>
         SendAsync<OrderReportResponse>(() => new HttpRequestMessage(HttpMethod.Get, "api/reports/orders"), cancellationToken);
+
+    public Task<EmployeePurchaseReportResponse> GetEmployeePurchaseReportAsync(
+        DateTimeOffset? fromUtc = null,
+        DateTimeOffset? toUtcExclusive = null,
+        Guid? employeeId = null,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<EmployeePurchaseReportResponse>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery(
+                "api/reports/employee-purchases",
+                ("fromUtc", fromUtc?.ToString("O")),
+                ("toUtcExclusive", toUtcExclusive?.ToString("O")),
+                ("employeeId", employeeId?.ToString()))),
+            cancellationToken);
 
     public Task<InventoryImportValidationResult> ValidateInventoryImportAsync(
         InventoryImportRequest request,

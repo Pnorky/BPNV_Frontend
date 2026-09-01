@@ -338,6 +338,7 @@ public sealed class StoreApiClientTests
                 "/api/reports/sales" => Json(SalesReport()),
                 "/api/reports/inventory" => Json(InventoryReport()),
                 "/api/reports/orders" => Json(OrderReport()),
+                "/api/reports/employee-purchases" => Json(EmployeePurchaseReport()),
                 _ => throw new InvalidOperationException(request.RequestUri.ToString())
             };
         });
@@ -350,9 +351,10 @@ public sealed class StoreApiClientTests
         await client.GetSalesReportAsync(from, to);
         await client.GetInventoryReportAsync();
         await client.GetOrderReportAsync();
+        await client.GetEmployeePurchaseReportAsync(from, to);
 
         CollectionAssert.AreEqual(
-            new[] { "/api/dashboard", "/api/reports/sales", "/api/reports/inventory", "/api/reports/orders" },
+            new[] { "/api/dashboard", "/api/reports/sales", "/api/reports/inventory", "/api/reports/orders", "/api/reports/employee-purchases" },
             uris.Select(uri => uri.AbsolutePath).ToArray());
         StringAssert.Contains(uris[1].Query, "fromUtc=");
         StringAssert.Contains(uris[1].Query, "toUtcExclusive=");
@@ -408,6 +410,8 @@ public sealed class StoreApiClientTests
                 "/api/reports/sales" => Json(SalesReport()),
                 "/api/reports/inventory" => Json(InventoryReport()),
                 "/api/reports/orders" => Json(OrderReport()),
+                "/api/reports/employee-purchases" => Json(EmployeePurchaseReport()),
+                "/api/employees" => Json(Array.Empty<EmployeeResponse>()),
                 _ => throw new InvalidOperationException(request.RequestUri.ToString())
             };
         });
@@ -546,6 +550,9 @@ public sealed class StoreApiClientTests
         new OrderReportSummaryResponse(1, 1, 4),
         [new SupplierOrderResponse(Guid.NewGuid(), "Supplier", 1, 4,
             [new OrderProductResponse(Guid.NewGuid(), "SKU", "Product", 7, 8, 15, 5, 10, "Warning", 4)])]);
+
+    private static EmployeePurchaseReportResponse EmployeePurchaseReport() =>
+        new(new EmployeePurchaseSummaryResponse(0, 0, 0), []);
 
     private static InventoryReportProductResponse InventoryProduct() => new(
         Guid.NewGuid(), Guid.NewGuid(), "Supplier", ApiInventoryItemType.Merchandise, "SKU", "Product", "Category", "piece",
