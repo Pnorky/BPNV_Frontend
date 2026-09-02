@@ -25,6 +25,7 @@ public sealed class ExcelInventoryImportView : UserControl
                 Header(),
                 Status(),
                 SummaryCards(),
+                ExcludedSectionsCard(),
                 Card(SectionMappings(), new Thickness(20)),
                 Card(BulkDefaults(), new Thickness(20)),
                 Card(IssueArea(), new Thickness(20)),
@@ -49,6 +50,7 @@ public sealed class ExcelInventoryImportView : UserControl
         Bind(prefilled, Visual.IsVisibleProperty, "IsLoaded");
         var validate = Button("Validate", "ValidateCommand");
         Bind(validate, Visual.IsVisibleProperty, "IsLoaded");
+        Bind(validate, Avalonia.Controls.Button.IsEnabledProperty, "CanValidate");
         var import = Button("Import", "ImportCommand", true);
         Bind(import, Visual.IsVisibleProperty, "IsLoaded");
         Bind(import, Avalonia.Controls.Button.IsEnabledProperty, "CanImport");
@@ -92,16 +94,17 @@ public sealed class ExcelInventoryImportView : UserControl
 
     private static Control SummaryCards()
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("1.4*,0.8*,0.6*,0.6*,0.6*"), ColumnSpacing = 12 };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("1.4*,0.8*,0.6*,0.6*,0.6*,0.7*"), ColumnSpacing = 12 };
         grid.Children.Add(SummaryCard("FILE", "FileName", "FormatDisplay"));
         grid.Children.Add(At(SummaryCard("FORMAT", "FormatDisplay", "SourceHash", true), column: 1));
         grid.Children.Add(At(SummaryCard("PRODUCTS", "ProductCount"), column: 2));
         grid.Children.Add(At(SummaryCard("PACKAGES", "PackageCount"), column: 3));
         grid.Children.Add(At(SummaryCard("ISSUES", "IssueCount"), column: 4));
+        grid.Children.Add(At(SummaryCard("EXCLUDED", "ExcludedProductCount", "ExcludedSectionCount", false, "{0} sections"), column: 5));
         return grid;
     }
 
-    private static Border SummaryCard(string label, string valuePath, string? detailPath = null, bool trimDetail = false)
+    private static Border SummaryCard(string label, string valuePath, string? detailPath = null, bool trimDetail = false, string? detailFormat = null)
     {
         var value = BoundText(valuePath);
         value.FontSize = 18;
@@ -110,13 +113,34 @@ public sealed class ExcelInventoryImportView : UserControl
         var stack = new StackPanel { Spacing = 4, Children = { Label(label), value } };
         if (detailPath is not null)
         {
-            var detail = BoundText(detailPath);
+            var detail = BoundText(detailPath, detailFormat);
             detail.FontSize = 10;
             detail.TextTrimming = trimDetail ? TextTrimming.CharacterEllipsis : TextTrimming.None;
             Resource(detail, TextBlock.ForegroundProperty, "MutedForeground");
             stack.Children.Add(detail);
         }
         return Card(stack, new Thickness(16));
+    }
+
+    private static Border ExcludedSectionsCard()
+    {
+        var sections = new ItemsControl();
+        Bind(sections, ItemsControl.ItemsSourceProperty, "ExcludedSections");
+        sections.ItemTemplate = new FuncDataTemplate<ExcelInventoryExcludedSectionDraft>((_, _) =>
+            RowBorder(new StackPanel { Spacing = 2, Children = { SemiBold("SummaryDisplay"), Muted(path: "SourceSheet") } }));
+        var content = new StackPanel
+        {
+            Spacing = 10,
+            Children =
+            {
+                Heading("Excluded workbook sections"),
+                Muted("These configured sections and all product rows under them will not be imported."),
+                sections
+            }
+        };
+        var card = Card(content, new Thickness(20));
+        Bind(card, Visual.IsVisibleProperty, "HasExcludedSections");
+        return card;
     }
 
     private static Control SectionMappings()
@@ -259,8 +283,14 @@ public sealed class ExcelInventoryImportView : UserControl
         {
             Content = products,
             MaxHeight = 420,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        };
+        var table = new ScrollViewer
+        {
+            Content = new StackPanel { Children = { ProductHeader(), body } },
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled
         };
         var content = new StackPanel
         {
@@ -273,11 +303,10 @@ public sealed class ExcelInventoryImportView : UserControl
                     Children =
                     {
                         Heading("Product preview"),
-                        Muted("Supplier, SKU, name, category, unit, and item type are editable. Recheck edits before validation.")
+                        Muted("Review and edit product identity, barcode, prices, stock, and reorder settings before validation.")
                     }
                 },
-                ProductHeader(),
-                body
+                table
             }
         };
         Bind(content, Visual.IsVisibleProperty, "IsLoaded");
@@ -287,21 +316,18 @@ public sealed class ExcelInventoryImportView : UserControl
     private static Control ProductHeader() => Resource(new Border
     {
         Padding = new Thickness(12, 9),
-        Child = HeaderGrid("ROW", "SUPPLIER", "SKU", "PRODUCT", "CATEGORY", "UNIT", "TYPE", "DISPLAY", "BODEGA", "REORDER")
+        Child = HeaderGrid("ROW", "SUPPLIER", "SKU", "BARCODE", "PRODUCT", "CATEGORY", "UNIT", "TYPE", "COST", "SELLING", "EMPLOYEE", "DISPLAY", "BODEGA", "CRITICAL", "CRIT. QTY", "WARNING", "WARN. QTY")
     }, Border.BackgroundProperty, "Secondary");
 
     private static Control ProductRow()
     {
         var row = BoundText("SourceRow");
         row.VerticalAlignment = VerticalAlignment.Center;
-        var display = BoundText("OpeningDisplayStock"); display.VerticalAlignment = VerticalAlignment.Center;
-        var bodega = BoundText("OpeningBodegaStock"); bodega.VerticalAlignment = VerticalAlignment.Center;
-        var reorder = new StackPanel { Children = { BoundText("CriticalReorderLevel", "C {0}"), BoundText("WarningReorderLevel", "W {0}") } };
         var type = Select("ItemType", "DataContext.ItemTypes", typeof(ExcelInventoryImportView));
         type.MinWidth = 130;
         return RowBorder(new Grid
         {
-            Width = 1320,
+            Width = 2200,
             ColumnDefinitions = PreviewColumns(),
             ColumnSpacing = 8,
             Children =
@@ -309,30 +335,43 @@ public sealed class ExcelInventoryImportView : UserControl
                 row,
                 At(CompactInput("SupplierName"), column: 1),
                 At(CompactInput("Sku"), column: 2),
-                At(CompactInput("Name"), column: 3),
-                At(CompactInput("Category"), column: 4),
-                At(CompactInput("Unit"), column: 5),
-                At(type, column: 6),
-                At(display, column: 7),
-                At(bodega, column: 8),
-                At(reorder, column: 9)
+                At(CompactInput("PieceBarcode"), column: 3),
+                At(CompactInput("Name"), column: 4),
+                At(CompactInput("Category"), column: 5),
+                At(CompactInput("Unit"), column: 6),
+                At(type, column: 7),
+                At(CompactNumber("CostPrice", "0.00"), column: 8),
+                At(CompactNumber("RegularPrice", "0.00"), column: 9),
+                At(CompactNumber("EmployeePrice", "0.00"), column: 10),
+                At(CompactNumber("OpeningDisplayStock", "0"), column: 11),
+                At(CompactNumber("OpeningBodegaStock", "0"), column: 12),
+                At(CompactNumber("CriticalReorderLevel", "0"), column: 13),
+                At(CompactNumber("CriticalOrderQuantity", "0", 1), column: 14),
+                At(CompactNumber("WarningReorderLevel", "0"), column: 15),
+                At(CompactNumber("WarningOrderQuantity", "0", 1), column: 16)
             }
         }, new Thickness(12, 8));
     }
 
     private static Grid HeaderGrid(params string[] labels)
     {
-        var grid = new Grid { Width = 1320, ColumnDefinitions = PreviewColumns(), ColumnSpacing = 8 };
+        var grid = new Grid { Width = 2200, ColumnDefinitions = PreviewColumns(), ColumnSpacing = 8 };
         for (var index = 0; index < labels.Length; index++) grid.Children.Add(At(Label(labels[index]), column: index));
         return grid;
     }
 
-    private static ColumnDefinitions PreviewColumns() => new("52,180,140,220,160,90,140,80,80,110");
+    private static ColumnDefinitions PreviewColumns() => new("52,170,140,160,220,150,90,140,100,100,100,85,85,95,95,95,95");
     private static TextBox CompactInput(string path)
     {
         var input = Input(path, "");
         input.MinHeight = 34;
         input.Padding = new Thickness(8, 5);
+        return input;
+    }
+    private static NumberField CompactNumber(string path, string format, decimal minimum = 0)
+    {
+        var input = Number(path, format, minimum);
+        input.MinHeight = 34;
         return input;
     }
     private static SearchableSelect Select(string path, string itemsPath, Type? ancestor = null)

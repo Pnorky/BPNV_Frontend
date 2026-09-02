@@ -39,6 +39,34 @@ public sealed class StoreDateTimeTests
     [TestMethod]
     public void FormatsDateOnlyValueWithoutAddingTime()
     {
-        Assert.AreEqual("August 26, 2025", StoreDateTime.FormatDateOnly("2025-08-26"));
+        Assert.AreEqual("August 26, 2025", StoreDateTime.FormatDateOnly(new DateOnly(2025, 8, 26)));
+        Assert.AreEqual("", StoreDateTime.FormatDateOnly(null));
+    }
+
+    [TestMethod]
+    public void PrototypeDatesRemainTypedAndTimeFree()
+    {
+        var displays = new[]
+        {
+            SampleData.Medicines[0].ExpiryDateDisplay,
+            SampleData.PendingLabOrders[0].DateOrderedDisplay,
+            SampleData.CompletedLabResults[0].CompletedDisplay,
+            SampleData.RadiologyOrders[0].ScheduleDisplay,
+            SampleData.MedicalRecords[0].LastVisitDisplay
+        };
+
+        Assert.IsNotNull(SampleData.Medicines[0].ExpiryDate);
+        Assert.IsTrue(displays.All(value => !value.Contains(':') && !value.Contains("AM") && !value.Contains("PM")));
+    }
+
+    [TestMethod]
+    public void StockCountUsesStandardManilaTimestampProjection()
+    {
+        var response = new StockCountResponse(
+            Guid.NewGuid(), Guid.NewGuid(), ApiInventoryStockLocation.Display,
+            10, 8, -2, 8, 0, 2,
+            new DateTime(2025, 8, 26, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.AreEqual("August 26, 2025 8:00 AM", response.OccurredAtDisplay);
     }
 }

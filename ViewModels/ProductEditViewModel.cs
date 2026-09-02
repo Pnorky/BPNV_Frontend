@@ -112,7 +112,8 @@ public partial class ProductEditViewModel : ObservableObject
         ValidationMessage = "";
         if (SelectedSupplier is null) return Fail("Select an active supplier.", out error);
         if (string.IsNullOrWhiteSpace(Sku)) return Fail("SKU is required.", out error);
-        if (string.IsNullOrWhiteSpace(PieceBarcode)) return Fail("Piece barcode is required.", out error);
+        if (ItemType == ApiInventoryItemType.Merchandise && string.IsNullOrWhiteSpace(PieceBarcode))
+            return Fail("Piece barcode is required for Merchandise.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
         if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
@@ -125,7 +126,8 @@ public partial class ProductEditViewModel : ObservableObject
             CriticalOrderQuantity <= 0 || WarningOrderQuantity <= 0)
             return Fail("Critical and warning order quantities must be whole numbers greater than zero.", out error);
 
-        var barcodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { PieceBarcode.Trim() };
+        var barcodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(PieceBarcode)) barcodes.Add(PieceBarcode.Trim());
         var packages = new List<UpdateProductUnitRequest>();
         foreach (var package in Packages)
         {
@@ -143,7 +145,7 @@ public partial class ProductEditViewModel : ObservableObject
         }
 
         request = new UpdateProductRequest(
-            SelectedSupplier.Id, ItemType, Sku.Trim(), PieceBarcode.Trim(), Name.Trim(), Category.Trim(), Unit.Trim(),
+            SelectedSupplier.Id, ItemType, Sku.Trim(), NullIfWhiteSpace(PieceBarcode), Name.Trim(), Category.Trim(), Unit.Trim(),
             CostPrice, RegularPrice, EmployeePrice,
             (int)CriticalReorderLevel, (int)CriticalOrderQuantity,
             (int)WarningReorderLevel, (int)WarningOrderQuantity, Version, packages);
@@ -159,4 +161,5 @@ public partial class ProductEditViewModel : ObservableObject
 
     private static bool WholeNumber(decimal value) =>
         value == decimal.Truncate(value) && value <= int.MaxValue;
+    private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

@@ -173,6 +173,10 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         TransferStockRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<StockTransferResponse, TransferStockRequest>(HttpMethod.Post, "api/stock-transfers", request, cancellationToken);
 
+    public Task<StockCountResponse> RecordStockCountAsync(
+        RecordStockCountRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<StockCountResponse, RecordStockCountRequest>(HttpMethod.Post, "api/stock-counts", request, cancellationToken);
+
     public Task<PagedResponse<StockMovementResponse>> GetStockMovementsAsync(
         string? search = null,
         string? movementType = null,

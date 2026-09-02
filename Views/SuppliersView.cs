@@ -111,15 +111,18 @@ public class SuppliersView : UserControl
             if (dialog.Confirmed)
                 await viewModel.UpdateSupplierAsync(supplier, dialog.NameValue, dialog.ContactValue, dialog.PhoneValue);
         };
-        var delete = Button("Delete", null, false);
-        delete.Click += async (sender, _) =>
+        var deactivate = new ActionButton("Deactivate", ActionButtonVariant.Danger, ActionButtonSize.Sm);
+        deactivate.Click += async (sender, _) =>
         {
             if (sender is not Button button || button.DataContext is not SupplierResponse supplier ||
                 TopLevel.GetTopLevel(button) is not Window owner || GetViewModel(button) is not { } viewModel) return;
             var dialog = new ConfirmDialog();
             dialog.SetConfirmation("Deactivate supplier", $"Deactivate {supplier.Name}? Existing products and history will be preserved.", "Deactivate");
-            await dialog.ShowDialog(owner);
-            if (dialog.Confirmed) await viewModel.DeleteSupplierAsync(supplier);
+            await ConfirmDeactivationAsync(supplier, viewModel, async () =>
+            {
+                await dialog.ShowDialog(owner);
+                return dialog.Confirmed;
+            });
         };
         var restore = Button("Restore", null, false);
         restore.IsVisible = false;
@@ -128,14 +131,14 @@ public class SuppliersView : UserControl
             if (restore.DataContext is SupplierResponse supplier && GetViewModel(restore) is { } viewModel)
                 await viewModel.ReactivateSupplierAsync(supplier);
         };
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { edit, delete, restore } };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { edit, deactivate, restore } };
         void UpdateActionVisibility()
         {
-            if (actions.DataContext is SupplierResponse supplier && GetViewModel(actions) is { } viewModel)
+            if (actions.DataContext is SupplierResponse supplier)
             {
                 edit.IsVisible = supplier.IsActive;
-                delete.IsVisible = supplier.IsActive;
-                restore.IsVisible = !supplier.IsActive && viewModel.CanRestore;
+                deactivate.IsVisible = supplier.IsActive;
+                restore.IsVisible = !supplier.IsActive;
             }
         }
         actions.DataContextChanged += (_, _) => UpdateActionVisibility();
@@ -159,6 +162,13 @@ public class SuppliersView : UserControl
     }
 
     private static ColumnDefinitions SupplierColumns() => new("1.4*,1*,1*,Auto,Auto");
+    internal static async Task ConfirmDeactivationAsync(
+        SupplierResponse supplier,
+        SuppliersViewModel viewModel,
+        Func<Task<bool>> confirm)
+    {
+        if (await confirm()) await viewModel.DeactivateSupplierAsync(supplier);
+    }
     private static SuppliersViewModel? GetViewModel(Control control) =>
         control.GetVisualAncestors().OfType<SuppliersView>().FirstOrDefault()?.DataContext as SuppliersViewModel;
     private static Border StatusBadge()

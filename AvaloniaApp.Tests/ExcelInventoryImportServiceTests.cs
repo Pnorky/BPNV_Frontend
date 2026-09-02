@@ -44,7 +44,8 @@ public sealed class ExcelInventoryImportServiceTests
         {
             var sheet = workbook.Worksheet(1);
             WriteRow(sheet, 13, "JAPANESE SIOMAI 1X30", 0, 0, 0, 0, 0, 0, "", 30, 0, 0, "", 30, 10);
-            WriteRow(sheet, 14, "COFFEE FILTERS 1X70", 0, 0, 0, 0, 0, 0, "", 33, 0, 0, "", 33, 10);
+            WriteRow(sheet, 14, "GROUND COFFEE", 0, 0, 0, 0, 0, 0, "", 33, 0, 0, "", 33, 10);
+            WriteRow(sheet, 15, "DISPOSABLE CUP", 0, 0, 0, 0, 0, 0, "", 100, 0, 0, "", 100, 10);
             workbook.SaveAs(modified);
         }
         modified.Position = 0;
@@ -53,9 +54,41 @@ public sealed class ExcelInventoryImportServiceTests
 
         Assert.AreEqual(ApiInventoryItemType.Merchandise, result.Products.Single(product => product.SourceRow == 13).ItemType);
         Assert.AreEqual(ApiInventoryItemType.Consumable, result.Products.Single(product => product.SourceRow == 14).ItemType);
+        Assert.AreEqual(ApiInventoryItemType.Supply, result.Products.Single(product => product.SourceRow == 15).ItemType);
         Assert.AreNotSame(
             result.Products.Single(product => product.SourceRow == 13).Section,
             result.Products.Single(product => product.SourceRow == 14).Section);
+        Assert.AreNotSame(
+            result.Products.Single(product => product.SourceRow == 14).Section,
+            result.Products.Single(product => product.SourceRow == 15).Section);
+    }
+
+    [TestMethod]
+    public void LegacyParserSkipsConfiguredSectionsAndContinuesWithNextSupplier()
+    {
+        using var source = LegacyWorkbook();
+        using var modified = new MemoryStream();
+        using (var workbook = new XLWorkbook(source))
+        {
+            var sheet = workbook.Worksheet(1);
+            sheet.Row(9).InsertRowsAbove(4);
+            sheet.Cell("A8").Value = "CHOCOLATE/CANDIES/";
+            WriteRow(sheet, 9, "SKIPPED ITEM", 1, 0, 0, 0, 0, 1, "", 2, 0, 2, "", 3, 5);
+            sheet.Cell("A10").Value = "NEXT VENDOR";
+            WriteRow(sheet, 11, "NEXT ITEM", 2, 0, 0, 0, 0, 2, "", 4, 0, 4, "", 6, 5);
+            workbook.SaveAs(modified);
+        }
+        modified.Position = 0;
+
+        var result = new ExcelInventoryImportService().Parse(modified);
+
+        Assert.IsFalse(result.Products.Any(product => product.Name == "SKIPPED ITEM"));
+        Assert.AreEqual("NEXT VENDOR", result.Products.Single(product => product.Name == "NEXT ITEM").Section!.Heading);
+        Assert.AreEqual(11, result.Products.Single(product => product.Name == "NEXT ITEM").SourceRow);
+        var excluded = result.ExcludedSections.Single();
+        Assert.AreEqual("CHOCOLATE/CANDIES/", excluded.Heading);
+        Assert.AreEqual(8, excluded.SourceRow);
+        Assert.AreEqual(1, excluded.ProductRowCount);
     }
 
     [TestMethod]
@@ -93,6 +126,8 @@ public sealed class ExcelInventoryImportServiceTests
             "WarningReorderLevel", "WarningOrderQuantity", "OpeningDisplayStock", "OpeningBodegaStock");
         WriteRow(products, 2, "Supplier", "Merchandise", "SKU-1", "0000123", "Product", "Snacks", "piece",
             4.5m, 6m, 5m, 0, 10, 5, 6, 3, 12);
+        WriteRow(products, 3, "Supplier", "Supply", "SKU-2", "", "Cups", "Supplies", "piece",
+            1m, 0m, 0m, 0, 10, 5, 10, 0, 100);
         var packages = workbook.Worksheets.Add("Packages");
         WriteRow(packages, 1, "ProductSKU", "Barcode", "Label", "PiecesPerUnit", "RegularPrice", "EmployeePrice", "IsActive");
         WriteRow(packages, 2, "SKU-1", "0000456", "6-pack", 6, 34m, 30m, true);
@@ -103,8 +138,10 @@ public sealed class ExcelInventoryImportServiceTests
         var result = new ExcelInventoryImportService().Parse(stream);
 
         Assert.AreEqual(ExcelInventoryWorkbookFormat.StandardTemplate, result.Format);
-        Assert.AreEqual("0000123", result.Products.Single().PieceBarcode);
-        Assert.AreEqual(12, result.Products.Single().OpeningBodegaStock);
+        Assert.AreEqual("0000123", result.Products.Single(product => product.Sku == "SKU-1").PieceBarcode);
+        Assert.AreEqual(12, result.Products.Single(product => product.Sku == "SKU-1").OpeningBodegaStock);
+        Assert.AreEqual("", result.Products.Single(product => product.Sku == "SKU-2").PieceBarcode);
+        Assert.IsFalse(result.Issues.Any(issue => issue.SourceRow == 3 && issue.Code == "MissingField"));
         Assert.AreEqual("0000456", result.Packages.Single().Barcode);
         Assert.AreEqual(6, result.Packages.Single().PiecesPerUnit);
         Assert.AreEqual("Supplier", result.Suppliers.Single().Name);

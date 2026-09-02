@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -8,6 +9,7 @@ using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Threading;
 using AvaloniaApp.ViewModels;
+using AvaloniaApp.Services;
 using AvaloniaApp.Views.UI;
 
 namespace AvaloniaApp.Views;
@@ -22,6 +24,28 @@ public class StockReceivingView : UserControl
         var title = new TextBlock { Text = "Receive stock" }; title.Classes.Add("h1");
         _scanner = Input("ScannerText", "Scan piece or package barcode, then press Enter");
         _scanner.KeyDown += OnScannerKeyDown;
+        var catalog = new SearchableSelect
+        {
+            PlaceholderText = "Search product name or SKU",
+            SearchTextSelector = item => item is ProductResponse product
+                ? $"{product.Name} {product.Sku} {product.SupplierName}"
+                : ""
+        };
+        catalog.Bind(SearchableSelect.ItemsSourceProperty, new Binding("CatalogProducts"));
+        catalog.Bind(SearchableSelect.SelectedItemProperty, new Binding("CatalogLookupSelection"));
+        catalog.ItemTemplate = new FuncDataTemplate<ProductResponse>((_, _) =>
+            new StackPanel { Children = { Bound("Name", 13, FontWeight.SemiBold), Muted("Sku") } }, true);
+
+        var lookup = Card(new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*"),
+            ColumnSpacing = 12,
+            Children =
+            {
+                Field("BARCODE SCANNER", _scanner),
+                At(Field("OR FIND PRODUCT", catalog), 1)
+            }
+        });
 
         var selection = Card(new Grid
         {
@@ -66,8 +90,8 @@ public class StockReceivingView : UserControl
             Spacing = 16,
             Children =
             {
-                new StackPanel { Spacing = 4, Children = { title, StaticMuted("Exact barcode lookup supports base pieces and package units.") } },
-                Card(Field("BARCODE SCANNER", _scanner)), selection, Card(form), Status()
+                new StackPanel { Spacing = 4, Children = { title, StaticMuted("Scan an exact barcode, or select a product by name or SKU when it has no barcode.") } },
+                lookup, selection, Card(form), Status()
             }
         };
         Content = new ScrollViewer
@@ -89,11 +113,15 @@ public class StockReceivingView : UserControl
         FocusScanner();
     }
 
-    private void OnDataContextChanged(object? sender, EventArgs e)
+    private async void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_viewModel is not null) _viewModel.ScannerFocusRequested -= OnScannerFocusRequested;
         _viewModel = DataContext as StockReceivingViewModel;
-        if (_viewModel is not null) _viewModel.ScannerFocusRequested += OnScannerFocusRequested;
+        if (_viewModel is not null)
+        {
+            _viewModel.ScannerFocusRequested += OnScannerFocusRequested;
+            await _viewModel.LoadCatalogAsync();
+        }
     }
 
     private void OnScannerFocusRequested(object? sender, EventArgs e) => FocusScanner();

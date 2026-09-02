@@ -6,10 +6,14 @@ namespace AvaloniaApp.ViewModels;
 
 public partial class StockReceivingViewModel(StoreApiClient api, INotificationService notifications) : ObservableObject
 {
+    private bool _isLoadingCatalog;
+
     [ObservableProperty] private string _scannerText = "";
     [ObservableProperty] private PosProductResponse? _selectedProduct;
     [ObservableProperty] private ProductUnitResponse? _selectedUnit;
     [ObservableProperty] private ProductResponse? _selectedCatalogProduct;
+    [ObservableProperty] private ProductResponse? _catalogLookupSelection;
+    [ObservableProperty] private IReadOnlyList<ProductResponse> _catalogProducts = [];
     [ObservableProperty] private decimal _count = 1;
     [ObservableProperty] private decimal _unitCost;
     [ObservableProperty] private decimal _sellingPrice;
@@ -34,12 +38,38 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
     partial void OnSelectedProductChanged(PosProductResponse? value) => NotifySelection();
     partial void OnSelectedUnitChanged(ProductUnitResponse? value) => NotifySelection();
     partial void OnSelectedCatalogProductChanged(ProductResponse? value) => NotifySelection();
+    partial void OnCatalogLookupSelectionChanged(ProductResponse? value)
+    {
+        if (value is not null) SelectCatalogProduct(value);
+    }
     partial void OnCountChanged(decimal value)
     {
         OnPropertyChanged(nameof(ConversionPreview));
         OnPropertyChanged(nameof(TotalCostDisplay));
     }
     partial void OnUnitCostChanged(decimal value) => OnPropertyChanged(nameof(TotalCostDisplay));
+
+    public async Task LoadCatalogAsync()
+    {
+        if (_isLoadingCatalog || CatalogProducts.Count > 0) return;
+        _isLoadingCatalog = true;
+        try
+        {
+            var page = await api.GetProductsAsync(pageSize: 200);
+            CatalogProducts = page.Items
+                .Where(product => product.IsActive)
+                .OrderBy(product => product.Name)
+                .ToArray();
+        }
+        catch (Exception exception) when (IsApiFailure(exception))
+        {
+            ShowError("Product catalog unavailable", FailureMessage(exception));
+        }
+        finally
+        {
+            _isLoadingCatalog = false;
+        }
+    }
 
     public async Task LookupBarcodeAsync()
     {
@@ -56,6 +86,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         IsBusy = true;
         try
         {
+            CatalogLookupSelection = null;
             var product = await api.GetProductForReceivingByBarcodeAsync(barcode);
             SelectedProduct = product;
             SelectedUnit = product.SelectedUnit;
@@ -71,6 +102,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             SelectedProduct = null;
             SelectedUnit = null;
             SelectedCatalogProduct = null;
+            CatalogLookupSelection = null;
             ShowError("Barcode lookup failed", FailureMessage(exception));
         }
         finally
@@ -143,6 +175,35 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         UnitCost = (SelectedCatalogProduct?.CostPrice ?? 0) * SelectedUnit.PiecesPerUnit;
         SellingPrice = SelectedUnit.RegularPrice;
         EmployeePrice = SelectedUnit.EmployeePrice;
+    }
+
+    private void SelectCatalogProduct(ProductResponse product)
+    {
+        var baseUnit = product.Units.FirstOrDefault(unit => unit.IsBasePiece && unit.IsActive);
+        if (baseUnit is null)
+        {
+            ShowError("Product cannot be received", $"{product.Name} does not have an active base-piece unit.");
+            return;
+        }
+
+        SelectedCatalogProduct = product;
+        SelectedUnit = baseUnit;
+        SelectedProduct = new PosProductResponse(
+            product.Id,
+            product.SupplierName,
+            product.Sku,
+            product.Barcode,
+            product.Name,
+            product.Unit,
+            product.RegularPrice,
+            product.EmployeePrice,
+            product.DisplayStock,
+            product.Version,
+            product.Units,
+            baseUnit);
+        ScannerText = "";
+        InitializePrices();
+        StatusMessage = $"Selected {product.Name}, {baseUnit.Label}, by catalog search.";
     }
 
     private void RequestScannerFocus() => ScannerFocusRequested?.Invoke(this, EventArgs.Empty);

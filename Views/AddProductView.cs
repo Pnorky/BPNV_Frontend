@@ -60,7 +60,7 @@ public class AddProductView : UserControl
         Bind(itemType, SearchableSelect.ItemsSourceProperty, "ItemTypes");
         Bind(itemType, SearchableSelect.SelectedItemProperty, "ItemType");
 
-        var barcode = At(Field("PIECE BARCODE", InputBox("PieceBarcode", "Leading zeros are preserved")), column: 2);
+        var barcode = At(Field("PIECE BARCODE", InputBox("PieceBarcode", "Required for Merchandise; optional otherwise")), column: 2);
         Grid.SetColumnSpan(barcode, 2);
 
         var primary = new Grid

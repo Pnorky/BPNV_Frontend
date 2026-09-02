@@ -25,8 +25,6 @@ public partial class SuppliersViewModel : ObservableObject
         _ = LoadAsync();
     }
 
-    public bool CanRestore => _api.IsSuperAdmin;
-
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     [RelayCommand]
@@ -72,7 +70,7 @@ public partial class SuppliersViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task DeleteSupplierAsync(SupplierResponse? supplier)
+    public async Task DeactivateSupplierAsync(SupplierResponse? supplier)
     {
         if (supplier is null || IsBusy) return;
         IsBusy = true;
@@ -121,11 +119,11 @@ public partial class SuppliersViewModel : ObservableObject
         {
             var supplier = await _api.CreateSupplierAsync(new CreateSupplierRequest(
                 SupplierName.Trim(), NullIfWhiteSpace(ContactPerson), NullIfWhiteSpace(Phone)));
-            _suppliers = _suppliers.Append(supplier).ToArray();
             SupplierName = "";
             ContactPerson = "";
             Phone = "";
-            ApplyFilter();
+            IsBusy = false;
+            await LoadAsync();
             StatusMessage = $"Supplier {supplier.Name} created.";
             _notifications.ShowSuccess("Supplier created", StatusMessage);
         }

@@ -216,7 +216,7 @@ public partial class AddProductViewModel : ObservableObject
             return;
         }
 
-        StatusMessage = "Creating product and unit barcodes...";
+        StatusMessage = "Creating product and unit options...";
         IsBusy = true;
         try
         {
@@ -241,7 +241,8 @@ public partial class AddProductViewModel : ObservableObject
         error = "";
         if (SelectedSupplier is null) return Fail("Select or create a supplier.", out error);
         if (string.IsNullOrWhiteSpace(Sku)) return Fail("SKU is required.", out error);
-        if (string.IsNullOrWhiteSpace(PieceBarcode)) return Fail("Piece barcode is required.", out error);
+        if (ItemType == ApiInventoryItemType.Merchandise && string.IsNullOrWhiteSpace(PieceBarcode))
+            return Fail("Piece barcode is required for Merchandise.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
         if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
@@ -254,7 +255,8 @@ public partial class AddProductViewModel : ObservableObject
             CriticalOrderQuantity <= 0 || WarningOrderQuantity <= 0)
             return Fail("Critical and warning order quantities must be whole numbers greater than zero.", out error);
 
-        var barcodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { PieceBarcode.Trim() };
+        var barcodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(PieceBarcode)) barcodes.Add(PieceBarcode.Trim());
         var packages = new List<CreateProductUnitRequest>();
         foreach (var package in Packages)
         {
@@ -272,7 +274,7 @@ public partial class AddProductViewModel : ObservableObject
         }
 
         request = new CreateProductRequest(
-            SelectedSupplier.Id, ItemType, Sku.Trim(), PieceBarcode.Trim(), Name.Trim(), Category.Trim(), Unit.Trim(),
+            SelectedSupplier.Id, ItemType, Sku.Trim(), NullIfWhiteSpace(PieceBarcode), Name.Trim(), Category.Trim(), Unit.Trim(),
             CostPrice, RegularPrice, EmployeePrice,
             (int)CriticalReorderLevel, (int)CriticalOrderQuantity,
             (int)WarningReorderLevel, (int)WarningOrderQuantity, packages);

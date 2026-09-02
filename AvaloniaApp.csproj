@@ -32,4 +32,8 @@
     <AvaloniaResource Include="Assets\index.css" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="AvaloniaApp.Tests" />
+  </ItemGroup>
+
 </Project>

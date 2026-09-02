@@ -59,13 +59,19 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
     public ObservableCollection<ExcelInventoryProductDraft> Products { get; } = [];
     public ObservableCollection<ExcelInventoryPackageDraft> Packages { get; } = [];
     public ObservableCollection<InventoryImportSectionMapping> Sections { get; } = [];
+    public ObservableCollection<ExcelInventoryExcludedSectionDraft> ExcludedSections { get; } = [];
     public ObservableCollection<InventoryImportDisplayIssue> Issues { get; } = [];
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
     public Guid ImportKey { get; private set; }
     public int ProductCount => Products.Count;
     public int PackageCount => Packages.Count;
     public int SectionCount => Sections.Count;
+    public int ExcludedSectionCount => ExcludedSections.Count;
+    public int ExcludedProductCount => ExcludedSections.Sum(section => section.ProductRowCount);
     public int IssueCount => Issues.Count;
+    public bool HasExcludedSections => ExcludedSections.Count > 0;
+    public bool HasLocalErrors => Issues.Any(issue => issue.Severity == "Error");
+    public bool CanValidate => IsLoaded && !HasLocalErrors && !IsBusy;
     public bool CanImport => IsLoaded && BackendValidated && !IsBusy;
 
     public ExcelInventoryImportViewModel(StoreApiClient api, INotificationService notifications)
@@ -74,9 +80,17 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         _notifications = notifications;
     }
 
-    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(CanImport));
+    partial void OnIsBusyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanValidate));
+        OnPropertyChanged(nameof(CanImport));
+    }
     partial void OnBackendValidatedChanged(bool value) => OnPropertyChanged(nameof(CanImport));
-    partial void OnIsLoadedChanged(bool value) => OnPropertyChanged(nameof(CanImport));
+    partial void OnIsLoadedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanValidate));
+        OnPropertyChanged(nameof(CanImport));
+    }
 
     [RelayCommand]
     private async Task OpenWorkbookAsync()
@@ -107,7 +121,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
             _draft = _excel.Parse(new MemoryStream(data));
             _existingSuppliers = await _api.GetSuppliersAsync();
             LoadDraft(_draft);
-            StatusMessage = $"Loaded {Products.Count} product row{Plural(Products.Count)}. Complete mappings and defaults, then validate.";
+            StatusMessage = $"Loaded {Products.Count} product row{Plural(Products.Count)} and skipped {ExcludedProductCount} excluded row{Plural(ExcludedProductCount)}. Complete mappings and defaults, then validate.";
         }
         catch (Exception exception)
         {
@@ -322,6 +336,10 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
             Required(product, product.Category, "category", "Category is required.");
             Required(product, product.Unit, "unit", "Unit is required.");
             if (product.ItemType is null) AddLocal(product.SourceRow, "itemType", "Item type is required.");
+            if (product.ItemType == ApiInventoryItemType.Merchandise && string.IsNullOrWhiteSpace(product.PieceBarcode))
+                AddLocal(product.SourceRow, "pieceBarcode", "Piece barcode is required for Merchandise.");
+            else if (product.ItemType is ApiInventoryItemType.Consumable or ApiInventoryItemType.Supply && string.IsNullOrWhiteSpace(product.PieceBarcode))
+                AddLocalWarning(product.SourceRow, "pieceBarcode", "No barcode will be imported; use product name or SKU for receiving and inventory tasks.");
             RequiredNumber(product, product.CostPrice, "costPrice");
             RequiredNumber(product, product.RegularPrice, "regularPrice");
             RequiredNumber(product, product.EmployeePrice, "employeePrice");
@@ -352,7 +370,9 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(IssueCount));
-        if (Issues.Any(issue => issue.Severity == "Error"))
+        OnPropertyChanged(nameof(HasLocalErrors));
+        OnPropertyChanged(nameof(CanValidate));
+        if (HasLocalErrors)
         {
             error = $"Resolve {Issues.Count(issue => issue.Severity == "Error")} local error{Plural(Issues.Count(issue => issue.Severity == "Error"))} before backend validation.";
             ValidationSummary = "Local validation failed";
@@ -407,14 +427,17 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
             }).ToArray();
     }
 
-    private void LoadDraft(ExcelInventoryImportResult draft)
+    internal void LoadDraft(ExcelInventoryImportResult draft)
     {
+        _draft = draft;
         Products.Clear();
         foreach (var product in draft.Products) Products.Add(product);
         Packages.Clear();
         foreach (var package in draft.Packages) Packages.Add(package);
         Sections.Clear();
         foreach (var section in draft.Sections) Sections.Add(new InventoryImportSectionMapping(section));
+        ExcludedSections.Clear();
+        foreach (var section in draft.ExcludedSections) ExcludedSections.Add(section);
         FormatDisplay = draft.Format == ExcelInventoryWorkbookFormat.Legacy ? "Legacy workbook" : "Standard template";
         IsLoaded = true;
         BackendValidated = false;
@@ -429,6 +452,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         Products.Clear();
         Packages.Clear();
         Sections.Clear();
+        ExcludedSections.Clear();
         Issues.Clear();
         FileName = "No workbook loaded";
         FormatDisplay = "-";
@@ -472,6 +496,8 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         var summary = result.Summary;
         ValidationSummary = $"{summary.ProductCount} products, {summary.PackageCount} packages, {summary.SupplierCount} suppliers ({summary.SuppliersToCreate} new), {summary.OpeningDisplayQuantity} Display + {summary.OpeningBodegaQuantity} Bodega units";
         OnPropertyChanged(nameof(IssueCount));
+        OnPropertyChanged(nameof(HasLocalErrors));
+        OnPropertyChanged(nameof(CanValidate));
     }
 
     private void ApplySectionValues(InventoryImportSectionMapping mapping)
@@ -504,7 +530,12 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         OnPropertyChanged(nameof(ProductCount));
         OnPropertyChanged(nameof(PackageCount));
         OnPropertyChanged(nameof(SectionCount));
+        OnPropertyChanged(nameof(ExcludedSectionCount));
+        OnPropertyChanged(nameof(ExcludedProductCount));
+        OnPropertyChanged(nameof(HasExcludedSections));
         OnPropertyChanged(nameof(IssueCount));
+        OnPropertyChanged(nameof(HasLocalErrors));
+        OnPropertyChanged(nameof(CanValidate));
     }
 
     private void Required(ExcelInventoryProductDraft product, string value, string field, string message)
@@ -530,6 +561,9 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
 
     private void AddLocal(int? row, string field, string message) =>
         Issues.Add(new InventoryImportDisplayIssue("Error", row is null ? "Import" : $"Row {row}", field, message));
+
+    private void AddLocalWarning(int? row, string field, string message) =>
+        Issues.Add(new InventoryImportDisplayIssue("Warning", row is null ? "Import" : $"Row {row}", field, message));
 
     private static string Location(string sheet, int? row) => row is null ? sheet : $"{sheet}, row {row}";
     private static int Whole(decimal value) => value is >= int.MinValue and <= int.MaxValue ? decimal.ToInt32(decimal.Truncate(value)) : 0;

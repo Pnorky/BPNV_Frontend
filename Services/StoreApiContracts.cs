@@ -7,6 +7,12 @@ public enum ApiInventoryItemType
     Supply
 }
 
+public enum ApiInventoryStockLocation
+{
+    Display,
+    Bodega
+}
+
 public enum ApiCustomerType
 {
     Regular,
@@ -67,6 +73,8 @@ public sealed record ProductResponse(
     public string SellingPriceDisplay => $"₱{RegularPrice:N2}";
     public string EmployeePriceDisplay => EmployeePrice > 0 ? $"₱{EmployeePrice:N2}" : "Same as selling";
     public string StockDisplay => $"{DisplayStock} display / {BodegaStock} bodega";
+    public string BarcodeDisplay => string.IsNullOrWhiteSpace(Barcode) ? "No barcode (optional)" : Barcode;
+    public bool CanRecordStockCount => IsActive && ItemType != ApiInventoryItemType.Merchandise;
 }
 
 public sealed record SupplierResponse(
@@ -138,7 +146,7 @@ public sealed record CreateProductRequest(
     Guid SupplierId,
     ApiInventoryItemType ItemType,
     string Sku,
-    string PieceBarcode,
+    string? PieceBarcode,
     string Name,
     string Category,
     string Unit,
@@ -164,7 +172,7 @@ public sealed record UpdateProductRequest(
     Guid SupplierId,
     ApiInventoryItemType ItemType,
     string Sku,
-    string PieceBarcode,
+    string? PieceBarcode,
     string Name,
     string Category,
     string Unit,
@@ -245,6 +253,12 @@ public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int Page
 
 public sealed record ReceiveStockRequest(Guid ProductId, Guid UnitId, int Count, decimal UnitCost, decimal SellingPrice, decimal EmployeePrice, string? Reference, string? Notes);
 public sealed record TransferStockRequest(Guid ProductId, int Quantity, string? Reference, string? Notes);
+public sealed record RecordStockCountRequest(
+    Guid ProductId,
+    ApiInventoryStockLocation Location,
+    int CountedQuantity,
+    ulong ExpectedProductVersion,
+    string? Notes);
 
 public sealed record StockReceiptResponse(
     Guid MovementId,
@@ -355,6 +369,21 @@ public sealed record BatchReceiptResponse(
 }
 
 public sealed record StockTransferResponse(Guid MovementId, Guid ProductId, int Quantity, int DisplayStock, int BodegaStock, ulong ProductVersion, DateTime OccurredAtUtc)
+{
+    public string OccurredAtDisplay => StoreDateTime.FormatUtc(OccurredAtUtc);
+}
+
+public sealed record StockCountResponse(
+    Guid MovementId,
+    Guid ProductId,
+    ApiInventoryStockLocation Location,
+    int PreviousQuantity,
+    int CountedQuantity,
+    int Variance,
+    int DisplayStock,
+    int BodegaStock,
+    ulong ProductVersion,
+    DateTime OccurredAtUtc)
 {
     public string OccurredAtDisplay => StoreDateTime.FormatUtc(OccurredAtUtc);
 }

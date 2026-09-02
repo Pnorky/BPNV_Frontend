@@ -69,8 +69,6 @@ public static class StoreDateTime
 
     public static bool IsStoreToday(DateTime value) => ToStoreTime(value).Date == StoreToday;
 
-    public static string FormatDateOnly(string value) =>
-        DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
-            ? date.ToString(DateFormat, CultureInfo.InvariantCulture)
-            : value;
+    public static string FormatDateOnly(DateOnly? value) =>
+        value?.ToString(DateFormat, CultureInfo.InvariantCulture) ?? "";
 }

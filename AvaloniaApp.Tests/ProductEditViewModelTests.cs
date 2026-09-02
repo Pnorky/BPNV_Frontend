@@ -33,6 +33,7 @@ public sealed class ProductEditViewModelTests
         var cases = new (Action<ProductEditViewModel> Mutate, string Message)[]
         {
             (viewModel => viewModel.Name = " ", "Product name is required"),
+            (viewModel => viewModel.PieceBarcode = " ", "required for Merchandise"),
             (viewModel => viewModel.Packages[0].Barcode = "0001", "barcodes must be unique"),
             (viewModel => viewModel.Packages[0].PiecesPerUnit = 1, "greater than 1"),
             (viewModel => viewModel.Packages[0].RegularPrice = -1, "prices cannot be negative"),
@@ -50,6 +51,26 @@ public sealed class ProductEditViewModelTests
             StringAssert.Contains(error, testCase.Message);
             Assert.AreEqual(error, viewModel.ValidationMessage);
         }
+    }
+
+    [TestMethod]
+    public void BarcodeLessSupplyBuildsUpdateRequestWithNullBarcode()
+    {
+        var source = Product();
+        var product = source with
+        {
+            ItemType = ApiInventoryItemType.Supply,
+            Barcode = null,
+            Units = source.Units.Select(unit => unit.IsBasePiece ? unit with { Barcode = null } : unit).ToArray()
+        };
+        var supplier = new SupplierResponse(product.SupplierId, "Supplier", null, null, true);
+        var viewModel = new ProductEditViewModel(product, [supplier]);
+
+        var valid = viewModel.TryBuildRequest(out var request, out var error);
+
+        Assert.IsTrue(valid, error);
+        Assert.IsNotNull(request);
+        Assert.IsNull(request.PieceBarcode);
     }
 
     [TestMethod]

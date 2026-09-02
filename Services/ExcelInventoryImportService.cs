@@ -31,6 +31,15 @@ public sealed class ExcelInventorySectionDraft
     public ApiInventoryItemType? SuggestedItemType { get; set; }
 }
 
+public sealed class ExcelInventoryExcludedSectionDraft
+{
+    public required string SourceSheet { get; init; }
+    public required int SourceRow { get; init; }
+    public required string Heading { get; init; }
+    public int ProductRowCount { get; set; }
+    public string SummaryDisplay => $"{Heading} - {ProductRowCount} product row{(ProductRowCount == 1 ? "" : "s")} skipped";
+}
+
 public sealed class ExcelInventorySupplierDraft
 {
     public required string SourceSheet { get; init; }
@@ -84,6 +93,7 @@ public sealed class ExcelInventoryImportResult
     public required ExcelInventoryWorkbookFormat Format { get; init; }
     public List<ExcelInventorySupplierDraft> Suppliers { get; } = [];
     public List<ExcelInventorySectionDraft> Sections { get; } = [];
+    public List<ExcelInventoryExcludedSectionDraft> ExcludedSections { get; } = [];
     public List<ExcelInventoryProductDraft> Products { get; } = [];
     public List<ExcelInventoryPackageDraft> Packages { get; } = [];
     public List<ExcelInventoryImportIssue> Issues { get; } = [];
@@ -248,6 +258,7 @@ public sealed class ExcelInventoryImportService
         ExcelInventorySectionDraft? initialSection)
     {
         var section = initialSection;
+        ExcelInventoryExcludedSectionDraft? excludedSection = null;
         for (var row = firstRow; row <= lastRow; row++)
         {
             var name = CellText(sheet.Cell(row, 1));
@@ -255,6 +266,20 @@ public sealed class ExcelInventoryImportService
             if (!HasLegacyItemEvidence(sheet, row))
             {
                 if (lowerSection && IsLowerHeaderLabel(name)) continue;
+                if (!lowerSection && IsExcludedLegacySection(name))
+                {
+                    excludedSection = new ExcelInventoryExcludedSectionDraft
+                    {
+                        SourceSheet = sheet.Name,
+                        SourceRow = row,
+                        Heading = name
+                    };
+                    result.ExcludedSections.Add(excludedSection);
+                    section = null;
+                    continue;
+                }
+
+                excludedSection = null;
                 section = new ExcelInventorySectionDraft
                 {
                     SourceSheet = sheet.Name,
@@ -264,6 +289,12 @@ public sealed class ExcelInventoryImportService
                     SuggestedItemType = lowerSection ? ApiInventoryItemType.Consumable : ApiInventoryItemType.Merchandise
                 };
                 result.Sections.Add(section);
+                continue;
+            }
+
+            if (excludedSection is not null)
+            {
+                excludedSection.ProductRowCount++;
                 continue;
             }
 
@@ -294,9 +325,12 @@ public sealed class ExcelInventoryImportService
                     {
                         SourceSheet = sheet.Name,
                         SourceRow = row,
-                        Heading = suggestedType == ApiInventoryItemType.Merchandise
-                            ? "PREPARED / SELLABLE ITEMS"
-                            : "INTERNAL CONSUMABLES",
+                        Heading = suggestedType switch
+                        {
+                            ApiInventoryItemType.Merchandise => "PREPARED / SELLABLE ITEMS",
+                            ApiInventoryItemType.Supply => "OPERATIONAL SUPPLIES",
+                            _ => "INTERNAL CONSUMABLES"
+                        },
                         SuggestedItemType = suggestedType
                     };
                     result.Sections.Add(section);
@@ -387,8 +421,8 @@ public sealed class ExcelInventoryImportService
 
             foreach (var (value, label) in new[]
                      {
-                         (product.SupplierName, "SupplierName"), (product.Sku, "SKU"), (product.PieceBarcode, "PieceBarcode"),
-                         (product.Name, "Name"), (product.Category, "Category"), (product.Unit, "Unit")
+                         (product.SupplierName, "SupplierName"), (product.Sku, "SKU"), (product.Name, "Name"),
+                         (product.Category, "Category"), (product.Unit, "Unit")
                      })
                 if (string.IsNullOrWhiteSpace(value)) AddIssue(product.Issues, "MissingField", $"{label} is required.", sheet, row);
 
@@ -463,6 +497,9 @@ public sealed class ExcelInventoryImportService
         var normalized = Normalize(value);
         return normalized is "BEGINNING" or "BALANCE" or "END";
     }
+
+    private static bool IsExcludedLegacySection(string value) => Normalize(value) is
+        "CHOCOLATECANDIES" or "LUBRICANTS" or "ICECREAMTUBEICE";
 
     private static int ReadLegacyInteger(IXLCell cell, ExcelInventoryProductDraft product, string field)
     {
@@ -557,15 +594,36 @@ public sealed class ExcelInventoryImportService
         int accountsReceivable,
         int spoilage)
     {
+        var normalized = Normalize(name);
+        if (IsOperationalSupply(normalized)) return ApiInventoryItemType.Supply;
         if (beginningDisplay != 0 || displayAdd != 0 || sales != 0 || accountsReceivable != 0 || spoilage != 0)
             return ApiInventoryItemType.Merchandise;
 
-        var normalized = Normalize(name);
-        return normalized.Contains("SIOMAI", StringComparison.Ordinal) ||
-               normalized.Contains("SHARKSFIN", StringComparison.Ordinal)
+        return IsPreparedMerchandise(normalized)
             ? ApiInventoryItemType.Merchandise
             : ApiInventoryItemType.Consumable;
     }
+
+    private static bool IsPreparedMerchandise(string normalizedName) =>
+        normalizedName.Contains("SIOMAI", StringComparison.Ordinal) ||
+        normalizedName.Contains("SHARKSFIN", StringComparison.Ordinal) ||
+        normalizedName.Contains("HOTDOG", StringComparison.Ordinal) ||
+        normalizedName.Contains("SIOPAO", StringComparison.Ordinal) && !normalizedName.Contains("SAUCE", StringComparison.Ordinal) ||
+        normalizedName.StartsWith("TJCHICKEN", StringComparison.Ordinal) ||
+        normalizedName.StartsWith("TJJUMBO", StringComparison.Ordinal);
+
+    private static bool IsOperationalSupply(string normalizedName) =>
+        normalizedName.Contains("DISPOSABLE", StringComparison.Ordinal) ||
+        normalizedName.Contains("CUP", StringComparison.Ordinal) ||
+        normalizedName.Contains("LID", StringComparison.Ordinal) ||
+        normalizedName.Contains("FILTER", StringComparison.Ordinal) ||
+        normalizedName.Contains("STIRRER", StringComparison.Ordinal) ||
+        normalizedName.Contains("MINIFORK", StringComparison.Ordinal) ||
+        normalizedName.Contains("PAPERBOWL", StringComparison.Ordinal) ||
+        normalizedName.Contains("HOTDOGBOX", StringComparison.Ordinal) ||
+        normalizedName.Contains("PLASTICFOR", StringComparison.Ordinal) ||
+        normalizedName.Contains("TISSUE", StringComparison.Ordinal) ||
+        normalizedName.Contains("TRASHBAG", StringComparison.Ordinal);
 
     private static void AddProductIssues(ExcelInventoryImportResult result, ExcelInventoryProductDraft product) =>
         result.Issues.AddRange(product.Issues);

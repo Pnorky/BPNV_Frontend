@@ -137,6 +137,50 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
+    public async Task SupplierCrudEndpointsUseExactMethodsQueriesAndContracts()
+    {
+        var supplier = new SupplierResponse(Guid.NewGuid(), "Supplier", "Ana", "0917", true);
+        var requests = new List<(HttpMethod Method, string Path, string Query, string? Body)>();
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            requests.Add((request.Method, request.RequestUri.AbsolutePath, request.RequestUri.Query,
+                request.Content?.ReadAsStringAsync().GetAwaiter().GetResult()));
+            if (request.Method == HttpMethod.Get) return Json(new[] { supplier });
+            if (request.Method is { } method && (method == HttpMethod.Post || method == HttpMethod.Put) &&
+                !request.RequestUri.AbsolutePath.EndsWith("/reactivate")) return Json(supplier);
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+        await auth.LoginAsync("inventory", "password");
+        var client = new StoreApiClient(auth);
+
+        await client.CreateSupplierAsync(new CreateSupplierRequest("Supplier", "Ana", "0917"));
+        await client.UpdateSupplierAsync(supplier.Id, new UpdateSupplierRequest("Updated", null, "0999"));
+        await client.DeactivateSupplierAsync(supplier.Id);
+        await client.ReactivateSupplierAsync(supplier.Id);
+        await client.GetSuppliersAsync("vendor name", includeInactive: true);
+
+        CollectionAssert.AreEqual(
+            new[] { HttpMethod.Post, HttpMethod.Put, HttpMethod.Delete, HttpMethod.Post, HttpMethod.Get },
+            requests.Select(request => request.Method).ToArray());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "/api/suppliers",
+                $"/api/suppliers/{supplier.Id}",
+                $"/api/suppliers/{supplier.Id}",
+                $"/api/suppliers/{supplier.Id}/reactivate",
+                "/api/suppliers"
+            },
+            requests.Select(request => request.Path).ToArray());
+        StringAssert.Contains(requests[0].Body!, "\"contactPerson\":\"Ana\"");
+        StringAssert.Contains(requests[1].Body!, "\"name\":\"Updated\"");
+        StringAssert.Contains(requests[1].Body!, "\"contactPerson\":null");
+        StringAssert.Contains(requests[4].Query, "search=vendor%20name");
+        StringAssert.Contains(requests[4].Query, "includeInactive=true");
+    }
+
+    [TestMethod]
     public async Task ProblemDetailsAreAvailableOnApiClientException()
     {
         var (auth, _) = Client(request => request.RequestUri!.AbsolutePath.EndsWith("/login")
@@ -498,6 +542,33 @@ public sealed class StoreApiClientTests
         var unit = new ProductUnitResponse(Guid.NewGuid(), "0001", "piece", 1, 10, 0, true, true);
 
         Assert.AreEqual(10m, ApiCartLine.PriceFor(unit, ApiCustomerType.Employee));
+    }
+
+    [TestMethod]
+    public async Task StockCountSerializesLocationAndPreservesExpectedVersion()
+    {
+        string? body = null;
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            if (request.RequestUri.AbsolutePath.EndsWith("/stock-counts"))
+            {
+                body = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json(new StockCountResponse(
+                    Guid.NewGuid(), Guid.NewGuid(), ApiInventoryStockLocation.Bodega,
+                    100, 75, -25, 0, 75, 8, DateTime.UtcNow));
+            }
+            throw new InvalidOperationException(request.RequestUri.ToString());
+        });
+        await auth.LoginAsync("inventory", "password");
+        var productId = Guid.NewGuid();
+
+        await new StoreApiClient(auth).RecordStockCountAsync(new RecordStockCountRequest(
+            productId, ApiInventoryStockLocation.Bodega, 75, 7, "Count"));
+
+        Assert.IsNotNull(body);
+        StringAssert.Contains(body, "\"location\":\"Bodega\"");
+        StringAssert.Contains(body, "\"expectedProductVersion\":7");
     }
 
     private static (AuthApiClient Auth, AuthSession Session) Client(Func<HttpRequestMessage, HttpResponseMessage> factory)

@@ -119,7 +119,7 @@ public class ReportsView : UserControl
             ("EMPLOYEES", "EmployeesRepresented")));
         var table = new PagedTable { ItemName = "purchase line", ItemNamePlural = "purchase lines", PageSize = 12, MinHeight = 0, MinTableWidth = 1100, IsSelectable = false };
         Bind(table, PagedTable.ItemsSourceProperty, "EmployeePurchaseLines");
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("DATE", item => item.SoldAtDisplay, new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("DATE & TIME", item => item.SoldAtDisplay, new GridLength(1.1, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SALE", item => item.SaleNumber, new GridLength(0.8, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("EMPLOYEE", item => item.EmployeeDisplay, new GridLength(1.5, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SKU", item => item.Sku, new GridLength(0.7, GridUnitType.Star)));

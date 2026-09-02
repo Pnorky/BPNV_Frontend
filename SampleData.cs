@@ -39,7 +39,7 @@ public class MedicineRecord
     public string Category { get; set; } = "";
     public string Stock { get; set; } = "";
     public string UnitPrice { get; set; } = "";
-    public string ExpiryDate { get; set; } = "";
+    public DateOnly? ExpiryDate { get; set; }
     public string ExpiryDateDisplay => Services.StoreDateTime.FormatDateOnly(ExpiryDate);
     public string Status { get; set; } = "";
 }
@@ -50,7 +50,7 @@ public class LabOrderRecord
     public string Patient { get; set; } = "";
     public string TestType { get; set; } = "";
     public string OrderedBy { get; set; } = "";
-    public string DateOrdered { get; set; } = "";
+    public DateOnly? DateOrdered { get; set; }
     public string DateOrderedDisplay => Services.StoreDateTime.FormatDateOnly(DateOrdered);
     public string Priority { get; set; } = "";
 }
@@ -61,7 +61,7 @@ public class LabResultRecord
     public string Patient { get; set; } = "";
     public string TestType { get; set; } = "";
     public string Result { get; set; } = "";
-    public string Completed { get; set; } = "";
+    public DateOnly? Completed { get; set; }
     public string CompletedDisplay => Services.StoreDateTime.FormatDateOnly(Completed);
 }
 
@@ -71,7 +71,7 @@ public class RadiologyRecord
     public string Patient { get; set; } = "";
     public string Procedure { get; set; } = "";
     public string OrderedBy { get; set; } = "";
-    public string Schedule { get; set; } = "";
+    public DateOnly? Schedule { get; set; }
     public string ScheduleDisplay => Services.StoreDateTime.FormatDateOnly(Schedule);
     public string Status { get; set; } = "";
 }
@@ -80,7 +80,7 @@ public class MedicalRecord
 {
     public string MRN { get; set; } = "";
     public string PatientName { get; set; } = "";
-    public string LastVisit { get; set; } = "";
+    public DateOnly? LastVisit { get; set; }
     public string LastVisitDisplay => Services.StoreDateTime.FormatDateOnly(LastVisit);
     public string RecordStatus { get; set; } = "";
     public string ChartComplete { get; set; } = "";
@@ -155,81 +155,81 @@ public static class SampleData
 
     public static List<MedicineRecord> Medicines => AddGenerated(new()
     {
-        new() { MedicineCode = "MED-001", MedicineName = "Paracetamol 500mg", Category = "Analgesic", Stock = "450", UnitPrice = "Php 5", ExpiryDate = "2027-06-15", Status = "In Stock" },
-        new() { MedicineCode = "MED-002", MedicineName = "Amoxicillin 250mg", Category = "Antibiotic", Stock = "200", UnitPrice = "Php 12", ExpiryDate = "2026-12-20", Status = "In Stock" },
-        new() { MedicineCode = "MED-003", MedicineName = "Losartan 50mg", Category = "Antihypertensive", Stock = "15", UnitPrice = "Php 8", ExpiryDate = "2026-09-30", Status = "Low Stock" },
-        new() { MedicineCode = "MED-004", MedicineName = "Insulin Glargine", Category = "Antidiabetic", Stock = "0", UnitPrice = "Php 350", ExpiryDate = "2026-08-01", Status = "Out of Stock" },
-        new() { MedicineCode = "MED-005", MedicineName = "Salbutamol Inhaler", Category = "Respiratory", Stock = "30", UnitPrice = "Php 250", ExpiryDate = "2027-03-10", Status = "In Stock" },
-        new() { MedicineCode = "MED-006", MedicineName = "Omeprazole 20mg", Category = "Antacid", Stock = "180", UnitPrice = "Php 7", ExpiryDate = "2027-09-01", Status = "In Stock" },
-        new() { MedicineCode = "MED-007", MedicineName = "Metformin 500mg", Category = "Antidiabetic", Stock = "90", UnitPrice = "Php 6", ExpiryDate = "2027-01-20", Status = "In Stock" },
-        new() { MedicineCode = "MED-008", MedicineName = "Ciprofloxacin 500mg", Category = "Antibiotic", Stock = "8", UnitPrice = "Php 18", ExpiryDate = "2026-11-15", Status = "Low Stock" },
-        new() { MedicineCode = "MED-009", MedicineName = "Ibuprofen 400mg", Category = "NSAID", Stock = "300", UnitPrice = "Php 4", ExpiryDate = "2027-05-30", Status = "In Stock" },
-        new() { MedicineCode = "MED-010", MedicineName = "Amlodipine 5mg", Category = "Antihypertensive", Stock = "0", UnitPrice = "Php 9", ExpiryDate = "2026-10-10", Status = "Out of Stock" },
-        new() { MedicineCode = "MED-011", MedicineName = "Cetirizine 10mg", Category = "Antihistamine", Stock = "140", UnitPrice = "Php 6", ExpiryDate = "2027-08-18", Status = "In Stock" },
-        new() { MedicineCode = "MED-012", MedicineName = "Azithromycin 500mg", Category = "Antibiotic", Stock = "22", UnitPrice = "Php 35", ExpiryDate = "2027-02-14", Status = "Low Stock" },
-        new() { MedicineCode = "MED-013", MedicineName = "Atorvastatin 20mg", Category = "Cardiovascular", Stock = "75", UnitPrice = "Php 15", ExpiryDate = "2027-07-25", Status = "In Stock" },
-        new() { MedicineCode = "MED-014", MedicineName = "Prednisone 10mg", Category = "Corticosteroid", Stock = "55", UnitPrice = "Php 11", ExpiryDate = "2027-04-12", Status = "In Stock" },
-        new() { MedicineCode = "MED-015", MedicineName = "Clopidogrel 75mg", Category = "Antiplatelet", Stock = "9", UnitPrice = "Php 22", ExpiryDate = "2026-12-05", Status = "Low Stock" },
+        new() { MedicineCode = "MED-001", MedicineName = "Paracetamol 500mg", Category = "Analgesic", Stock = "450", UnitPrice = "Php 5", ExpiryDate = D(2027, 6, 15), Status = "In Stock" },
+        new() { MedicineCode = "MED-002", MedicineName = "Amoxicillin 250mg", Category = "Antibiotic", Stock = "200", UnitPrice = "Php 12", ExpiryDate = D(2026, 12, 20), Status = "In Stock" },
+        new() { MedicineCode = "MED-003", MedicineName = "Losartan 50mg", Category = "Antihypertensive", Stock = "15", UnitPrice = "Php 8", ExpiryDate = D(2026, 9, 30), Status = "Low Stock" },
+        new() { MedicineCode = "MED-004", MedicineName = "Insulin Glargine", Category = "Antidiabetic", Stock = "0", UnitPrice = "Php 350", ExpiryDate = D(2026, 8, 1), Status = "Out of Stock" },
+        new() { MedicineCode = "MED-005", MedicineName = "Salbutamol Inhaler", Category = "Respiratory", Stock = "30", UnitPrice = "Php 250", ExpiryDate = D(2027, 3, 10), Status = "In Stock" },
+        new() { MedicineCode = "MED-006", MedicineName = "Omeprazole 20mg", Category = "Antacid", Stock = "180", UnitPrice = "Php 7", ExpiryDate = D(2027, 9, 1), Status = "In Stock" },
+        new() { MedicineCode = "MED-007", MedicineName = "Metformin 500mg", Category = "Antidiabetic", Stock = "90", UnitPrice = "Php 6", ExpiryDate = D(2027, 1, 20), Status = "In Stock" },
+        new() { MedicineCode = "MED-008", MedicineName = "Ciprofloxacin 500mg", Category = "Antibiotic", Stock = "8", UnitPrice = "Php 18", ExpiryDate = D(2026, 11, 15), Status = "Low Stock" },
+        new() { MedicineCode = "MED-009", MedicineName = "Ibuprofen 400mg", Category = "NSAID", Stock = "300", UnitPrice = "Php 4", ExpiryDate = D(2027, 5, 30), Status = "In Stock" },
+        new() { MedicineCode = "MED-010", MedicineName = "Amlodipine 5mg", Category = "Antihypertensive", Stock = "0", UnitPrice = "Php 9", ExpiryDate = D(2026, 10, 10), Status = "Out of Stock" },
+        new() { MedicineCode = "MED-011", MedicineName = "Cetirizine 10mg", Category = "Antihistamine", Stock = "140", UnitPrice = "Php 6", ExpiryDate = D(2027, 8, 18), Status = "In Stock" },
+        new() { MedicineCode = "MED-012", MedicineName = "Azithromycin 500mg", Category = "Antibiotic", Stock = "22", UnitPrice = "Php 35", ExpiryDate = D(2027, 2, 14), Status = "Low Stock" },
+        new() { MedicineCode = "MED-013", MedicineName = "Atorvastatin 20mg", Category = "Cardiovascular", Stock = "75", UnitPrice = "Php 15", ExpiryDate = D(2027, 7, 25), Status = "In Stock" },
+        new() { MedicineCode = "MED-014", MedicineName = "Prednisone 10mg", Category = "Corticosteroid", Stock = "55", UnitPrice = "Php 11", ExpiryDate = D(2027, 4, 12), Status = "In Stock" },
+        new() { MedicineCode = "MED-015", MedicineName = "Clopidogrel 75mg", Category = "Antiplatelet", Stock = "9", UnitPrice = "Php 22", ExpiryDate = D(2026, 12, 5), Status = "Low Stock" },
     }, GenerateMedicines());
 
     public static List<LabOrderRecord> PendingLabOrders => AddGenerated(new()
     {
-        new() { OrderNo = "LAB-001", Patient = "Juan Dela Cruz", TestType = "CBC", OrderedBy = "Dr. Santos", DateOrdered = "2026-07-13", Priority = "STAT" },
-        new() { OrderNo = "LAB-002", Patient = "Maria Santos", TestType = "Urinalysis", OrderedBy = "Dr. Reyes", DateOrdered = "2026-07-13", Priority = "Routine" },
-        new() { OrderNo = "LAB-003", Patient = "Pedro Reyes", TestType = "Blood Chemistry", OrderedBy = "Dr. Cruz", DateOrdered = "2026-07-12", Priority = "Routine" },
-        new() { OrderNo = "LAB-006", Patient = "Benigno Aquino", TestType = "Troponin I", OrderedBy = "Dr. Santos", DateOrdered = "2026-07-13", Priority = "STAT" },
-        new() { OrderNo = "LAB-007", Patient = "Antonia Luna", TestType = "Crossmatch", OrderedBy = "Dr. Reyes", DateOrdered = "2026-07-13", Priority = "STAT" },
-        new() { OrderNo = "LAB-008", Patient = "Cynthia Magsaysay", TestType = "Thyroid Panel", OrderedBy = "Dr. Cruz", DateOrdered = "2026-07-12", Priority = "Routine" },
-        new() { OrderNo = "LAB-012", Patient = "Gabriela Silang", TestType = "CBC", OrderedBy = "Dr. Lim", DateOrdered = "2026-07-14", Priority = "Routine" },
-        new() { OrderNo = "LAB-013", Patient = "Apolinario Mabini", TestType = "Electrolytes", OrderedBy = "Dr. Santos", DateOrdered = "2026-07-14", Priority = "STAT" },
-        new() { OrderNo = "LAB-014", Patient = "Felipe Agoncillo", TestType = "HbA1c", OrderedBy = "Dr. Reyes", DateOrdered = "2026-07-14", Priority = "Routine" },
-        new() { OrderNo = "LAB-015", Patient = "Gregoria Nakpil", TestType = "Pregnancy Test", OrderedBy = "Dr. Cruz", DateOrdered = "2026-07-14", Priority = "STAT" },
-        new() { OrderNo = "LAB-016", Patient = "Marcelo Del Pilar", TestType = "Liver Panel", OrderedBy = "Dr. Lim", DateOrdered = "2026-07-13", Priority = "Routine" },
+        new() { OrderNo = "LAB-001", Patient = "Juan Dela Cruz", TestType = "CBC", OrderedBy = "Dr. Santos", DateOrdered = D(2026, 7, 13), Priority = "STAT" },
+        new() { OrderNo = "LAB-002", Patient = "Maria Santos", TestType = "Urinalysis", OrderedBy = "Dr. Reyes", DateOrdered = D(2026, 7, 13), Priority = "Routine" },
+        new() { OrderNo = "LAB-003", Patient = "Pedro Reyes", TestType = "Blood Chemistry", OrderedBy = "Dr. Cruz", DateOrdered = D(2026, 7, 12), Priority = "Routine" },
+        new() { OrderNo = "LAB-006", Patient = "Benigno Aquino", TestType = "Troponin I", OrderedBy = "Dr. Santos", DateOrdered = D(2026, 7, 13), Priority = "STAT" },
+        new() { OrderNo = "LAB-007", Patient = "Antonia Luna", TestType = "Crossmatch", OrderedBy = "Dr. Reyes", DateOrdered = D(2026, 7, 13), Priority = "STAT" },
+        new() { OrderNo = "LAB-008", Patient = "Cynthia Magsaysay", TestType = "Thyroid Panel", OrderedBy = "Dr. Cruz", DateOrdered = D(2026, 7, 12), Priority = "Routine" },
+        new() { OrderNo = "LAB-012", Patient = "Gabriela Silang", TestType = "CBC", OrderedBy = "Dr. Lim", DateOrdered = D(2026, 7, 14), Priority = "Routine" },
+        new() { OrderNo = "LAB-013", Patient = "Apolinario Mabini", TestType = "Electrolytes", OrderedBy = "Dr. Santos", DateOrdered = D(2026, 7, 14), Priority = "STAT" },
+        new() { OrderNo = "LAB-014", Patient = "Felipe Agoncillo", TestType = "HbA1c", OrderedBy = "Dr. Reyes", DateOrdered = D(2026, 7, 14), Priority = "Routine" },
+        new() { OrderNo = "LAB-015", Patient = "Gregoria Nakpil", TestType = "Pregnancy Test", OrderedBy = "Dr. Cruz", DateOrdered = D(2026, 7, 14), Priority = "STAT" },
+        new() { OrderNo = "LAB-016", Patient = "Marcelo Del Pilar", TestType = "Liver Panel", OrderedBy = "Dr. Lim", DateOrdered = D(2026, 7, 13), Priority = "Routine" },
     }, GeneratePendingLabOrders());
 
     public static List<LabResultRecord> CompletedLabResults => AddGenerated(new()
     {
-        new() { OrderNo = "LAB-004", Patient = "Ana Gonzales", TestType = "FBS", Result = "95 mg/dL (Normal)", Completed = "2026-07-13" },
-        new() { OrderNo = "LAB-005", Patient = "Jose Rizal", TestType = "Lipid Profile", Result = "See attached report", Completed = "2026-07-12" },
-        new() { OrderNo = "LAB-009", Patient = "Andres Bonifacio", TestType = "PT/INR", Result = "INR 1.1 (Normal)", Completed = "2026-07-13" },
-        new() { OrderNo = "LAB-010", Patient = "Emilia Jacinto", TestType = "Creatinine", Result = "0.9 mg/dL (Normal)", Completed = "2026-07-12" },
-        new() { OrderNo = "LAB-011", Patient = "Juan Dela Cruz", TestType = "Blood Culture", Result = "Negative", Completed = "2026-07-11" },
-        new() { OrderNo = "LAB-017", Patient = "Maria Santos", TestType = "CBC", Result = "Within normal limits", Completed = "2026-07-14" },
-        new() { OrderNo = "LAB-018", Patient = "Pedro Reyes", TestType = "Electrolytes", Result = "Sodium 139 mmol/L", Completed = "2026-07-14" },
-        new() { OrderNo = "LAB-019", Patient = "Ana Gonzales", TestType = "Urinalysis", Result = "No significant findings", Completed = "2026-07-14" },
-        new() { OrderNo = "LAB-020", Patient = "Jose Rizal", TestType = "HbA1c", Result = "5.6%", Completed = "2026-07-13" },
-        new() { OrderNo = "LAB-021", Patient = "Antonia Luna", TestType = "D-Dimer", Result = "Negative", Completed = "2026-07-13" },
-        new() { OrderNo = "LAB-022", Patient = "Benigno Aquino", TestType = "Troponin I", Result = "Normal", Completed = "2026-07-13" },
+        new() { OrderNo = "LAB-004", Patient = "Ana Gonzales", TestType = "FBS", Result = "95 mg/dL (Normal)", Completed = D(2026, 7, 13) },
+        new() { OrderNo = "LAB-005", Patient = "Jose Rizal", TestType = "Lipid Profile", Result = "See attached report", Completed = D(2026, 7, 12) },
+        new() { OrderNo = "LAB-009", Patient = "Andres Bonifacio", TestType = "PT/INR", Result = "INR 1.1 (Normal)", Completed = D(2026, 7, 13) },
+        new() { OrderNo = "LAB-010", Patient = "Emilia Jacinto", TestType = "Creatinine", Result = "0.9 mg/dL (Normal)", Completed = D(2026, 7, 12) },
+        new() { OrderNo = "LAB-011", Patient = "Juan Dela Cruz", TestType = "Blood Culture", Result = "Negative", Completed = D(2026, 7, 11) },
+        new() { OrderNo = "LAB-017", Patient = "Maria Santos", TestType = "CBC", Result = "Within normal limits", Completed = D(2026, 7, 14) },
+        new() { OrderNo = "LAB-018", Patient = "Pedro Reyes", TestType = "Electrolytes", Result = "Sodium 139 mmol/L", Completed = D(2026, 7, 14) },
+        new() { OrderNo = "LAB-019", Patient = "Ana Gonzales", TestType = "Urinalysis", Result = "No significant findings", Completed = D(2026, 7, 14) },
+        new() { OrderNo = "LAB-020", Patient = "Jose Rizal", TestType = "HbA1c", Result = "5.6%", Completed = D(2026, 7, 13) },
+        new() { OrderNo = "LAB-021", Patient = "Antonia Luna", TestType = "D-Dimer", Result = "Negative", Completed = D(2026, 7, 13) },
+        new() { OrderNo = "LAB-022", Patient = "Benigno Aquino", TestType = "Troponin I", Result = "Normal", Completed = D(2026, 7, 13) },
     }, GenerateCompletedLabResults());
 
     public static List<RadiologyRecord> RadiologyOrders => AddGenerated(new()
     {
-        new() { OrderNo = "XR-001", Patient = "Juan Dela Cruz", Procedure = "Chest X-Ray PA", OrderedBy = "Dr. Santos", Schedule = "2026-07-13", Status = "Pending" },
-        new() { OrderNo = "XR-002", Patient = "Pedro Reyes", Procedure = "CT Scan Head", OrderedBy = "Dr. Cruz", Schedule = "2026-07-13", Status = "STAT" },
-        new() { OrderNo = "XR-003", Patient = "Ana Gonzales", Procedure = "Abdominal Ultrasound", OrderedBy = "Dr. Reyes", Schedule = "2026-07-14", Status = "Scheduled" },
-        new() { OrderNo = "XR-004", Patient = "Jose Rizal", Procedure = "MRI Lumbar Spine", OrderedBy = "Dr. Santos", Schedule = "2026-07-12", Status = "Completed" },
-        new() { OrderNo = "XR-005", Patient = "Antonia Luna", Procedure = "X-Ray Left Tibia", OrderedBy = "Dr. Cruz", Schedule = "2026-07-13", Status = "Pending" },
-        new() { OrderNo = "XR-006", Patient = "Benigno Aquino", Procedure = "2D Echo", OrderedBy = "Dr. Santos", Schedule = "2026-07-14", Status = "Scheduled" },
-        new() { OrderNo = "XR-007", Patient = "Cynthia Magsaysay", Procedure = "Mammogram", OrderedBy = "Dr. Reyes", Schedule = "2026-07-15", Status = "Scheduled" },
-        new() { OrderNo = "XR-008", Patient = "Gabriela Silang", Procedure = "Chest X-Ray", OrderedBy = "Dr. Lim", Schedule = "2026-07-15", Status = "Pending" },
-        new() { OrderNo = "XR-009", Patient = "Apolinario Mabini", Procedure = "CT Abdomen", OrderedBy = "Dr. Santos", Schedule = "2026-07-16", Status = "Scheduled" },
-        new() { OrderNo = "XR-010", Patient = "Felipe Agoncillo", Procedure = "Knee X-Ray", OrderedBy = "Dr. Cruz", Schedule = "2026-07-14", Status = "Completed" },
-        new() { OrderNo = "XR-011", Patient = "Gregoria Nakpil", Procedure = "Pelvic Ultrasound", OrderedBy = "Dr. Reyes", Schedule = "2026-07-16", Status = "Scheduled" },
+        new() { OrderNo = "XR-001", Patient = "Juan Dela Cruz", Procedure = "Chest X-Ray PA", OrderedBy = "Dr. Santos", Schedule = D(2026, 7, 13), Status = "Pending" },
+        new() { OrderNo = "XR-002", Patient = "Pedro Reyes", Procedure = "CT Scan Head", OrderedBy = "Dr. Cruz", Schedule = D(2026, 7, 13), Status = "STAT" },
+        new() { OrderNo = "XR-003", Patient = "Ana Gonzales", Procedure = "Abdominal Ultrasound", OrderedBy = "Dr. Reyes", Schedule = D(2026, 7, 14), Status = "Scheduled" },
+        new() { OrderNo = "XR-004", Patient = "Jose Rizal", Procedure = "MRI Lumbar Spine", OrderedBy = "Dr. Santos", Schedule = D(2026, 7, 12), Status = "Completed" },
+        new() { OrderNo = "XR-005", Patient = "Antonia Luna", Procedure = "X-Ray Left Tibia", OrderedBy = "Dr. Cruz", Schedule = D(2026, 7, 13), Status = "Pending" },
+        new() { OrderNo = "XR-006", Patient = "Benigno Aquino", Procedure = "2D Echo", OrderedBy = "Dr. Santos", Schedule = D(2026, 7, 14), Status = "Scheduled" },
+        new() { OrderNo = "XR-007", Patient = "Cynthia Magsaysay", Procedure = "Mammogram", OrderedBy = "Dr. Reyes", Schedule = D(2026, 7, 15), Status = "Scheduled" },
+        new() { OrderNo = "XR-008", Patient = "Gabriela Silang", Procedure = "Chest X-Ray", OrderedBy = "Dr. Lim", Schedule = D(2026, 7, 15), Status = "Pending" },
+        new() { OrderNo = "XR-009", Patient = "Apolinario Mabini", Procedure = "CT Abdomen", OrderedBy = "Dr. Santos", Schedule = D(2026, 7, 16), Status = "Scheduled" },
+        new() { OrderNo = "XR-010", Patient = "Felipe Agoncillo", Procedure = "Knee X-Ray", OrderedBy = "Dr. Cruz", Schedule = D(2026, 7, 14), Status = "Completed" },
+        new() { OrderNo = "XR-011", Patient = "Gregoria Nakpil", Procedure = "Pelvic Ultrasound", OrderedBy = "Dr. Reyes", Schedule = D(2026, 7, 16), Status = "Scheduled" },
     }, GenerateRadiologyOrders());
 
     public static List<MedicalRecord> MedicalRecords => AddGenerated(new()
     {
-        new() { MRN = "MRN-001", PatientName = "Dela Cruz, Juan", LastVisit = "2026-07-13", RecordStatus = "Active", ChartComplete = "Incomplete", Location = "Ward 3B" },
-        new() { MRN = "MRN-002", PatientName = "Santos, Maria", LastVisit = "2026-07-12", RecordStatus = "Active", ChartComplete = "Complete", Location = "Records Room" },
-        new() { MRN = "MRN-003", PatientName = "Reyes, Pedro", LastVisit = "2026-07-11", RecordStatus = "Discharged", ChartComplete = "Delinquent", Location = "Records Room" },
-        new() { MRN = "MRN-005", PatientName = "Rizal, Jose", LastVisit = "2026-07-10", RecordStatus = "Active", ChartComplete = "Incomplete", Location = "Ward 2A" },
-        new() { MRN = "MRN-007", PatientName = "Aquino, Benigno", LastVisit = "2026-07-13", RecordStatus = "Active", ChartComplete = "Complete", Location = "CCU" },
-        new() { MRN = "MRN-009", PatientName = "Bonifacio, Andres", LastVisit = "2026-07-13", RecordStatus = "Active", ChartComplete = "Incomplete", Location = "Ward 1C" },
-        new() { MRN = "MRN-010", PatientName = "Jacinto, Emilia", LastVisit = "2026-07-12", RecordStatus = "Active", ChartComplete = "Complete", Location = "Records Room" },
-        new() { MRN = "MRN-011", PatientName = "Silang, Gabriela", LastVisit = "2026-07-14", RecordStatus = "Active", ChartComplete = "Incomplete", Location = "Ward 4A" },
-        new() { MRN = "MRN-012", PatientName = "Mabini, Apolinario", LastVisit = "2026-07-14", RecordStatus = "Active", ChartComplete = "Complete", Location = "Ward 2B" },
-        new() { MRN = "MRN-013", PatientName = "Agoncillo, Felipe", LastVisit = "2026-07-11", RecordStatus = "Discharged", ChartComplete = "Complete", Location = "Records Room" },
-        new() { MRN = "MRN-014", PatientName = "Nakpil, Gregoria", LastVisit = "2026-07-14", RecordStatus = "Active", ChartComplete = "Incomplete", Location = "ER" },
+        new() { MRN = "MRN-001", PatientName = "Dela Cruz, Juan", LastVisit = D(2026, 7, 13), RecordStatus = "Active", ChartComplete = "Incomplete", Location = "Ward 3B" },
+        new() { MRN = "MRN-002", PatientName = "Santos, Maria", LastVisit = D(2026, 7, 12), RecordStatus = "Active", ChartComplete = "Complete", Location = "Records Room" },
+        new() { MRN = "MRN-003", PatientName = "Reyes, Pedro", LastVisit = D(2026, 7, 11), RecordStatus = "Discharged", ChartComplete = "Delinquent", Location = "Records Room" },
+        new() { MRN = "MRN-005", PatientName = "Rizal, Jose", LastVisit = D(2026, 7, 10), RecordStatus = "Active", ChartComplete = "Incomplete", Location = "Ward 2A" },
+        new() { MRN = "MRN-007", PatientName = "Aquino, Benigno", LastVisit = D(2026, 7, 13), RecordStatus = "Active", ChartComplete = "Complete", Location = "CCU" },
+        new() { MRN = "MRN-009", PatientName = "Bonifacio, Andres", LastVisit = D(2026, 7, 13), RecordStatus = "Active", ChartComplete = "Incomplete", Location = "Ward 1C" },
+        new() { MRN = "MRN-010", PatientName = "Jacinto, Emilia", LastVisit = D(2026, 7, 12), RecordStatus = "Active", ChartComplete = "Complete", Location = "Records Room" },
+        new() { MRN = "MRN-011", PatientName = "Silang, Gabriela", LastVisit = D(2026, 7, 14), RecordStatus = "Active", ChartComplete = "Incomplete", Location = "Ward 4A" },
+        new() { MRN = "MRN-012", PatientName = "Mabini, Apolinario", LastVisit = D(2026, 7, 14), RecordStatus = "Active", ChartComplete = "Complete", Location = "Ward 2B" },
+        new() { MRN = "MRN-013", PatientName = "Agoncillo, Felipe", LastVisit = D(2026, 7, 11), RecordStatus = "Discharged", ChartComplete = "Complete", Location = "Records Room" },
+        new() { MRN = "MRN-014", PatientName = "Nakpil, Gregoria", LastVisit = D(2026, 7, 14), RecordStatus = "Active", ChartComplete = "Incomplete", Location = "ER" },
     }, GenerateMedicalRecords());
 
     public static List<StaffRecord> Staff => AddGenerated(new()
@@ -277,7 +277,7 @@ public static class SampleData
             MedicineCode = $"MED-{i:000}", MedicineName = $"Sample Medicine {i}",
             Category = new[] { "Analgesic", "Antibiotic", "Cardiovascular", "Respiratory" }[i % 4],
             Stock = $"{(i % 7 == 0 ? 0 : i * 9)}", UnitPrice = $"Php {5 + i % 40}",
-            ExpiryDate = $"202{7 + i % 2}-{1 + i % 12:00}-{1 + i % 28:00}",
+            ExpiryDate = new DateOnly(2027 + i % 2, 1 + i % 12, 1 + i % 28),
             Status = i % 7 == 0 ? "Out of Stock" : i % 5 == 0 ? "Low Stock" : "In Stock"
         });
 
@@ -286,7 +286,7 @@ public static class SampleData
         {
             OrderNo = $"LAB-P{i:000}", Patient = $"Sample Patient {i}",
             TestType = new[] { "CBC", "Urinalysis", "Blood Chemistry", "Lipid Profile" }[i % 4],
-            OrderedBy = $"Dr. Sample {1 + i % 8}", DateOrdered = $"2026-07-{1 + i % 28:00}",
+            OrderedBy = $"Dr. Sample {1 + i % 8}", DateOrdered = new DateOnly(2026, 7, 1 + i % 28),
             Priority = i % 4 == 0 ? "STAT" : "Routine"
         });
 
@@ -296,7 +296,7 @@ public static class SampleData
             OrderNo = $"LAB-R{i:000}", Patient = $"Sample Patient {i}",
             TestType = new[] { "CBC", "FBS", "Creatinine", "Electrolytes" }[i % 4],
             Result = i % 5 == 0 ? "See attached report" : "Within normal limits",
-            Completed = $"2026-07-{1 + i % 28:00}"
+            Completed = new DateOnly(2026, 7, 1 + i % 28)
         });
 
     private static IEnumerable<RadiologyRecord> GenerateRadiologyOrders() =>
@@ -304,14 +304,14 @@ public static class SampleData
         {
             OrderNo = $"XR-{i:000}", Patient = $"Sample Patient {i}",
             Procedure = new[] { "Chest X-Ray", "CT Scan", "Ultrasound", "MRI" }[i % 4],
-            OrderedBy = $"Dr. Sample {1 + i % 8}", Schedule = $"2026-07-{1 + i % 28:00}",
+            OrderedBy = $"Dr. Sample {1 + i % 8}", Schedule = new DateOnly(2026, 7, 1 + i % 28),
             Status = new[] { "Pending", "Scheduled", "Completed", "STAT" }[i % 4]
         });
 
     private static IEnumerable<MedicalRecord> GenerateMedicalRecords() =>
         Enumerable.Range(15, 49).Select((i, index) => new MedicalRecord
         {
-            MRN = $"MRN-{i:000}", PatientName = $"Sample, Patient {i}", LastVisit = $"2026-07-{1 + i % 28:00}",
+            MRN = $"MRN-{i:000}", PatientName = $"Sample, Patient {i}", LastVisit = new DateOnly(2026, 7, 1 + i % 28),
             RecordStatus = i % 5 == 0 ? "Discharged" : "Active",
             ChartComplete = i % 3 == 0 ? "Incomplete" : "Complete",
             Location = new[] { "Records Room", "Ward 2A", "Ward 3B", "ER" }[index % 4]
@@ -325,4 +325,6 @@ public static class SampleData
             Role = new[] { "Physician", "Nurse", "Technician", "Officer" }[i % 4],
             Status = i % 9 == 0 ? "Inactive" : "Active"
         });
+
+    private static DateOnly D(int year, int month, int day) => new(year, month, day);
 }

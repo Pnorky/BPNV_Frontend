@@ -126,7 +126,7 @@ public static class ReportExportService
                             });
                             table.Header(header =>
                             {
-                                PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date"); PdfHeader(header.Cell(), "Employee");
+                                PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date & time"); PdfHeader(header.Cell(), "Employee");
                                 PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product / unit"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Amount");
                             });
                             foreach (var line in employeePurchases.Lines.OrderByDescending(line => line.SoldAtUtc))

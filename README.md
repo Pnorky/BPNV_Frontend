@@ -8,6 +8,8 @@ The Inventory > Import Excel workflow accepts the supported legacy workbook or t
 
 Inventory > Batch Receive captures Eyoyo keyboard exports as tab-separated text, preserves exact barcode values, validates suppliers and unit conversions with the API, and atomically receives a confirmed batch into Bodega.
 
+Product Catalog supports periodic physical stock counts for active Consumables and Supplies. Inventory users enter the quantity remaining in Display or Bodega; the system records the variance as an attributed stock adjustment and refreshes the catalog balance.
+
 The system deliberately keeps two inventory locations:
 
 - **Display**: sellable stock available at the counter. The internal model still calls this `ShelfStock` for persisted-data compatibility.
@@ -69,7 +71,7 @@ Product catalog, registration, stock receiving, and New Sale use the authenticat
 
 New products start with zero stock. Use **Receive Stock** to scan a piece or package barcode and receive the converted piece quantity into Bodega. Package prices are suggested from the piece price and remain editable.
 
-SKU, category, unit, and the piece barcode are required. Barcode values are stored as text so leading zeroes are preserved.
+SKU, category, and unit are required. Merchandise requires a piece barcode; Consumables and Supplies may leave it blank. Barcode values are stored as text so leading zeroes are preserved.
 
 ## Persistence
 

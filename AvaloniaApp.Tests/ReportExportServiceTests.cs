@@ -25,6 +25,10 @@ public sealed class ReportExportServiceTests
         Assert.AreEqual("SKU-1", workbook.Worksheet("Inventory").Cell("A2").GetString());
         Assert.AreEqual("Supplier A", workbook.Worksheet("Orders").Cell("A2").GetString());
         Assert.AreEqual("EMP-000001", workbook.Worksheet("Employee Purchases").Cell("C2").GetString());
+        Assert.AreEqual(new DateTime(2026, 8, 27, 9, 0, 0), workbook.Worksheet("Sales").Cell("B2").GetDateTime());
+        Assert.AreEqual(StoreDateTime.ExcelTimestampFormat, workbook.Worksheet("Sales").Cell("B2").Style.DateFormat.Format);
+        Assert.AreEqual(new DateTime(2026, 8, 27, 9, 0, 0), workbook.Worksheet("Employee Purchases").Cell("B2").GetDateTime());
+        Assert.AreEqual(StoreDateTime.ExcelTimestampFormat, workbook.Worksheet("Employee Purchases").Cell("B2").Style.DateFormat.Format);
     }
 
     [TestMethod]

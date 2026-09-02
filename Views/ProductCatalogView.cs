@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using AvaloniaApp.Services;
+using AvaloniaApp.ViewModels;
 using AvaloniaApp.Views.UI;
 
 namespace AvaloniaApp.Views;
@@ -17,9 +18,14 @@ public class ProductCatalogView : UserControl
         var title = new TextBlock { Text = "Product catalog" }; title.Classes.Add("h1");
         var search = new IconInput("Search", "Search database product, SKU, supplier, category, or barcode...");
         search.Input.Bind(TextBox.TextProperty, new Binding("SearchText"));
+        var typeFilter = new SearchableSelect { PlaceholderText = "Filter item type", MinWidth = 190 };
+        typeFilter.Bind(SearchableSelect.ItemsSourceProperty, new Binding("TypeFilters"));
+        typeFilter.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedTypeFilter"));
+        typeFilter.ItemTemplate = new FuncDataTemplate<ProductTypeFilterOption>((_, _) => Text("Label"), true);
         var refresh = new ActionButton("Refresh", ActionButtonVariant.Secondary); refresh.Bind(Button.CommandProperty, new Binding("LoadCommand"));
-        Grid.SetColumn(refresh, 1);
-        var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 10, Children = { search, refresh } };
+        Grid.SetColumn(typeFilter, 1);
+        Grid.SetColumn(refresh, 2);
+        var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,220,Auto"), ColumnSpacing = 10, Children = { search, typeFilter, refresh } };
 
         var list = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding("FilteredProducts"));
@@ -54,6 +60,8 @@ public class ProductCatalogView : UserControl
     private static Control ProductRow()
     {
         var edit = Action("Edit", "DataContext.EditCommand");
+        var stockCount = Action("Stock count", "DataContext.RecordStockCountCommand");
+        stockCount.Bind(Visual.IsVisibleProperty, new Binding(nameof(ProductResponse.CanRecordStockCount)));
         var deactivate = DangerLink("Deactivate", "DataContext.DeactivateCommand");
         deactivate.Bind(Visual.IsVisibleProperty, new Binding(nameof(ProductResponse.IsActive)));
         var reactivate = Action("Reactivate", "DataContext.ReactivateCommand");
@@ -63,7 +71,7 @@ public class ProductCatalogView : UserControl
             Orientation = Orientation.Horizontal,
             Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { edit, deactivate, reactivate }
+            Children = { edit, stockCount, deactivate, reactivate }
         };
         var row = new Grid
         {
@@ -71,7 +79,7 @@ public class ProductCatalogView : UserControl
             ColumnSpacing = 14,
             Children =
             {
-                new StackPanel { Children = { Text("Name", FontWeight.SemiBold), Text("Sku", resource: "MutedForeground") } },
+                new StackPanel { Children = { Text("Name", FontWeight.SemiBold), Text("Sku", resource: "MutedForeground"), Text("BarcodeDisplay", resource: "MutedForeground") } },
                 At(new StackPanel { Children = { Text("SupplierName"), Text("Category", resource: "MutedForeground") } }, column: 1),
                 At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 4, Children = { Text("ItemType"), Badge("StockStatus") } }, column: 2),
                 At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("StockDisplay"), Text("ReorderActionDisplay", resource: "MutedForeground") } }, column: 3),
@@ -105,7 +113,7 @@ public class ProductCatalogView : UserControl
         return header;
     }
 
-    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.75*,1*,96,0.8*,0.7*,0.85*,166");
+    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.75*,1*,96,0.8*,0.7*,0.85*,250");
 
     private static Button Action(string text, string commandPath)
     {

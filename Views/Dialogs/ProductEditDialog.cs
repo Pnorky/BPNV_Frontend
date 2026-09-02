@@ -120,7 +120,7 @@ public sealed class ProductEditDialog : Window
                 At(Field("PRODUCT NAME", Input(nameof(ProductEditViewModel.Name), "Required")), row: 1),
                 At(Field("CATEGORY", category), row: 1, column: 1),
                 At(Field("BASE UNIT LABEL", Input(nameof(ProductEditViewModel.Unit), "piece")), row: 1, column: 2),
-                At(Field("PIECE BARCODE", Input(nameof(ProductEditViewModel.PieceBarcode), "Leading zeros are preserved")), row: 2),
+                At(Field("PIECE BARCODE", Input(nameof(ProductEditViewModel.PieceBarcode), "Required for Merchandise; optional otherwise")), row: 2),
                 At(Field("PURCHASE PRICE / PIECE", Amount(nameof(ProductEditViewModel.CostPrice))), row: 2, column: 1),
                 At(Field("SELLING PRICE", Amount(nameof(ProductEditViewModel.RegularPrice))), row: 2, column: 2),
                 At(Field("EMPLOYEE PRICE (0 = SELLING)", Amount(nameof(ProductEditViewModel.EmployeePrice))), row: 3)

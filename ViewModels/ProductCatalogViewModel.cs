@@ -7,6 +7,11 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AvaloniaApp.ViewModels;
 
+public sealed record ProductTypeFilterOption(string Label, ApiInventoryItemType? ItemType)
+{
+    public override string ToString() => Label;
+}
+
 public partial class ProductCatalogViewModel : ObservableObject
 {
     private readonly StoreApiClient _api;
@@ -17,15 +22,26 @@ public partial class ProductCatalogViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<ProductResponse> _filteredProducts = [];
     [ObservableProperty] private string _statusMessage = "Loading database products...";
     [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] private ProductTypeFilterOption? _selectedTypeFilter;
+
+    public IReadOnlyList<ProductTypeFilterOption> TypeFilters { get; } =
+    [
+        new("All item types", null),
+        new("Merchandise", ApiInventoryItemType.Merchandise),
+        new("Consumables", ApiInventoryItemType.Consumable),
+        new("Supplies", ApiInventoryItemType.Supply)
+    ];
 
     public ProductCatalogViewModel(StoreApiClient api, INotificationService notifications)
     {
         _api = api;
         _notifications = notifications;
+        SelectedTypeFilter = TypeFilters[0];
         _ = LoadAsync();
     }
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
+    partial void OnSelectedTypeFilterChanged(ProductTypeFilterOption? value) => ApplyFilter();
 
     [RelayCommand]
     public async Task LoadAsync()
@@ -136,6 +152,48 @@ public partial class ProductCatalogViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task RecordStockCountAsync(ProductResponse? product)
+    {
+        if (product?.CanRecordStockCount != true || IsBusy) return;
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner })
+        {
+            ShowError("Stock count not recorded", "The stock count dialog could not be opened.");
+            return;
+        }
+
+        var model = new StockCountViewModel(_products, product);
+        var request = await new StockCountDialog(model).ShowDialog<RecordStockCountRequest?>(owner);
+        if (request is null || model.SelectedProduct is null || model.SelectedLocation is null || model.Variance is not int variance) return;
+
+        var confirmation = new ConfirmDialog();
+        confirmation.SetConfirmation(
+            "Record physical stock count?",
+            $"Set {model.SelectedProduct.Name} {model.SelectedLocation.Label} stock from {model.CurrentQuantity:N0} to {request.CountedQuantity:N0}. This records a {variance:+#;-#;0} adjustment in movement history.",
+            "Record count");
+        await confirmation.ShowDialog(owner);
+        if (!confirmation.Confirmed) return;
+
+        IsBusy = true;
+        StatusMessage = $"Recording stock count for {model.SelectedProduct.Name}...";
+        try
+        {
+            var result = await _api.RecordStockCountAsync(request);
+            IsBusy = false;
+            await LoadAsync();
+            StatusMessage = $"Stock count recorded. {result.Location} changed from {result.PreviousQuantity:N0} to {result.CountedQuantity:N0}.";
+            _notifications.ShowSuccess("Stock count recorded", StatusMessage);
+        }
+        catch (Exception exception) when (IsApiFailure(exception))
+        {
+            ShowError("Stock count not recorded", FailureMessage(exception));
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private void ApplyFilter()
     {
         var search = SearchText.Trim();
@@ -147,6 +205,7 @@ public partial class ProductCatalogViewModel : ObservableObject
                     product.SupplierName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     product.Category.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     product.Units.Any(unit => unit.Barcode?.Contains(search, StringComparison.OrdinalIgnoreCase) == true)))
+            .Where(product => SelectedTypeFilter?.ItemType is null || product.ItemType == SelectedTypeFilter.ItemType)
             .OrderBy(product => product.Name)
             .ToList();
     }
