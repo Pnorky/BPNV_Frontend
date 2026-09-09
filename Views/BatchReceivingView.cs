@@ -35,7 +35,9 @@ public sealed class BatchReceivingView : UserControl
         {
             Content = content,
             Margin = new Thickness(30, 30, 12, 30),
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            // Keep the page viewport bounded so wide tables can scroll internally.
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
     }
 
@@ -109,7 +111,7 @@ public sealed class BatchReceivingView : UserControl
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
         });
 
-        var reference = Input("Reference", "Delivery receipt or invoice (optional)", 100);
+        var reference = Input("Reference", "Delivery receipt or invoice number (optional)", 100);
         var notes = Input("Notes", "Shared batch notes (optional)", 500);
         var details = new Grid
         {
@@ -117,7 +119,7 @@ public sealed class BatchReceivingView : UserControl
             ColumnSpacing = 12,
             Children =
             {
-                Field("REFERENCE", reference),
+                Field("RECEIPT / INVOICE NO.", reference),
                 At(Field("NOTES", notes), column: 1)
             }
         };
@@ -138,9 +140,121 @@ public sealed class BatchReceivingView : UserControl
                 },
                 capture,
                 Muted("Expected columns: supplier library, exact barcode text, and positive whole-number quantity. Scientific notation is rejected."),
-                details
+                details,
+                DeliveryTimeSection()
             }
         }, new Thickness(20));
+    }
+
+    private static Control DeliveryTimeSection()
+    {
+        var automatic = new ShadcnSwitch();
+        automatic.Bind(ToggleButton.IsCheckedProperty, new Binding("UseCommitTime") { Mode = BindingMode.TwoWay });
+        Bind(automatic, InputElement.IsEnabledProperty, "CanEdit");
+        var preview = BoundText("DeliveryTimePreview");
+        preview.FontWeight = FontWeight.SemiBold;
+        var switchBlock = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto"),
+            ColumnSpacing = 10,
+            Children =
+            {
+                automatic,
+                At(new StackPanel
+                {
+                    Spacing = 2,
+                    Children =
+                    {
+                        new TextBlock { Text = "Use exact commit time", FontWeight = FontWeight.SemiBold },
+                        Muted(path: "DeliveryTimeHelpText")
+                    }
+                }, column: 1)
+            }
+        };
+        automatic.VerticalAlignment = VerticalAlignment.Center;
+        switchBlock.VerticalAlignment = VerticalAlignment.Center;
+
+        var manual = new ShadcnDateTimePicker
+        {
+            DateLabel = "DELIVERY DATE",
+            TimeLabel = "DELIVERY TIME"
+        };
+        manual.Bind(ShadcnDateTimePicker.SelectedDateProperty,
+            new Binding("DeliveryDate") { Mode = BindingMode.TwoWay });
+        manual.Bind(ShadcnDateTimePicker.SelectedTimeProperty,
+            new Binding("DeliveryTime") { Mode = BindingMode.TwoWay });
+        Bind(manual, InputElement.IsEnabledProperty, "CanEdit");
+        Bind(manual, Visual.IsVisibleProperty, "IsManualDeliveryTime");
+
+        preview.HorizontalAlignment = HorizontalAlignment.Right;
+        preview.VerticalAlignment = VerticalAlignment.Center;
+        var sectionHeader = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 16,
+            Children =
+            {
+                Label("DELIVERY DATE AND TIME (PHILIPPINE TIME)"),
+                At(preview, column: 1)
+            }
+        };
+        var controls = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto"),
+            ColumnSpacing = 28,
+            Children =
+            {
+                switchBlock,
+                At(manual, column: 1)
+            }
+        };
+        bool? isNarrow = null;
+        controls.SizeChanged += (_, e) =>
+        {
+            var narrow = e.NewSize.Width < 960;
+            if (isNarrow == narrow) return;
+            isNarrow = narrow;
+
+            if (narrow)
+            {
+                controls.ColumnDefinitions = new ColumnDefinitions("*");
+                controls.RowDefinitions = new RowDefinitions("Auto,Auto");
+                controls.ColumnSpacing = 0;
+                controls.RowSpacing = 12;
+                Grid.SetColumn(switchBlock, 0);
+                Grid.SetRow(switchBlock, 0);
+                Grid.SetColumn(manual, 0);
+                Grid.SetRow(manual, 1);
+            }
+            else
+            {
+                controls.ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*");
+                controls.RowDefinitions = new RowDefinitions("Auto");
+                controls.ColumnSpacing = 28;
+                controls.RowSpacing = 0;
+                Grid.SetColumn(switchBlock, 0);
+                Grid.SetRow(switchBlock, 0);
+                Grid.SetColumn(manual, 1);
+                Grid.SetRow(manual, 0);
+                Grid.SetColumnSpan(manual, 1);
+            }
+        };
+
+        return Resource(new Border
+        {
+            Padding = new Thickness(14),
+            CornerRadius = new CornerRadius(7),
+            Child = new StackPanel
+            {
+                Spacing = 12,
+                Children =
+                {
+                    sectionHeader,
+                    controls
+                }
+            }
+        }, Border.BackgroundProperty, "Secondary");
     }
 
     private static Border IssueCard()
@@ -187,74 +301,205 @@ public sealed class BatchReceivingView : UserControl
 
     private static Border PreviewCard()
     {
-        var table = new PagedTable
+        var rows = new ItemsControl
         {
-            Height = 480,
-            PageSize = 10,
-            MinTableWidth = 1180,
-            ItemName = "preview line",
-            ItemNamePlural = "preview lines"
+            ItemTemplate = new FuncDataTemplate<BatchReceivingRowViewModel>((_, _) => PreviewRow(), true)
         };
-        Bind(table, PagedTable.ItemsSourceProperty, "PreviewRows");
-        Bind(table, PagedTable.IsLoadingProperty, "IsBusy");
-        Bind(table, PagedTable.ErrorMessageProperty, "PreviewError");
-        table.Columns.Add(Column("Product", row => row.ProductNameDisplay, 1.5));
-        table.Columns.Add(Column("Barcode", row => row.Barcode, 1.15));
-        table.Columns.Add(Column("Library -> Supplier", row => row.SupplierResolutionDisplay, 1.5));
-        table.Columns.Add(Column("Scanned qty", row => row.ScannedQuantityDisplay, 1.05, HorizontalAlignment.Right));
-        table.Columns.Add(Column("Receive pieces", row => row.BasePieceQuantityDisplay, 0.9, HorizontalAlignment.Right));
-        table.Columns.Add(Column("Bodega before -> after", row => row.BodegaChangeDisplay, 1.15, HorizontalAlignment.Right));
-        table.Columns.Add(StatusColumn());
+        Bind(rows, ItemsControl.ItemsSourceProperty, "PreviewPager.Items");
 
-        return Card(new StackPanel
+        var tableHeader = new Grid
+        {
+            ColumnDefinitions = PreviewColumns(),
+            ColumnSpacing = 12,
+            Margin = new Thickness(16, 10),
+            Children =
+            {
+                Label("PRODUCT"),
+                At(Label("BARCODE"), column: 1),
+                At(Label("LIBRARY -> SUPPLIER"), column: 2),
+                At(Label("SCANNED QTY"), column: 3),
+                At(Label("RECEIVE PIECES"), column: 4),
+                At(Label("STATUS"), column: 5)
+            }
+        };
+        Bind(tableHeader, Visual.IsVisibleProperty, "PreviewPager.HasItems");
+
+        var tableBody = new Grid
         {
             Children =
             {
-                new StackPanel
+                new StackPanel { Children = { tableHeader, rows } },
+                new AvaloniaApp.Views.Controls.TableState
                 {
-                    Margin = new Thickness(20, 18, 20, 12),
-                    Spacing = 3,
-                    Children =
-                    {
-                        Heading("Validated preview"),
-                        Muted("Library is scanner input; Supplier is the barcode's registered supplier and is authoritative."),
-                        Muted(path: "ValidationSummary")
-                    }
-                },
-                table
+                    [!DataContextProperty] = new Binding("PreviewPager")
+                }
             }
-        }, new Thickness(0), clip: true);
+        };
+
+        var pager = new AvaloniaApp.Views.Controls.TablePager
+        {
+            [!DataContextProperty] = new Binding("PreviewPager")
+        };
+
+        var previewHeader = new StackPanel
+        {
+            Margin = new Thickness(20, 18, 20, 12),
+            Spacing = 3,
+            Children =
+            {
+                Heading("Validated preview"),
+                Muted("Library is scanner input; Supplier is the barcode's registered supplier and is authoritative."),
+                Muted(path: "ValidationSummary")
+            }
+        };
+
+        var previewLayout = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            Children =
+            {
+                previewHeader,
+                At(tableBody, row: 1),
+                At(pager, row: 2)
+            }
+        };
+
+        return Card(previewLayout, new Thickness(0), clip: true);
     }
 
-    private static PagedTableColumn StatusColumn() => new()
+    private static Control PreviewRow()
     {
-        Header = "Status",
-        Width = new GridLength(0.8, GridUnitType.Star),
-        IsSortable = true,
-        ValueSelector = item => ((BatchReceiptPreviewRowResponse)item).Status,
-        SortValueSelector = item => ((BatchReceiptPreviewRowResponse)item).Status,
-        CellTemplate = new FuncDataTemplate<BatchReceiptPreviewRowResponse>((_, _) =>
+        var status = new StatusBadge();
+        status.Bind(StatusBadge.StatusProperty, new Binding(nameof(BatchReceivingRowViewModel.Status)));
+        var detailsLabel = BoundText(nameof(BatchReceivingRowViewModel.DetailsActionLabel));
+        detailsLabel.FontSize = 11;
+        detailsLabel.HorizontalAlignment = HorizontalAlignment.Right;
+        detailsLabel.VerticalAlignment = VerticalAlignment.Center;
+        detailsLabel.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("Primary"));
+
+        var summary = new Grid
         {
-            var badge = new StatusBadge();
-            badge.Bind(StatusBadge.StatusProperty, new Binding("Status"));
-            return badge;
-        }, true)
-    };
+            ColumnDefinitions = PreviewColumns(),
+            ColumnSpacing = 12,
+            Children =
+            {
+                Cell(nameof(BatchReceivingRowViewModel.ProductNameDisplay), true),
+                At(Cell(nameof(BatchReceivingRowViewModel.Barcode)), column: 1),
+                At(Cell(nameof(BatchReceivingRowViewModel.SupplierResolutionDisplay), true), column: 2),
+                At(Cell(nameof(BatchReceivingRowViewModel.ScannedQuantityDisplay)), column: 3),
+                At(Cell(nameof(BatchReceivingRowViewModel.BasePieceQuantityDisplay)), column: 4),
+                At(new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8, Children = { status, At(detailsLabel, column: 1) } }, column: 5)
+            }
+        };
+
+        var toggle = new Button
+        {
+            Padding = new Thickness(16, 12),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Content = summary
+        };
+        toggle.Classes.Add("ghost");
+        toggle.Bind(Avalonia.Controls.Button.CommandProperty, new Binding("DataContext.TogglePreviewRowCommand")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(BatchReceivingView) }
+        });
+        toggle.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
+
+        var detail = Resource(new Border
+        {
+            Padding = new Thickness(20, 16),
+            Child = PreviewRowDetails()
+        }, Border.BackgroundProperty, "Secondary");
+        detail.Bind(Visual.IsVisibleProperty, new Binding(nameof(BatchReceivingRowViewModel.IsExpanded)));
+
+        return Resource(new Border
+        {
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Child = new StackPanel { Children = { toggle, detail } }
+        }, Border.BorderBrushProperty, "Border");
+    }
+
+    private static Control PreviewRowDetails()
+    {
+        var total = BoundText(nameof(BatchReceivingRowViewModel.TotalCostDisplay));
+        total.FontSize = 18;
+        total.FontWeight = FontWeight.SemiBold;
+
+        var productAction = new ActionButton("Add product", ActionButtonVariant.Secondary, ActionButtonSize.Sm);
+        productAction.Bind(Avalonia.Controls.Button.ContentProperty, new Binding(nameof(BatchReceivingRowViewModel.ProductActionLabel)));
+        productAction.Bind(Visual.IsVisibleProperty, new Binding(nameof(BatchReceivingRowViewModel.CanManageProduct)));
+        productAction.Bind(Avalonia.Controls.Button.CommandProperty, new Binding("DataContext.AddUnknownProductCommand")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(BatchReceivingView) }
+        });
+        productAction.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
+
+        return new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            ColumnSpacing = 20,
+            RowSpacing = 16,
+            Children =
+            {
+                DetailValue("BODEGA BEFORE -> AFTER", nameof(BatchReceivingRowViewModel.BodegaChangeDisplay)),
+                At(new StackPanel { Spacing = 5, Children = { Label("TOTAL COST"), total } }, column: 1),
+                At(new StackPanel { Spacing = 7, Children = { Label("PRODUCT ACTION"), productAction } }, column: 2),
+                At(PriceEditor("UNIT COST", nameof(BatchReceivingRowViewModel.PreviousCostDisplay), nameof(BatchReceivingRowViewModel.CostPrice)), row: 1),
+                At(PriceEditor("SELLING PRICE", nameof(BatchReceivingRowViewModel.PreviousRegularDisplay), nameof(BatchReceivingRowViewModel.RegularPrice)), column: 1, row: 1),
+                At(PriceEditor("EMPLOYEE PRICE", nameof(BatchReceivingRowViewModel.PreviousEmployeeDisplay), nameof(BatchReceivingRowViewModel.EmployeePrice)), column: 2, row: 1)
+            }
+        };
+    }
+
+    private static StackPanel DetailValue(string label, string path)
+    {
+        var value = BoundText(path);
+        value.FontSize = 16;
+        value.FontWeight = FontWeight.SemiBold;
+        return new StackPanel { Spacing = 5, Children = { Label(label), value } };
+    }
+
+    private static StackPanel PriceEditor(string label, string previousPath, string valuePath)
+    {
+        var previous = BoundText(previousPath);
+        previous.FontSize = 10;
+        previous.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground"));
+        var input = new AmountInput { MinHeight = 38, HorizontalAlignment = HorizontalAlignment.Stretch };
+        input.Bind(AmountInput.ValueProperty, new Binding(valuePath) { Mode = BindingMode.TwoWay });
+        input.Bind(InputElement.IsEnabledProperty, new Binding(nameof(BatchReceivingRowViewModel.CanEditPrices)));
+        return new StackPanel { Spacing = 5, Children = { Label(label), previous, input } };
+    }
+
+    private static ColumnDefinitions PreviewColumns() => new("1.35*,1*,1.35*,0.9*,0.85*,1.15*");
 
     private static Border ResultCard()
     {
         var summary = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.2*,0.7*,0.7*,0.8*,1.3*,1*"),
+            ColumnDefinitions = new ColumnDefinitions("1.2*,0.65*,0.65*,0.8*,0.85*,0.7*,1.2*"),
             ColumnSpacing = 12,
             Children =
             {
-                ResultValue("REFERENCE", "Result.ReferenceDisplay"),
+                ResultValue("RECEIPT / INVOICE NO.", "Result.ReferenceDisplay"),
                 At(ResultValue("RECORDS", "Result.AcceptedRecordCount"), column: 1),
                 At(ResultValue("PRODUCTS", "Result.AffectedProductCount"), column: 2),
                 At(ResultValue("BASE PIECES", "Result.TotalBasePieces"), column: 3),
-                At(ResultValue("SUPPLIERS", "Result.SuppliersDisplay"), column: 4),
-                At(ResultValue("COMPLETED", "Result.CompletedAtDisplay"), column: 5)
+                At(ResultValue("TOTAL COST", "Result.TotalCostDisplay"), column: 4),
+                At(ResultValue("NEW PRODUCTS", "Result.CreatedProductCount"), column: 5),
+                At(ResultValue("SUPPLIERS", "Result.SuppliersDisplay"), column: 6)
+            }
+        };
+        var timestamps = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*"),
+            ColumnSpacing = 16,
+            Children =
+            {
+                ResultValue("DELIVERED (PHILIPPINE TIME)", "Result.DeliveryAtDisplay"),
+                At(ResultValue("RECORDED (PHILIPPINE TIME)", "Result.CompletedAtDisplay"), column: 1)
             }
         };
         var content = new StackPanel
@@ -263,7 +508,8 @@ public sealed class BatchReceivingView : UserControl
             Children =
             {
                 new StackPanel { Spacing = 3, Children = { Heading("Receipt completed"), Muted("The scanner capture may now be cleared from the Eyoyo library.") } },
-                summary
+                summary,
+                timestamps
             }
         };
         var card = Card(content, new Thickness(20));
@@ -278,17 +524,6 @@ public sealed class BatchReceivingView : UserControl
         value.FontWeight = FontWeight.SemiBold;
         value.TextWrapping = TextWrapping.Wrap;
         return new StackPanel { Spacing = 4, Children = { Label(label), value } };
-    }
-
-    private static PagedTableColumn Column<T>(
-        string header,
-        Func<BatchReceiptPreviewRowResponse, T> selector,
-        double width,
-        HorizontalAlignment alignment = HorizontalAlignment.Stretch)
-    {
-        var column = PagedTableColumn.Create(header, selector, new GridLength(width, GridUnitType.Star));
-        column.HorizontalAlignment = alignment;
-        return column;
     }
 
     private static TextBox Input(string path, string placeholder, int maxLength)

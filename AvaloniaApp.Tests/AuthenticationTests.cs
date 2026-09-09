@@ -105,8 +105,8 @@ public sealed class AuthenticationTests
 
     [TestMethod]
     [DataRow("Cashier", "Dashboard,Sales")]
-    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryImport,InventorySuppliers,InventoryMovements,Reports,Employees")]
-    [DataRow("Admin", "Dashboard,Sales,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryImport,InventorySuppliers,InventoryMovements,Reports,Employees,Users")]
+    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,Reports,Employees")]
+    [DataRow("Admin", "Dashboard,Sales,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,Reports,Employees,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));
@@ -126,6 +126,7 @@ public sealed class AuthenticationTests
             viewModel.SelectNavItem(item);
             Assert.IsNotNull(viewModel.CurrentPage, $"Navigation did not create a page for {item.Tag}.");
             if (item.Tag == "InventorySuppliers") Assert.IsInstanceOfType<SuppliersViewModel>(viewModel.CurrentPage);
+            if (item.Tag == "InventoryDeliveryHistory") Assert.IsInstanceOfType<DeliveryHistoryViewModel>(viewModel.CurrentPage);
             if (item.Tag == "Employees") Assert.IsInstanceOfType<EmployeesViewModel>(viewModel.CurrentPage);
         }
     }
@@ -145,21 +146,21 @@ public sealed class AuthenticationTests
         CollectionAssert.AreEqual(
             new[] { "Dashboard", "InventoryProducts", "Reports", "Employees" },
             inventoryViewModel.NavItems.Select(item => item.Tag).ToArray());
-        inventoryViewModel.OpenInventorySection("InventoryBatchReceive");
+        inventoryViewModel.OpenInventorySection("InventoryDeliveryHistory");
 
         Assert.IsTrue(inventoryViewModel.SidebarCollapsed);
         Assert.AreEqual("InventoryProducts", inventoryViewModel.SelectedNavItem?.Tag);
         Assert.IsFalse(inventoryViewModel.SelectedNavItem?.IsChild);
-        Assert.IsInstanceOfType<BatchReceivingViewModel>(inventoryViewModel.CurrentPage);
+        Assert.IsInstanceOfType<DeliveryHistoryViewModel>(inventoryViewModel.CurrentPage);
 
         var (cashierClient, cashierSession) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", "Cashier")));
         await cashierClient.LoginAsync("cashier", "strong-password");
         var cashierViewModel = new DashboardViewModel(
             store, cashierClient, new StoreApiClient(cashierClient), cashierSession, new TestNotificationService());
 
-        cashierViewModel.OpenInventorySection("InventoryBatchReceive");
+        cashierViewModel.OpenInventorySection("InventoryDeliveryHistory");
 
-        Assert.IsNotInstanceOfType<BatchReceivingViewModel>(cashierViewModel.CurrentPage);
+        Assert.IsNotInstanceOfType<DeliveryHistoryViewModel>(cashierViewModel.CurrentPage);
     }
 
     private static (AuthApiClient Client, AuthSession Session) CreateClient(

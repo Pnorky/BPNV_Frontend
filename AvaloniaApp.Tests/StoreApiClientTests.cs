@@ -264,7 +264,7 @@ public sealed class StoreApiClientTests
                 return Json(new BatchReceiptValidationResponse(key, "DR-1", "Delivery", true, [row], [],
                     new BatchReceiptValidationSummaryResponse(2, 1, 1, 60, 0, 0, 0)));
             return Json(new BatchReceiptResponse(
-                Guid.NewGuid(), key, "DR-1", 2, 1, 1, 60, ["Supplier A"], DateTime.UtcNow, false));
+                Guid.NewGuid(), key, "DR-1", 2, 1, 1, 60, ["Supplier A"], DateTime.UtcNow, DateTime.UtcNow, false));
         });
         await auth.LoginAsync("inventory", "password");
         var client = new StoreApiClient(auth);
@@ -366,6 +366,54 @@ public sealed class StoreApiClientTests
         StringAssert.Contains(requestedUri.Query, "sortBy=product");
         StringAssert.Contains(requestedUri.Query, "sortDirection=asc");
         StringAssert.Contains(requestedUri.Query, "toUtcExclusive=");
+    }
+
+    [TestMethod]
+    public async Task DeliveryHistorySendsServerFiltersAndReadsSnapshotDetail()
+    {
+        Uri? listUri = null;
+        var batchId = Guid.NewGuid();
+        var supplierId = Guid.NewGuid();
+        var receiverId = Guid.NewGuid();
+        var delivery = new DeliveryHistoryItemResponse(
+            batchId, "INV 100/%_", ["Supplier A"], 2, 1, 1, 24, 120m,
+            new DateTime(2025, 8, 26, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2025, 8, 26, 0, 1, 0, DateTimeKind.Utc),
+            receiverId, "Inventory User", "Completed");
+        var line = new DeliveryHistoryLineResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Product snapshot", "SKU-1",
+            supplierId, "Supplier snapshot", "Scanner supplier", "0001", [1, 2],
+            2, "case", 12, 24, 4m, 5m, 6m, 7m, 5m, 6m, 120m, null, null, false);
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            if (request.RequestUri.AbsolutePath.EndsWith($"/{batchId}"))
+                return Json(new DeliveryHistoryDetailResponse(delivery, "Receipt notes", [line]));
+            listUri = request.RequestUri;
+            return Json(new PagedResponse<DeliveryHistoryItemResponse>([delivery], 2, 10, 11));
+        });
+        await auth.LoginAsync("inventory", "password");
+        var client = new StoreApiClient(auth);
+
+        var page = await client.GetDeliveryHistoryAsync(
+            "INV 100/%_", supplierId, receiverId,
+            new DateTimeOffset(2025, 8, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2025, 9, 1, 0, 0, 0, TimeSpan.Zero),
+            2, 10, "receiptNumber", "asc");
+        var detail = await client.GetDeliveryHistoryDetailAsync(batchId);
+
+        Assert.AreEqual(11, page.TotalCount);
+        Assert.AreEqual("August 26, 2025 8:00 AM", page.Items.Single().DeliveryAtDisplay);
+        Assert.AreEqual("Not available", detail.Lines.Single().BodegaChangeDisplay);
+        var decodedQuery = Uri.UnescapeDataString(listUri!.Query);
+        StringAssert.Contains(decodedQuery, "receiptNumber=INV 100/%_");
+        StringAssert.Contains(decodedQuery, $"supplierId={supplierId}");
+        StringAssert.Contains(decodedQuery, $"receivedByUserId={receiverId}");
+        StringAssert.Contains(decodedQuery, "fromUtc=2025-08-01T00:00:00.0000000+00:00");
+        StringAssert.Contains(decodedQuery, "sortBy=receiptNumber");
+        StringAssert.Contains(decodedQuery, "sortDirection=asc");
+        StringAssert.Contains(decodedQuery, "page=2");
+        StringAssert.Contains(decodedQuery, "pageSize=10");
     }
 
     [TestMethod]

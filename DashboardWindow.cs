@@ -255,6 +255,7 @@ public class DashboardWindow : Window
                     CreateInventoryFlyoutItem("Add Product", "InventoryAddProduct", LucideIconKind.PackagePlus),
                     CreateInventoryFlyoutItem("Receive Stock", "InventoryReceiveStock", LucideIconKind.Boxes),
                     CreateInventoryFlyoutItem("Batch Receive", "InventoryBatchReceive", LucideIconKind.ScanBarcode),
+                    CreateInventoryFlyoutItem("Delivery History", "InventoryDeliveryHistory", LucideIconKind.History),
                     CreateInventoryFlyoutItem("Import Excel", "InventoryImport", LucideIconKind.FileSpreadsheet),
                     CreateInventoryFlyoutItem("Suppliers", "InventorySuppliers", LucideIconKind.Truck),
                     CreateInventoryFlyoutItem("Stock Movements", "InventoryMovements", LucideIconKind.ArrowLeftRight)

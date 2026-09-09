@@ -55,6 +55,12 @@ public static class StoreDateTime
         return new DateTimeOffset(wallTime, StoreTimeZone.GetUtcOffset(wallTime));
     }
 
+    public static DateTimeOffset CombineStoreDateAndTimeToUtc(DateTimeOffset date, TimeSpan time)
+    {
+        var wallTime = DateTime.SpecifyKind(date.Date.Add(time), DateTimeKind.Unspecified);
+        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(wallTime, StoreTimeZone));
+    }
+
     public static (DateTimeOffset? FromUtc, DateTimeOffset? ToUtcExclusive) GetUtcDateRange(
         DateTimeOffset? start,
         DateTimeOffset? end)

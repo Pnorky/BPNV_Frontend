@@ -169,6 +169,38 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         SendJsonAsync<BatchReceiptResponse, BatchReceiptRequest>(
             HttpMethod.Post, "api/stock-receipts/batch", request, cancellationToken);
 
+    public Task<PagedResponse<DeliveryHistoryItemResponse>> GetDeliveryHistoryAsync(
+        string? receiptNumber = null,
+        Guid? supplierId = null,
+        Guid? receivedByUserId = null,
+        DateTimeOffset? fromUtc = null,
+        DateTimeOffset? toUtcExclusive = null,
+        int page = 1,
+        int pageSize = 20,
+        string sortBy = "deliveryAt",
+        string sortDirection = "desc",
+        CancellationToken cancellationToken = default) =>
+        SendAsync<PagedResponse<DeliveryHistoryItemResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery(
+                "api/stock-receipts/batches",
+                ("receiptNumber", receiptNumber),
+                ("supplierId", supplierId?.ToString()),
+                ("receivedByUserId", receivedByUserId?.ToString()),
+                ("fromUtc", fromUtc?.ToString("O")),
+                ("toUtcExclusive", toUtcExclusive?.ToString("O")),
+                ("sortBy", sortBy),
+                ("sortDirection", sortDirection),
+                ("page", page.ToString()),
+                ("pageSize", pageSize.ToString()))),
+            cancellationToken);
+
+    public Task<DeliveryHistoryDetailResponse> GetDeliveryHistoryDetailAsync(
+        Guid batchId,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<DeliveryHistoryDetailResponse>(
+            () => new HttpRequestMessage(HttpMethod.Get, $"api/stock-receipts/batches/{batchId}"),
+            cancellationToken);
+
     public Task<StockTransferResponse> TransferToDisplayAsync(
         TransferStockRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<StockTransferResponse, TransferStockRequest>(HttpMethod.Post, "api/stock-transfers", request, cancellationToken);

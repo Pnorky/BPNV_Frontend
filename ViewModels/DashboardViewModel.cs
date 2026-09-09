@@ -81,6 +81,7 @@ public partial class DashboardViewModel : ObservableObject
             "InventoryAddProduct" => new AddProductViewModel(_storeClient, _notifications),
             "InventoryReceiveStock" => new StockReceivingViewModel(_storeClient, _notifications),
             "InventoryBatchReceive" => new BatchReceivingViewModel(_storeClient, _notifications),
+            "InventoryDeliveryHistory" => new DeliveryHistoryViewModel(_storeClient, _notifications),
             "InventoryImport" => new ExcelInventoryImportViewModel(_storeClient, _notifications),
             "InventorySuppliers" => new SuppliersViewModel(_storeClient, _notifications),
             "InventoryMovements" => new ApiStockMovementsViewModel(_storeClient, _notifications),
@@ -187,7 +188,7 @@ public partial class DashboardViewModel : ObservableObject
         "Dashboard" => _session.IsAuthenticated,
         "Sales" => _session.HasRole("Admin") || _session.HasRole("Cashier"),
         "InventoryProducts" or "InventoryAddProduct" or "InventoryReceiveStock" or
-        "InventoryBatchReceive" or "InventoryImport" or "InventorySuppliers" or "InventoryMovements" or "Reports" =>
+        "InventoryBatchReceive" or "InventoryDeliveryHistory" or "InventoryImport" or "InventorySuppliers" or "InventoryMovements" or "Reports" =>
             _session.HasRole("Admin") || _session.HasRole("Inventory"),
         "Employees" => _session.HasRole("Admin") || _session.HasRole("Inventory"),
         "Users" => _session.HasRole("Admin"),

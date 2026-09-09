@@ -123,6 +123,7 @@ public class App : Application
         DataTemplates.Add(new FuncDataTemplate<AddProductViewModel>((_, _) => new AddProductView(), true));
         DataTemplates.Add(new FuncDataTemplate<StockReceivingViewModel>((_, _) => new StockReceivingView(), true));
         DataTemplates.Add(new FuncDataTemplate<BatchReceivingViewModel>((_, _) => new BatchReceivingView(), true));
+        DataTemplates.Add(new FuncDataTemplate<DeliveryHistoryViewModel>((_, _) => new DeliveryHistoryView(), true));
         DataTemplates.Add(new FuncDataTemplate<ExcelInventoryImportViewModel>((_, _) => new ExcelInventoryImportView(), true));
         DataTemplates.Add(new FuncDataTemplate<SuppliersViewModel>((_, _) => new SuppliersView(), true));
         DataTemplates.Add(new FuncDataTemplate<EmployeesViewModel>((_, _) => new EmployeesView(), true));
@@ -226,6 +227,10 @@ public class App : Application
         AddStyle(x => x.OfType<TextBox>().Class("form-input").Class(":focus"),
             new Setter(TextBox.BorderThicknessProperty, new Thickness(2)),
             ResourceSetter(TextBox.BorderBrushProperty, "Ring"));
+
+        AddStyle(x => x.OfType<TextBox>().Class("form-input").Class("invalid"),
+            new Setter(TextBox.BorderThicknessProperty, new Thickness(2)),
+            ResourceSetter(TextBox.BorderBrushProperty, "Destructive"));
 
         AddStyle(x => x.OfType<Border>().Class("number-field"),
             new Setter(Border.MinHeightProperty, 42d), new Setter(Border.CornerRadiusProperty, new CornerRadius(7)),

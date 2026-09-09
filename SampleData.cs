@@ -107,12 +107,13 @@ public static class SampleData
         new() { Icon = "PackagePlus", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
         new() { Icon = "Boxes", Text = "Receive Stock", Tag = "InventoryReceiveStock", IsChild = true, Group = "Receiving" },
         new() { Icon = "ScanBarcode", Text = "Batch Receive", Tag = "InventoryBatchReceive", IsChild = true },
+        new() { Icon = "History", Text = "Delivery History", Tag = "InventoryDeliveryHistory", IsChild = true },
         new() { Icon = "FileSpreadsheet", Text = "Import Excel", Tag = "InventoryImport", IsChild = true },
         new() { Icon = "Truck", Text = "Suppliers", Tag = "InventorySuppliers", IsChild = true, Group = "Operations" },
         new() { Icon = "ArrowLeftRight", Text = "Stock Movements", Tag = "InventoryMovements", IsChild = true },
         new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports" },
         new() { Icon = "Users", Text = "Employees", Tag = "Employees" },
-        new() { Icon = "Users", Text = "Users", Tag = "Users" },
+        new() { Icon = "User", Text = "Users", Tag = "Users" },
     };
 
     public static List<PatientRecord> Patients => AddGenerated(new()

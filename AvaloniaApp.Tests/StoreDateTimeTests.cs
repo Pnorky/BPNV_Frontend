@@ -37,6 +37,16 @@ public sealed class StoreDateTimeTests
     }
 
     [TestMethod]
+    public void CombinesPhilippinePickerValuesAsUtcWithoutUsingWorkstationTimezone()
+    {
+        var date = StoreDateTime.AtStoreMidnight(new DateTime(2025, 8, 26));
+
+        var utc = StoreDateTime.CombineStoreDateAndTimeToUtc(date, new TimeSpan(8, 0, 0));
+
+        Assert.AreEqual(new DateTimeOffset(2025, 8, 26, 0, 0, 0, TimeSpan.Zero), utc);
+    }
+
+    [TestMethod]
     public void FormatsDateOnlyValueWithoutAddingTime()
     {
         Assert.AreEqual("August 26, 2025", StoreDateTime.FormatDateOnly(new DateOnly(2025, 8, 26)));

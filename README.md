@@ -6,7 +6,9 @@ Avalonia desktop prototype for sales and inventory management at **BPNV Convenie
 
 The Inventory > Import Excel workflow accepts the supported legacy workbook or the BPNV standard template. It provides section mappings and bulk defaults, performs local and backend validation, and imports suppliers, products, packages, and opening balances only after confirmation.
 
-Inventory > Batch Receive captures Eyoyo keyboard exports as tab-separated text, preserves exact barcode values, validates suppliers and unit conversions with the API, and atomically receives a confirmed batch into Bodega.
+Inventory > Batch Receive captures Eyoyo keyboard exports as tab-separated text, preserves exact barcode values, validates suppliers, unit conversions, and prices with the API, and atomically receives a confirmed batch into Bodega. Delivery time defaults to the exact server commit time or can be entered in Philippine store time.
+
+Inventory > Delivery History provides server-paged receipt/invoice search, supplier and Philippine delivery-date filters, and expandable immutable receipt-line snapshots. Delivery and recorded timestamps are always displayed in Philippine store time.
 
 Product Catalog supports periodic physical stock counts for active Consumables and Supplies. Inventory users enter the quantity remaining in Display or Bodega; the system records the variance as an attributed stock adjustment and refreshes the catalog balance.
 
@@ -45,10 +47,13 @@ Excel terminology is generalized into stock movements rather than duplicated as 
 Inventory has sidebar children:
 
 - Products
+- Add Product
+- Receive Stock
+- Batch Receive
+- Delivery History
+- Import Excel
 - Suppliers
 - Stock Movements
-- Batch Receive
-- Import Excel
 
 When the sidebar is collapsed, child icons are hidden. Selecting the Inventory icon opens a compact flyout with its destinations. The selected Inventory subsection is restored when the sidebar expands.
 
@@ -192,4 +197,4 @@ At the time this README was created:
 
 - Application Release build: 0 warnings, 0 errors
 - Test Release build: 0 warnings, 0 errors
-- Tests: 65 passed
+- Tests: 112 passed

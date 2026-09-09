@@ -128,7 +128,7 @@ public sealed class TablePager<T> : ObservableObject
         NotifyStateChanged();
     }
 
-    public void SetError(string message)
+    public void SetError(string? message)
     {
         _errorMessage = message;
         _isLoading = false;

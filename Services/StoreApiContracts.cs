@@ -282,11 +282,40 @@ public sealed record BatchReceiptRecordRequest(
     string Barcode,
     int UnitQuantity);
 
+public sealed record BatchReceiptPriceUpdateRequest(
+    Guid ProductId,
+    decimal CostPrice,
+    decimal RegularPrice,
+    decimal EmployeePrice,
+    ulong ExpectedProductVersion);
+
+public sealed record BatchReceiptNewProductRequest(
+    Guid CorrelationId,
+    string ReceiptBarcode,
+    Guid SupplierId,
+    ApiInventoryItemType ItemType,
+    string Sku,
+    string? PieceBarcode,
+    string Name,
+    string Category,
+    string Unit,
+    decimal CostPrice,
+    decimal RegularPrice,
+    decimal EmployeePrice,
+    int CriticalReorderLevel,
+    int CriticalOrderQuantity,
+    int WarningReorderLevel,
+    int WarningOrderQuantity,
+    IReadOnlyList<CreateProductUnitRequest>? Packages);
+
 public sealed record BatchReceiptRequest(
     Guid IdempotencyKey,
     string? Reference,
     string? Notes,
-    IReadOnlyList<BatchReceiptRecordRequest> Records);
+    IReadOnlyList<BatchReceiptRecordRequest> Records,
+    IReadOnlyList<BatchReceiptPriceUpdateRequest>? PriceUpdates = null,
+    IReadOnlyList<BatchReceiptNewProductRequest>? NewProducts = null,
+    DateTimeOffset? DeliveryAtUtc = null);
 
 public sealed record BatchReceiptIssueResponse(
     string Code,
@@ -312,7 +341,17 @@ public sealed record BatchReceiptPreviewRowResponse(
     int? CurrentBodegaBalance,
     int? ProjectedBodegaBalance,
     string Status,
-    IReadOnlyList<BatchReceiptIssueResponse> Issues)
+    IReadOnlyList<BatchReceiptIssueResponse> Issues,
+    bool IsNewProduct = false,
+    Guid? NewProductCorrelationId = null,
+    decimal? PreviousCostPrice = null,
+    decimal? CostPrice = null,
+    decimal? PreviousRegularPrice = null,
+    decimal? RegularPrice = null,
+    decimal? PreviousEmployeePrice = null,
+    decimal? EmployeePrice = null,
+    decimal? TotalCost = null,
+    ulong? ProductVersion = null)
 {
     public string SourceRecordsDisplay => string.Join(", ", SourceRecords);
     public string SupplierNameDisplay => SupplierName ?? "Unknown";
@@ -331,6 +370,11 @@ public sealed record BatchReceiptPreviewRowResponse(
     public string ProjectedBodegaDisplay => ProjectedBodegaBalance?.ToString("N0") ?? "-";
     public string BodegaChangeDisplay => $"{CurrentBodegaDisplay} -> {ProjectedBodegaDisplay}";
     public string StatusDisplay => Issues.Count == 0 ? Status : $"{Status} ({Issues.Count})";
+    public string CostChangeDisplay => PriceChange(PreviousCostPrice, CostPrice);
+    public string RegularPriceChangeDisplay => PriceChange(PreviousRegularPrice, RegularPrice);
+    public string EmployeePriceChangeDisplay => PriceChange(PreviousEmployeePrice, EmployeePrice);
+    private static string PriceChange(decimal? previous, decimal? latest) =>
+        previous.HasValue && latest.HasValue && previous != latest ? $"₱{previous:N2} -> ₱{latest:N2}" : $"₱{latest ?? 0:N2}";
 }
 
 public sealed record BatchReceiptValidationSummaryResponse(
@@ -340,7 +384,8 @@ public sealed record BatchReceiptValidationSummaryResponse(
     int? TotalBasePieces,
     int WarningCount,
     int ErrorCount,
-    int IssueCount);
+    int IssueCount,
+    decimal? TotalCost = null);
 
 public sealed record BatchReceiptValidationResponse(
     Guid IdempotencyKey,
@@ -361,11 +406,117 @@ public sealed record BatchReceiptResponse(
     int TotalBasePieces,
     IReadOnlyList<string> Suppliers,
     DateTime CompletedAtUtc,
-    bool IsIdempotentReplay)
+    DateTime DeliveryAtUtc,
+    bool IsIdempotentReplay,
+    decimal TotalCost = 0,
+    IReadOnlyList<BatchReceiptPriceChangeResponse>? PriceChanges = null,
+    IReadOnlyList<BatchReceiptCreatedProductResponse>? CreatedProducts = null)
 {
-    public string ReferenceDisplay => string.IsNullOrWhiteSpace(Reference) ? BatchId.ToString() : Reference;
+    public string ReferenceDisplay => string.IsNullOrWhiteSpace(Reference) ? "No receipt number" : Reference;
     public string SuppliersDisplay => string.Join(", ", Suppliers);
     public string CompletedAtDisplay => StoreDateTime.FormatUtc(CompletedAtUtc);
+    public string DeliveryAtDisplay => StoreDateTime.FormatUtc(DeliveryAtUtc);
+    public string TotalCostDisplay => $"₱{TotalCost:N2}";
+    public int CreatedProductCount => CreatedProducts?.Count ?? 0;
+}
+
+public sealed record BatchReceiptPriceChangeResponse(
+    Guid ProductId,
+    string ProductName,
+    string Sku,
+    decimal PreviousCostPrice,
+    decimal CostPrice,
+    decimal PreviousRegularPrice,
+    decimal RegularPrice,
+    decimal PreviousEmployeePrice,
+    decimal EmployeePrice);
+
+public sealed record BatchReceiptCreatedProductResponse(
+    Guid CorrelationId,
+    Guid ProductId,
+    string Sku,
+    string ProductName,
+    string Barcode);
+
+public sealed record DeliveryHistoryItemResponse(
+    Guid BatchId,
+    string? ReceiptNumber,
+    IReadOnlyList<string> Suppliers,
+    int AcceptedRecordCount,
+    int NormalizedLineCount,
+    int AffectedProductCount,
+    int TotalBasePieces,
+    decimal TotalCost,
+    DateTime DeliveryAtUtc,
+    DateTime CompletedAtUtc,
+    Guid ReceivedByUserId,
+    string ReceivedByName,
+    string Status)
+{
+    public string ReceiptNumberDisplay => string.IsNullOrWhiteSpace(ReceiptNumber) ? "No receipt number" : ReceiptNumber;
+    public string SuppliersDisplay => Suppliers.Count == 0 ? "Not available" : string.Join(", ", Suppliers);
+    public string DeliveryAtDisplay => StoreDateTime.FormatUtc(DeliveryAtUtc);
+    public string CompletedAtDisplay => StoreDateTime.FormatUtc(CompletedAtUtc);
+    public string ProductsPiecesDisplay => $"{AffectedProductCount:N0} products / {TotalBasePieces:N0} pieces";
+    public string TotalCostDisplay => $"₱{TotalCost:N2}";
+}
+
+public sealed record DeliveryHistoryLineResponse(
+    Guid LineId,
+    Guid ProductId,
+    Guid ProductUnitId,
+    string ProductName,
+    string Sku,
+    Guid SupplierId,
+    string SupplierName,
+    string SupplierLibrary,
+    string Barcode,
+    IReadOnlyList<int> SourceRecords,
+    int InputUnitQuantity,
+    string UnitLabel,
+    int PiecesPerUnit,
+    int BasePieceQuantity,
+    decimal? PreviousCostPrice,
+    decimal CostPrice,
+    decimal? PreviousRegularPrice,
+    decimal RegularPrice,
+    decimal? PreviousEmployeePrice,
+    decimal EmployeePrice,
+    decimal LineTotal,
+    int? BodegaBalanceBefore,
+    int? BodegaBalanceAfter,
+    bool IsNewProduct)
+{
+    public string ProductDisplay => $"{ProductName} / {Sku}";
+    public string BarcodeUnitDisplay => $"{Barcode} / {UnitLabel}";
+    public string SupplierDisplay => string.Equals(SupplierName, SupplierLibrary, StringComparison.OrdinalIgnoreCase)
+        ? SupplierName
+        : $"{SupplierLibrary} -> {SupplierName}";
+    public string ReceivedQuantityDisplay => PiecesPerUnit > 1
+        ? $"{InputUnitQuantity:N0} {UnitLabel} x {PiecesPerUnit:N0} = {BasePieceQuantity:N0} pieces"
+        : $"{BasePieceQuantity:N0} pieces";
+    public string CostPriceDisplay => PriceChange(PreviousCostPrice, CostPrice);
+    public string RegularPriceDisplay => PriceChange(PreviousRegularPrice, RegularPrice);
+    public string EmployeePriceDisplay => PriceChange(PreviousEmployeePrice, EmployeePrice);
+    public string RegularEmployeePriceDisplay => $"Selling {RegularPriceDisplay}; Employee {EmployeePriceDisplay}";
+    public string LineTotalDisplay => $"₱{LineTotal:N2}";
+    public string BodegaChangeDisplay => BodegaBalanceBefore.HasValue && BodegaBalanceAfter.HasValue
+        ? $"{BodegaBalanceBefore:N0} -> {BodegaBalanceAfter:N0}"
+        : "Not available";
+    public string NewProductDisplay => IsNewProduct ? "New product" : "Existing product";
+    public string LineTotalProductDisplay => $"{LineTotalDisplay} / {NewProductDisplay}";
+
+    private static string PriceChange(decimal? previous, decimal latest) => previous.HasValue
+        ? previous.Value == latest ? $"₱{latest:N2}" : $"₱{previous:N2} -> ₱{latest:N2}"
+        : $"Not available -> ₱{latest:N2}";
+}
+
+public sealed record DeliveryHistoryDetailResponse(
+    DeliveryHistoryItemResponse Delivery,
+    string? Notes,
+    IReadOnlyList<DeliveryHistoryLineResponse> Lines)
+{
+    public string NotesDisplay => string.IsNullOrWhiteSpace(Notes) ? "No notes" : Notes;
 }
 
 public sealed record StockTransferResponse(Guid MovementId, Guid ProductId, int Quantity, int DisplayStock, int BodegaStock, ulong ProductVersion, DateTime OccurredAtUtc)
