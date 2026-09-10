@@ -35,6 +35,7 @@ public class DashboardWindow : Window
     private readonly StackPanel _userPanel;
     private readonly ListBox _navList;
     private readonly ContentControl _mainContent;
+    private readonly PageTopBar _pageTopBar;
 
     public DashboardWindow()
     {
@@ -153,7 +154,21 @@ public class DashboardWindow : Window
             VerticalContentAlignment = VerticalAlignment.Stretch
         };
         _mainContent.Bind(ContentControl.ContentProperty, new Binding(nameof(DashboardViewModel.CurrentPage)));
-        var contentBorder = new Border { Child = new Grid { Children = { _mainContent } } };
+        Grid.SetRow(_mainContent, 1);
+        _pageTopBar = new PageTopBar();
+        _pageTopBar.Bind(PageTopBar.PageProperty, new Binding(nameof(DashboardViewModel.CurrentPage)));
+        _pageTopBar.NavigationRequested += (_, tag) =>
+        {
+            if (DataContext is DashboardViewModel viewModel) viewModel.OpenInventorySection(tag);
+        };
+        var contentBorder = new Border
+        {
+            Child = new Grid
+            {
+                RowDefinitions = new RowDefinitions("Auto,*"),
+                Children = { _pageTopBar, _mainContent }
+            }
+        };
         contentBorder.BindResource(BackgroundProperty, "Muted");
         Content = new DockPanel { Children = { _sidebarBorder, contentBorder } };
 
@@ -330,6 +345,14 @@ public class DashboardWindow : Window
             new Setter(TemplatedControl.BackgroundProperty, Brushes.Transparent),
             new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(0)),
             new Setter(TemplatedControl.PaddingProperty, new Thickness(0)));
+        AddStyle(x => x.OfType<FlyoutPresenter>().Class("filter-flyout"),
+            new Setter(TemplatedControl.BackgroundProperty, Brushes.Transparent),
+            new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(0)),
+            new Setter(TemplatedControl.PaddingProperty, new Thickness(0)),
+            new Setter(Layoutable.WidthProperty, 560d),
+            new Setter(Layoutable.MaxWidthProperty, 560d),
+            new Setter(ContentControl.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch),
+            new Setter(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Disabled));
         AddStyle(x => x.OfType<Button>().Class("inventory-flyout-item"),
             new Setter(TemplatedControl.BackgroundProperty, Brushes.Transparent),
             new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(0)),

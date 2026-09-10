@@ -15,18 +15,6 @@ public class ProductCatalogView : UserControl
 {
     public ProductCatalogView()
     {
-        var title = new TextBlock { Text = "Product catalog" }; title.Classes.Add("h1");
-        var search = new IconInput("Search", "Search database product, SKU, supplier, category, or barcode...");
-        search.Input.Bind(TextBox.TextProperty, new Binding("SearchText"));
-        var typeFilter = new SearchableSelect { PlaceholderText = "Filter item type", MinWidth = 190 };
-        typeFilter.Bind(SearchableSelect.ItemsSourceProperty, new Binding("TypeFilters"));
-        typeFilter.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedTypeFilter"));
-        typeFilter.ItemTemplate = new FuncDataTemplate<ProductTypeFilterOption>((_, _) => Text("Label"), true);
-        var refresh = new ActionButton("Refresh", ActionButtonVariant.Secondary); refresh.Bind(Button.CommandProperty, new Binding("LoadCommand"));
-        Grid.SetColumn(typeFilter, 1);
-        Grid.SetColumn(refresh, 2);
-        var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,220,Auto"), ColumnSpacing = 10, Children = { search, typeFilter, refresh } };
-
         var list = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding("FilteredProducts"));
         list.ItemTemplate = new FuncDataTemplate<ProductResponse>((_, _) => ProductRow(), true);
@@ -47,12 +35,11 @@ public class ProductCatalogView : UserControl
         Content = new Grid
         {
             Margin = new Thickness(30),
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,*"),
             RowSpacing = 14,
             Children =
             {
-                new StackPanel { Spacing = 4, Children = { title, Muted("Database-backed products and current piece balances") } },
-                At(Status(), 1), At(toolbar, 2), At(card, 3)
+                Status(), At(card, 1)
             }
         };
     }

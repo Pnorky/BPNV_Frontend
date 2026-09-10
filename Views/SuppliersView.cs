@@ -17,14 +17,6 @@ public class SuppliersView : UserControl
 {
     public SuppliersView()
     {
-        var title = new TextBlock { Text = "Suppliers" };
-        title.Classes.Add("h1");
-
-        var search = new IconInput("Search", "Search supplier, contact, or phone...");
-        search.Input.Bind(TextBox.TextProperty, new Binding("SearchText"));
-        var refresh = Button("Refresh", "LoadCommand", false);
-        Grid.SetColumn(refresh, 1);
-
         var list = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding("FilteredSuppliers"));
         list.ItemTemplate = new FuncDataTemplate<SupplierResponse>((_, _) => SupplierRow(), true);
@@ -46,33 +38,28 @@ public class SuppliersView : UserControl
         Content = new Grid
         {
             Margin = new Thickness(30),
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
             RowSpacing = 14,
             Children =
             {
-                new StackPanel { Spacing = 4, Children = { title, Muted("Database-backed suppliers, including suppliers created by inventory import") } },
-                At(Status(), 1),
-                At(new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 10, Children = { search, refresh } }, 2),
-                At(AddSupplierCard(), 3),
-                At(listCard, 4)
+                Status(),
+                At(AddSupplierCard(), 1),
+                At(listCard, 2)
             }
         };
     }
 
     private static Border AddSupplierCard()
     {
-        var submit = Button("Add supplier", "CreateSupplierCommand", true);
-        submit.VerticalAlignment = VerticalAlignment.Bottom;
         var form = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.4*,1*,1*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("1.4*,1*,1*"),
             ColumnSpacing = 12,
             Children =
             {
                 BoundFormInput("SUPPLIER NAME", "SupplierName", "Required"),
                 At(BoundFormInput("CONTACT PERSON", "ContactPerson", "Optional"), column: 1),
-                At(BoundFormInput("PHONE", "Phone", "Optional"), column: 2),
-                At(submit, column: 3)
+                At(BoundFormInput("PHONE", "Phone", "Optional"), column: 2)
             }
         };
         var card = new Border { Padding = new Thickness(20), Child = form };

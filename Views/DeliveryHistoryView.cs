@@ -27,115 +27,10 @@ public sealed class DeliveryHistoryView : UserControl
                 Spacing = 16,
                 Children =
                 {
-                    Header(),
-                    FiltersCard(),
                     DeliveriesCard()
                 }
             }
         };
-    }
-
-    private static Control Header()
-    {
-        var refresh = new ActionButton("Refresh", ActionButtonVariant.Secondary);
-        refresh.Bind(Button.CommandProperty, new Binding("RefreshCommand"));
-        var header = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            ColumnSpacing = 16,
-            Children =
-            {
-                new StackPanel
-                {
-                    Spacing = 4,
-                    Children =
-                    {
-                        Heading("Delivery History", "h1"),
-                        Muted("Review completed Batch Receive deliveries and their received items.")
-                    }
-                },
-                At(refresh, 1)
-            }
-        };
-        refresh.VerticalAlignment = VerticalAlignment.Center;
-        return header;
-    }
-
-    private static Border FiltersCard()
-    {
-        var receipt = new IconInput("Search", "Search receipt or invoice number...");
-        receipt.Input.Bind(TextBox.TextProperty, new Binding("ReceiptNumberSearch")
-        {
-            Mode = BindingMode.TwoWay,
-            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-        });
-        receipt.Input.KeyDown += (_, eventArgs) =>
-        {
-            if (eventArgs.Key != Key.Enter || receipt.DataContext is not DeliveryHistoryViewModel viewModel) return;
-            viewModel.ApplyFiltersCommand.Execute(null);
-            eventArgs.Handled = true;
-        };
-
-        var supplier = new SearchableSelect { PlaceholderText = "All suppliers" };
-        supplier.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Suppliers"));
-        supplier.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedSupplier") { Mode = BindingMode.TwoWay });
-        supplier.SearchTextSelector = item => item is SupplierResponse value ? value.Name : item.ToString() ?? "";
-
-        var sort = new SelectDropdown();
-        sort.Bind(SelectDropdown.ItemsSourceProperty, new Binding("SortOptions"));
-        sort.Bind(SelectDropdown.SelectedItemProperty, new Binding("SelectedSort") { Mode = BindingMode.TwoWay });
-
-        var firstRow = new WrapPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            Children =
-            {
-                SizedField("RECEIPT / INVOICE NO.", receipt, 340),
-                SizedField("SUPPLIER", supplier, 280),
-                SizedField("ORDER", sort, 250)
-            }
-        };
-
-        var dateRange = new DateRangePicker
-        {
-            Width = 460,
-            PlaceholderText = "Pick a delivery date range",
-            HorizontalAlignment = HorizontalAlignment.Left
-        };
-        dateRange.Bind(DateRangePicker.StartDateProperty, new Binding("FromDate") { Mode = BindingMode.TwoWay });
-        dateRange.Bind(DateRangePicker.EndDateProperty, new Binding("ToDate") { Mode = BindingMode.TwoWay });
-        var apply = new ActionButton("Apply Filters");
-        apply.Bind(Button.CommandProperty, new Binding("ApplyFiltersCommand"));
-        var clear = new ActionButton("Clear", ActionButtonVariant.Secondary);
-        clear.Bind(Button.CommandProperty, new Binding("ClearFiltersCommand"));
-        var actions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Children = { apply, clear }
-        };
-        var secondRow = new WrapPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Children =
-            {
-                SizedField("DELIVERY DATE", dateRange, 490),
-                new Border { Width = 260, Padding = new Thickness(12, 0, 0, 0), Child = actions }
-            }
-        };
-
-        return Card(new StackPanel
-        {
-            Spacing = 12,
-            Children =
-            {
-                new StackPanel { Spacing = 3, Children = { Heading("Find deliveries", "h3"), Muted("Filters are applied only when you select Apply Filters or press Enter in the receipt search.") } },
-                firstRow,
-                secondRow
-            }
-        }, new Thickness(20));
     }
 
     private static Border DeliveriesCard()
@@ -346,14 +241,6 @@ public sealed class DeliveryHistoryView : UserControl
             Child = grid
         }, Border.BorderBrushProperty, "Border");
     }
-
-    private static StackPanel SizedField(string label, Control control, double width) => new()
-    {
-        Width = width,
-        Margin = new Thickness(0, 0, 12, 10),
-        Spacing = 5,
-        Children = { Label(label), control }
-    };
 
     private static StackPanel Metadata(string label, string path)
     {

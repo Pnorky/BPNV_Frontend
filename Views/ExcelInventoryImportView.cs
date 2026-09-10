@@ -22,7 +22,6 @@ public sealed class ExcelInventoryImportView : UserControl
             Margin = new Thickness(0, 0, 18, 0),
             Children =
             {
-                Header(),
                 Status(),
                 SummaryCards(),
                 ExcludedSectionsCard(),
@@ -37,46 +36,6 @@ public sealed class ExcelInventoryImportView : UserControl
             Content = content,
             Margin = new Thickness(30, 30, 12, 30),
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
-        };
-    }
-
-    private static Control Header()
-    {
-        var title = new TextBlock { Text = "Import inventory from Excel" };
-        title.Classes.Add("h1");
-        var open = Button("Open .xlsx", "OpenWorkbookCommand", true);
-        var blank = Button("Blank template", "ExportBlankTemplateCommand");
-        var prefilled = Button("Prefilled template", "ExportPrefilledTemplateCommand");
-        Bind(prefilled, Visual.IsVisibleProperty, "IsLoaded");
-        var validate = Button("Validate", "ValidateCommand");
-        Bind(validate, Visual.IsVisibleProperty, "IsLoaded");
-        Bind(validate, Avalonia.Controls.Button.IsEnabledProperty, "CanValidate");
-        var import = Button("Import", "ImportCommand", true);
-        Bind(import, Visual.IsVisibleProperty, "IsLoaded");
-        Bind(import, Avalonia.Controls.Button.IsEnabledProperty, "CanImport");
-        return new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            ColumnSpacing = 16,
-            Children =
-            {
-                new StackPanel
-                {
-                    Spacing = 4,
-                    Children =
-                    {
-                        title,
-                        Muted("Review and complete imported rows before any inventory is written to the database.")
-                    }
-                },
-                At(new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 8,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Children = { blank, prefilled, open, validate, import }
-                }, column: 1)
-            }
         };
     }
 

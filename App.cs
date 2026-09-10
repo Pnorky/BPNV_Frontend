@@ -30,7 +30,7 @@ public class App : Application
     public override void Initialize()
     {
         QuestSettings.License = LicenseType.Community;
-        RequestedThemeVariant = ThemeVariant.Light;
+        RequestedThemeVariant = ThemeVariant.Default;
         ConfigureResources();
         ThemeConverter.ApplyCssAsset(this, new Uri("avares://AvaloniaApp/Assets/index.css"));
         ConfigureDataTemplates();

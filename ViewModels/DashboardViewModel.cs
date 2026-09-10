@@ -22,6 +22,7 @@ public partial class DashboardViewModel : ObservableObject
     private IReadOnlyList<NavItem> _allowedNavItems = [];
     private bool _suppressNavigation;
     private bool _returningToLogin;
+    private bool _hasThemeOverride;
     private string? _collapsedInventoryTag;
 
     [ObservableProperty]
@@ -29,6 +30,9 @@ public partial class DashboardViewModel : ObservableObject
 
     [ObservableProperty]
     private object? _currentPage;
+
+    [ObservableProperty]
+    private string _pageTitle = "Overview";
 
     [ObservableProperty]
     private NavItem? _selectedNavItem;
@@ -56,6 +60,11 @@ public partial class DashboardViewModel : ObservableObject
         _session = session;
         _notifications = notifications;
         _session.Changed += OnSessionChanged;
+        if (Application.Current is { } application)
+        {
+            IsDarkTheme = application.ActualThemeVariant == ThemeVariant.Dark;
+            application.ActualThemeVariantChanged += OnActualThemeVariantChanged;
+        }
         _allowedNavItems = _allNavItems.Where(item => CanNavigateTo(item.Tag)).ToArray();
         foreach (var item in _allowedNavItems) NavItems.Add(item);
         SelectedNavItem = NavItems[0];
@@ -73,6 +82,23 @@ public partial class DashboardViewModel : ObservableObject
     private void NavigateTo(string tag)
     {
         if (!CanNavigateTo(tag)) tag = "Dashboard";
+        PageTitle = tag switch
+        {
+            "Dashboard" => "Overview",
+            "Sales" => "Sale",
+            "InventoryProducts" => "Products",
+            "InventoryAddProduct" => "Add Product",
+            "InventoryReceiveStock" => "Receive Stock",
+            "InventoryBatchReceive" => "Batch Receive",
+            "InventoryDeliveryHistory" => "Delivery History",
+            "InventoryImport" => "Import Excel",
+            "InventorySuppliers" => "Suppliers",
+            "InventoryMovements" => "Stock Movements",
+            "Reports" => "Reports",
+            "Employees" => "Employees",
+            "Users" => "Users",
+            _ => "Overview"
+        };
         CurrentPage = tag switch
         {
             "Dashboard" => new DashboardPageViewModel(_storeClient, _notifications),
@@ -96,6 +122,16 @@ public partial class DashboardViewModel : ObservableObject
     {
         if (!CanNavigateTo(tag)) return;
         _collapsedInventoryTag = tag;
+        if (!SidebarCollapsed)
+        {
+            var child = NavItems.FirstOrDefault(item => item.IsChild && item.Tag == tag);
+            if (child is not null)
+            {
+                SelectNavItem(child);
+                return;
+            }
+        }
+
         var inventoryParent = NavItems.FirstOrDefault(item => !item.IsChild && item.Tag == "InventoryProducts");
         if (SidebarCollapsed && inventoryParent is not null && !ReferenceEquals(SelectedNavItem, inventoryParent))
         {
@@ -147,9 +183,16 @@ public partial class DashboardViewModel : ObservableObject
     [RelayCommand]
     private void ToggleTheme()
     {
+        _hasThemeOverride = true;
         IsDarkTheme = !IsDarkTheme;
         if (Application.Current is not null)
             Application.Current.RequestedThemeVariant = IsDarkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+    }
+
+    private void OnActualThemeVariantChanged(object? sender, EventArgs e)
+    {
+        if (!_hasThemeOverride && Application.Current is { } application)
+            IsDarkTheme = application.ActualThemeVariant == ThemeVariant.Dark;
     }
 
     [RelayCommand]
@@ -232,6 +275,8 @@ public partial class DashboardViewModel : ObservableObject
 
         _returningToLogin = true;
         _session.Changed -= OnSessionChanged;
+        if (Application.Current is { } application)
+            application.ActualThemeVariantChanged -= OnActualThemeVariantChanged;
         var login = new MainWindow { DataContext = new MainViewModel(_store, _authClient, _storeClient, _session) };
         desktop.MainWindow = login;
         login.Show();

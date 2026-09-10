@@ -38,7 +38,6 @@ public sealed class ApiStockMovementsView : UserControl
             Margin = new Thickness(30), Spacing = 14,
             Children =
             {
-                new StackPanel { Spacing = 4, Children = { Heading("Stock movements"), Muted("Move API-backed Bodega stock to Display.") } },
                 Status(),
                 Field("SEARCH PRODUCTS", search),
                 Card(form),
@@ -51,59 +50,6 @@ public sealed class ApiStockMovementsView : UserControl
 
     private static Control HistorySection()
     {
-        var search = new IconInput("Search", "Product, SKU, supplier, barcode...");
-        search.Input.Bind(TextBox.TextProperty, new Binding("HistorySearchText"));
-        var movementType = new SelectDropdown();
-        movementType.Bind(SelectDropdown.ItemsSourceProperty, new Binding("MovementTypes"));
-        movementType.Bind(SelectDropdown.SelectedItemProperty, new Binding("SelectedMovementType") { Mode = BindingMode.TwoWay });
-        var sort = new SelectDropdown();
-        sort.Bind(SelectDropdown.ItemsSourceProperty, new Binding("MovementSortOptions"));
-        sort.Bind(SelectDropdown.SelectedItemProperty, new Binding("SelectedMovementSort") { Mode = BindingMode.TwoWay });
-        var reference = Input("HistoryReference", "Reference or sale number");
-        var dateRange = new DateRangePicker
-        {
-            Width = 490,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            PlaceholderText = "Pick a date range"
-        };
-        dateRange.Bind(DateRangePicker.StartDateProperty, new Binding("HistoryFromDate") { Mode = BindingMode.TwoWay });
-        dateRange.Bind(DateRangePicker.EndDateProperty, new Binding("HistoryToDate") { Mode = BindingMode.TwoWay });
-        var apply = new ActionButton("Apply filters");
-        apply.Bind(Button.CommandProperty, new Binding("ApplyHistoryFiltersCommand"));
-        var clear = new ActionButton("Clear", ActionButtonVariant.Secondary);
-        clear.Bind(Button.CommandProperty, new Binding("ClearHistoryFiltersCommand"));
-        var actions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Children = { apply, clear }
-        };
-        var primaryFilters = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("1.5*,1*,1*,1.1*"),
-            ColumnSpacing = 10,
-            Children =
-            {
-                Field("SEARCH", search),
-                At(Field("MOVEMENT", movementType), 1),
-                At(Field("ORDER", sort), 2),
-                At(Field("REFERENCE", reference), 3)
-            }
-        };
-        var dateFilters = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("520,*"),
-            ColumnSpacing = 10,
-            Children =
-            {
-                Field("DATE RANGE", dateRange),
-                At(actions, 1)
-            }
-        };
-        actions.HorizontalAlignment = HorizontalAlignment.Right;
-        var filters = new StackPanel { Spacing = 10, Children = { primaryFilters, dateFilters } };
-
         var table = new PagedTable
         {
             Height = 510,
@@ -152,14 +98,14 @@ public sealed class ApiStockMovementsView : UserControl
             }
         };
         count.VerticalAlignment = VerticalAlignment.Bottom;
-        return new StackPanel { Spacing = 12, Margin = new Thickness(0, 10, 0, 0), Children = { heading, filters, table } };
+        return new StackPanel { Spacing = 12, Margin = new Thickness(0, 10, 0, 0), Children = { heading, table } };
     }
 
     private static TextBox Input(string path, string placeholder) { var value = new TextBox { PlaceholderText = placeholder }; value.Classes.Add("form-input"); value.Bind(TextBox.TextProperty, new Binding(path)); return value; }
     private static StackPanel Field(string label, Control control) { var caption = new TextBlock { Text = label }; caption.Classes.Add("form-label"); return new StackPanel { Spacing = 5, Children = { caption, control } }; }
     private static Border Card(Control child) { var value = new Border { Padding = new Thickness(20), Child = child }; value.Classes.Add("theme-card"); value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return value; }
     private static Border Status() { var value = new Border { Padding = new Thickness(12, 8), Child = Bound("StatusMessage") }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }
-    private static TextBlock Heading(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("h1"); return value; }
+    private static TextBlock Heading(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("h2"); return value; }
     private static TextBlock Muted(string text) { var value = new TextBlock { Text = text }; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
     private static TextBlock Bound(string path) { var value = new TextBlock(); value.Bind(TextBlock.TextProperty, new Binding(path)); return value; }
     private static TextBlock Text(string path, bool muted = false) { var value = Bound(path); if (muted) value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }

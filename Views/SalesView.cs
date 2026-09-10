@@ -32,40 +32,17 @@ public class SalesView : UserControl
             ColumnSpacing = 16,
             Children = { Card(Catalog()), At(Card(CurrentSale()), 1) }
         };
-        Grid.SetRow(body, 2);
+        Grid.SetRow(body, 1);
 
         Content = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,*"),
             Margin = new Thickness(30),
             RowSpacing = 14,
-            Children = { Header(), At(_scanner, row: 1), body }
+            Children = { _scanner, body }
         };
         DataContextChanged += OnDataContextChanged;
         AttachedToVisualTree += (_, _) => FocusScanner();
-    }
-
-    private static Control Header()
-    {
-        var title = new TextBlock { Text = "New sale" }; title.Classes.Add("h1");
-        var pricing = new SearchableSelect { MinWidth = 150, PlaceholderText = "Pricing type" };
-        pricing.Bind(SearchableSelect.ItemsSourceProperty, new Binding("CustomerTypes"));
-        pricing.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedCustomerType"));
-        var employee = new SearchableSelect { MinWidth = 260, PlaceholderText = "Select employee" };
-        employee.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Employees"));
-        employee.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedEmployee"));
-        employee.Bind(Visual.IsVisibleProperty, new Binding("IsEmployeeSale"));
-        var selectors = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { pricing, employee } };
-        Grid.SetColumn(selectors, 1);
-        return new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Children =
-            {
-                new StackPanel { Spacing = 4, Children = { title, StaticMuted("Server-priced package-aware point of sale") } },
-                selectors
-            }
-        };
     }
 
     private static Control Catalog()
@@ -187,7 +164,6 @@ public class SalesView : UserControl
     private void FocusScanner() => Dispatcher.UIThread.Post(() => _scanner.Focus());
     private static Border Card(Control child) { var value = new Border { Padding = new Thickness(20), Child = child }; value.Classes.Add("theme-card"); value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return value; }
     private static TextBlock Heading(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("h2"); return value; }
-    private static TextBlock StaticMuted(string value) { var text = new TextBlock { Text = value }; text.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return text; }
     private static TextBlock Text(string path, FontWeight? weight = null, string? resource = null, string? format = null) { var value = new TextBlock { FontWeight = weight ?? FontWeight.Normal }; value.Bind(TextBlock.TextProperty, new Binding(path) { StringFormat = format }); if (resource is not null) value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension(resource)); return value; }
     private static Button Button(string text, string command, bool primary, bool ancestor = false) { var value = new ActionButton(text, primary ? ActionButtonVariant.Primary : ActionButtonVariant.Secondary); value.Bind(Avalonia.Controls.Button.CommandProperty, ancestor ? AncestorCommand(command) : new Binding(command)); return value; }
     private static Binding AncestorCommand(string command) => new($"DataContext.{command}") { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(ListBox) } };

@@ -21,7 +21,6 @@ public class StockReceivingView : UserControl
 
     public StockReceivingView()
     {
-        var title = new TextBlock { Text = "Receive stock" }; title.Classes.Add("h1");
         _scanner = Input("ScannerText", "Scan piece or package barcode, then press Enter");
         _scanner.KeyDown += OnScannerKeyDown;
         var catalog = new SearchableSelect
@@ -69,18 +68,15 @@ public class StockReceivingView : UserControl
             }
         });
 
-        var submit = Button("Receive into bodega", "SubmitReceiptCommand", true);
-        submit.VerticalAlignment = VerticalAlignment.Bottom;
         var form = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("0.55*,1*,1.5*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("0.55*,1*,1.5*"),
             ColumnSpacing = 12,
             Children =
             {
                 Field("COUNT OF SCANNED UNIT", Number("Count")),
                 At(Field("REFERENCE", Input("Reference", "Delivery receipt")), 1),
-                At(Field("NOTES", Input("Notes", "Optional notes")), 2),
-                At(submit, 3)
+                At(Field("NOTES", Input("Notes", "Optional notes")), 2)
             }
         };
 
@@ -90,7 +86,6 @@ public class StockReceivingView : UserControl
             Spacing = 16,
             Children =
             {
-                new StackPanel { Spacing = 4, Children = { title, StaticMuted("Scan an exact barcode, or select a product by name or SKU when it has no barcode.") } },
                 lookup, selection, Card(form), Status()
             }
         };
@@ -132,7 +127,6 @@ public class StockReceivingView : UserControl
     private static TextBlock Heading(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("h3"); return value; }
     private static TextBlock Bound(string path, double size, FontWeight weight) { var value = new TextBlock { FontSize = size, FontWeight = weight, TextWrapping = TextWrapping.Wrap }; value.Bind(TextBlock.TextProperty, new Binding(path)); return value; }
     private static TextBlock Muted(string path) { var value = Bound(path, 12, FontWeight.Normal); value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
-    private static TextBlock StaticMuted(string text) { var value = new TextBlock { Text = text }; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
     private static StackPanel Price(string label, string path) => new()
     {
         Spacing = 3,
@@ -162,7 +156,6 @@ public class StockReceivingView : UserControl
     };
     private static AmountInput Amount(string path) { var value = new AmountInput(); value.Bind(AmountInput.ValueProperty, new Binding(path)); return value; }
     private static TextBlock StaticLabel(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("form-label"); return value; }
-    private static Button Button(string text, string command, bool primary) { var value = new ActionButton(text, primary ? ActionButtonVariant.Primary : ActionButtonVariant.Secondary); value.Bind(Avalonia.Controls.Button.CommandProperty, new Binding(command)); return value; }
     private static Border Card(Control child) { var value = new Border { Padding = new Thickness(20), Child = child }; value.Classes.Add("theme-card"); value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return value; }
     private static Border Status() { var value = new Border { Padding = new Thickness(14, 10), CornerRadius = new CornerRadius(7), Child = Bound("StatusMessage", 12, FontWeight.Normal) }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }
     private static T At<T>(T value, int column) where T : Control { Grid.SetColumn(value, column); return value; }

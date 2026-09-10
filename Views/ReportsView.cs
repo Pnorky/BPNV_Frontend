@@ -8,7 +8,6 @@ using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using AvaloniaApp.Services;
 using AvaloniaApp.Views.UI;
-using Lucide.Avalonia;
 
 namespace AvaloniaApp.Views;
 
@@ -21,82 +20,22 @@ public class ReportsView : UserControl
             RowDefinitions = new RowDefinitions("Auto,*"),
             Margin = new Thickness(30),
             RowSpacing = 18,
-            Children = { BuildHeader(), At(BuildTabs(), row: 1) }
+            Children = { BuildStatus(), At(BuildTabs(), row: 1) }
         };
     }
 
-    private static Control BuildHeader()
+    private static Control BuildStatus()
     {
-        var title = Heading("Reports", "h1");
         var status = Muted(path: "StatusMessage", fontSize: 11);
         var exportStatus = Muted(path: "ExportStatus", fontSize: 11);
-        var actions = new StackPanel
+        var panel = new Border
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children =
-            {
-                ExportButton("Export PDF", "ExportPdfCommand", LucideIconKind.FileText),
-                ExportButton("Export Excel", "ExportExcelCommand", LucideIconKind.FileSpreadsheet),
-                Button("Refresh", "RefreshCommand", true)
-            }
+            Padding = new Thickness(12, 8),
+            CornerRadius = new CornerRadius(7),
+            Child = new StackPanel { Spacing = 2, Children = { status, exportStatus } }
         };
-        var dateRange = new DateRangePicker { PlaceholderText = "Pick a date range" };
-        Bind(dateRange, DateRangePicker.StartDateProperty, "FromDate");
-        Bind(dateRange, DateRangePicker.EndDateProperty, "ToDate");
-        var applyDateRange = Button("Apply filters", "RefreshCommand", true);
-        applyDateRange.VerticalAlignment = VerticalAlignment.Bottom;
-        var customerType = new SelectDropdown();
-        Bind(customerType, SelectDropdown.ItemsSourceProperty, "CustomerTypeOptions");
-        Bind(customerType, SelectDropdown.SelectedItemProperty, "SelectedCustomerType");
-        var employee = new SearchableSelect { PlaceholderText = "All employees", MinWidth = 220 };
-        Bind(employee, SearchableSelect.ItemsSourceProperty, "Employees");
-        Bind(employee, SearchableSelect.SelectedItemProperty, "SelectedEmployee");
-        var clearEmployee = Button("All", "ClearEmployeeFilterCommand");
-        var employeeFilter = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 6, Children = { employee, At(clearEmployee, column: 1) } };
-        actions.HorizontalAlignment = HorizontalAlignment.Right;
-        Grid.SetColumnSpan(actions, 2);
-
-        return new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,Auto"),
-            ColumnDefinitions = new ColumnDefinitions("1.2*,0.7*,1*,Auto"),
-            ColumnSpacing = 10,
-            RowSpacing = 12,
-            Children =
-            {
-                new StackPanel { Spacing = 4, Children = { title, Muted("Sales, inventory, and supplier ordering summaries"), status, exportStatus } },
-                At(actions, column: 1),
-                At(Field("DATE RANGE", dateRange), row: 1),
-                At(Field("SALES TYPE", customerType), column: 1, row: 1),
-                At(Field("EMPLOYEE", employeeFilter), column: 2, row: 1),
-                At(applyDateRange, column: 3, row: 1)
-            }
-        };
-    }
-
-    private static Button ExportButton(string text, string command, LucideIconKind kind)
-    {
-        var button = Button(null, command);
-        button.Width = 164;
-        button.Height = 44;
-        button.Padding = new Thickness(12, 0);
-        button.HorizontalContentAlignment = HorizontalAlignment.Left;
-        button.VerticalContentAlignment = VerticalAlignment.Center;
-        button.Content = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("20,*"),
-            RowDefinitions = new RowDefinitions("20"),
-            ColumnSpacing = 7,
-            Width = 140,
-            Children =
-            {
-                new LucideIcon { Kind = kind, Width = 18, Height = 18, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-                At(new TextBlock { Text = text, LineHeight = 20, VerticalAlignment = VerticalAlignment.Center }, column: 1)
-            }
-        };
-        return button;
+        panel.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary"));
+        return panel;
     }
 
     private static Control BuildTabs() => new TabControl
@@ -331,23 +270,12 @@ public class ReportsView : UserControl
         Content = content
     };
 
-    private static Button Button(object? content, string command, bool primary = false)
-    {
-        var button = new Button { Content = content };
-        Bind(button, Avalonia.Controls.Button.CommandProperty, command);
-        if (primary) button.Classes.Add("primary");
-        return button;
-    }
-
     private static TextBlock Heading(string text, string className)
     {
         var block = new TextBlock { Text = text };
         block.Classes.Add(className);
         return block;
     }
-
-    private static StackPanel Field(string label, Control control) =>
-        new() { Spacing = 5, Children = { new TextBlock { Text = label, Classes = { "form-label" } }, control } };
 
     private static TextBlock BoundText(string path, string? format = null)
     {

@@ -22,12 +22,11 @@ public class AddProductView : UserControl
             Margin = new Thickness(0, 0, 18, 0),
             Children =
             {
-                Header(),
+                Status(),
                 Card(SupplierSection(), new Thickness(20)),
                 Card(ProductDetails(), new Thickness(20)),
                 Card(ReorderSection(), new Thickness(20)),
-                Card(PackageSection(), new Thickness(20)),
-                CreateProductAction()
+                Card(PackageSection(), new Thickness(20))
             }
         };
         Content = new ScrollViewer
@@ -35,22 +34,6 @@ public class AddProductView : UserControl
             Content = content,
             Margin = new Thickness(30, 30, 12, 30),
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
-        };
-    }
-
-    private static Control Header()
-    {
-        var title = new TextBlock { Text = "Add product" };
-        title.Classes.Add("h1");
-        return new StackPanel
-        {
-            Spacing = 5,
-            Children =
-            {
-                title,
-                Muted("Register the base piece and optional scannable packages. Inventory starts at zero."),
-                Status()
-            }
         };
     }
 
@@ -151,13 +134,6 @@ public class AddProductView : UserControl
         Bind(packages, ItemsControl.ItemsSourceProperty, "Packages");
         packages.ItemTemplate = new FuncDataTemplate<ProductPackageDraft>((_, _) => PackageRow(), true);
         return new StackPanel { Spacing = 14, Children = { heading, packages } };
-    }
-
-    private static Control CreateProductAction()
-    {
-        var save = Button("Create product", "CreateProductCommand", true);
-        save.HorizontalAlignment = HorizontalAlignment.Right;
-        return save;
     }
 
     private static Control PackageRow()

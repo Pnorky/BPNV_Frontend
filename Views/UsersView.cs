@@ -32,7 +32,6 @@ public sealed class UsersView : UserControl
                 Spacing = 16,
                 Children =
                 {
-                    Header(),
                     Metrics(),
                     StatusMessage(),
                     new Grid
@@ -86,20 +85,6 @@ public sealed class UsersView : UserControl
         });
     }
 
-    private static Control Header()
-    {
-        var title = new TextBlock { Text = "Users", Classes = { "h1" } };
-        var subtitle = Muted("Control staff accounts and assign access to store operations.");
-        var add = new ActionButton("New user", ActionButtonVariant.Primary, ActionButtonSize.Sm);
-        add.Bind(Button.CommandProperty, new Binding("NewUserCommand"));
-        Grid.SetColumn(add, 1);
-        return new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Children = { new StackPanel { Spacing = 4, Children = { title, subtitle } }, add }
-        };
-    }
-
     private static Control Metrics()
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*,*"), ColumnSpacing = 12 };
@@ -140,21 +125,6 @@ public sealed class UsersView : UserControl
 
     private static Control UserTable()
     {
-        var search = new IconInput("Search", "Search name, username, or role...");
-        search.Input.Bind(TextBox.TextProperty, new Binding("SearchText"));
-        var status = new ComboBox { MinWidth = 130, Classes = { "form-select" } };
-        status.Bind(ItemsControl.ItemsSourceProperty, new Binding("StatusFilters"));
-        status.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedStatusFilter"));
-        var refresh = new ActionButton("Refresh", ActionButtonVariant.Secondary, ActionButtonSize.Sm);
-        refresh.Bind(Button.CommandProperty, new Binding("LoadCommand"));
-
-        var controls = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
-            ColumnSpacing = 8,
-            Children = { search, At(status, column: 1), At(refresh, column: 2) }
-        };
-
         var table = new PagedTable
         {
             ItemName = "user account",
@@ -188,13 +158,12 @@ public sealed class UsersView : UserControl
         var heading = new TextBlock { Text = "User directory", Classes = { "h2" } };
         var tableCard = Card(new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,*"),
             RowSpacing = 14,
             Children =
             {
                 new StackPanel { Spacing = 3, Children = { heading, Muted("All active and inactive accounts from the database.") } },
-                At(controls, row: 1),
-                At(table, row: 2)
+                At(table, row: 1)
             }
         }, new Thickness(18));
         tableCard.VerticalAlignment = VerticalAlignment.Top;

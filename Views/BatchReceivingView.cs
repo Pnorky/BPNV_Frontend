@@ -23,7 +23,6 @@ public sealed class BatchReceivingView : UserControl
             Margin = new Thickness(0, 0, 18, 0),
             Children =
             {
-                Header(),
                 Status(),
                 CaptureCard(),
                 IssueCard(),
@@ -38,42 +37,6 @@ public sealed class BatchReceivingView : UserControl
             // Keep the page viewport bounded so wide tables can scroll internally.
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             HorizontalContentAlignment = HorizontalAlignment.Stretch
-        };
-    }
-
-    private static Control Header()
-    {
-        var title = new TextBlock { Text = "Batch Receive" };
-        title.Classes.Add("h1");
-        var review = Button("Review Batch", "ReviewBatchCommand", true);
-        Bind(review, Avalonia.Controls.Button.IsEnabledProperty, "CanReview");
-        var receive = Button("Receive into Bodega", "CommitBatchCommand", true);
-        Bind(receive, Avalonia.Controls.Button.IsEnabledProperty, "CanCommit");
-        var clear = Button("Clear", "ClearDraftCommand");
-        Bind(clear, Avalonia.Controls.Button.IsEnabledProperty, "CanEdit");
-        return new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            ColumnSpacing = 16,
-            Children =
-            {
-                new StackPanel
-                {
-                    Spacing = 4,
-                    Children =
-                    {
-                        title,
-                        Muted("Capture an Eyoyo keyboard export, validate every unit, then receive the unchanged batch into Bodega only.")
-                    }
-                },
-                At(new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 8,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Children = { clear, review, receive }
-                }, column: 1)
-            }
         };
     }
 

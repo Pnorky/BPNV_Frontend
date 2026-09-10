@@ -24,39 +24,9 @@ public class DashboardView : UserControl
                 Spacing = 22,
                 Children =
                 {
-                    BuildHeader(),
                     BuildMetrics(),
                     BuildDetails()
                 }
-            }
-        };
-    }
-
-    private static Grid BuildHeader()
-    {
-        var title = new TextBlock { Text = "Store overview" };
-        title.Classes.Add("h1");
-
-        var subtitle = new TextBlock();
-        subtitle.Bind(TextBlock.TextProperty, new Binding("StatusMessage"));
-        Resource(subtitle, TextBlock.ForegroundProperty, "MutedForeground");
-
-        var refresh = new Button
-        {
-            Content = "Refresh",
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        refresh.Classes.Add("primary");
-        refresh.Bind(Button.CommandProperty, new Binding("RefreshCommand"));
-        Grid.SetColumn(refresh, 1);
-
-        return new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Children =
-            {
-                new StackPanel { Spacing = 4, Children = { title, subtitle } },
-                refresh
             }
         };
     }

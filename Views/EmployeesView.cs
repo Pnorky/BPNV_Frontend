@@ -17,34 +17,25 @@ public sealed class EmployeesView : UserControl
 {
     public EmployeesView()
     {
-        var title = new TextBlock { Text = "Employees" }; title.Classes.Add("h1");
-        var search = new IconInput("Search", "Search employee ID or name...");
-        search.Input.Bind(TextBox.TextProperty, new Binding("SearchText"));
-        var refresh = Button("Refresh", "LoadCommand"); Grid.SetColumn(refresh, 1);
         var list = new ItemsControl();
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding("FilteredEmployees"));
         list.ItemTemplate = new FuncDataTemplate<EmployeeResponse>((_, _) => EmployeeRow(), true);
         Grid.SetRow(list, 1);
         var listCard = Card(new Grid { RowDefinitions = new RowDefinitions("Auto,*"), Children = { Header(), list } }, 0);
 
-        Content = new Grid { Margin = new Thickness(30), RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*"), RowSpacing = 14, Children =
+        Content = new Grid { Margin = new Thickness(30), RowDefinitions = new RowDefinitions("Auto,Auto,*"), RowSpacing = 14, Children =
         {
-            new StackPanel { Spacing = 4, Children = { title, Muted("Reference employees for employee-priced sales and salary deductions") } },
-            At(Status(), 1),
-            At(new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 10, Children = { search, refresh } }, 2),
-            At(AddCard(), 3),
-            At(listCard, 4)
+            Status(),
+            At(AddCard(), 1),
+            At(listCard, 2)
         } };
     }
 
     private static Border AddCard()
     {
-        var submit = Button("Add employee", "CreateEmployeeCommand", true);
-        submit.VerticalAlignment = VerticalAlignment.Bottom;
-        Grid.SetColumn(submit, 1);
         var input = new FormInput("EMPLOYEE NAME", "Required");
         input.Input.Bind(TextBox.TextProperty, new Binding("EmployeeName"));
-        return Card(new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12, Children = { input, submit } }, 20);
+        return Card(input, 20);
     }
 
     private static Border Header()
@@ -118,7 +109,6 @@ public sealed class EmployeesView : UserControl
     }
     private static Border Card(Control child, double padding) { var value = new Border { Padding = new Thickness(padding), ClipToBounds = true, Child = child }; value.Classes.Add("theme-card"); value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return value; }
     private static Border Status() { var value = new Border { Padding = new Thickness(12, 8), CornerRadius = new CornerRadius(7), Child = Bound("StatusMessage") }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }
-    private static Button Button(string text, string? command = null, bool primary = false) { var value = new ActionButton(text, primary ? ActionButtonVariant.Primary : ActionButtonVariant.Secondary, ActionButtonSize.Sm); if (command is not null) value.Bind(Avalonia.Controls.Button.CommandProperty, new Binding(command)); return value; }
     private static TextBlock Bound(string path, bool bold = false) { var value = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontWeight = bold ? FontWeight.SemiBold : FontWeight.Normal }; value.Bind(TextBlock.TextProperty, new Binding(path)); return value; }
     private static TextBlock Muted(string text) { var value = new TextBlock { Text = text }; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
     private static T At<T>(T control, int row = 0, int column = 0) where T : Control { Grid.SetRow(control, row); Grid.SetColumn(control, column); return control; }

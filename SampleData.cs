@@ -101,7 +101,7 @@ public static class SampleData
     public static List<NavItem> NavItems => new()
     {
         new() { Icon = "LayoutDashboard", Text = "Overview", Tag = "Dashboard" },
-        new() { Icon = "ShoppingBasket", Text = "New Sale", Tag = "Sales" },
+        new() { Icon = "ShoppingBasket", Text = "Sale", Tag = "Sales" },
         new() { Icon = "Boxes", Text = "Inventory", Tag = "InventoryProducts" },
         new() { Icon = "Package", Text = "Products", Tag = "InventoryProducts", IsChild = true, Group = "Catalog" },
         new() { Icon = "PackagePlus", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
