@@ -104,9 +104,9 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
-    [DataRow("Cashier", "Dashboard,Sales")]
+    [DataRow("Cashier", "Dashboard,CashierShift,Sales")]
     [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,Reports,Employees")]
-    [DataRow("Admin", "Dashboard,Sales,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,Reports,Employees,Users")]
+    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,Reports,CashierShiftManagement,CashierOperations,AdminNotifications,Employees,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));

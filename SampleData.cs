@@ -100,9 +100,10 @@ public static class SampleData
 {
     public static List<NavItem> NavItems => new()
     {
-        new() { Icon = "LayoutDashboard", Text = "Overview", Tag = "Dashboard" },
+        new() { Icon = "LayoutDashboard", Text = "Overview", Tag = "Dashboard", Group = "Workspace" },
+        new() { Icon = "Clock3", Text = "Cashier Shift", Tag = "CashierShift", Group = "Sales" },
         new() { Icon = "ShoppingBasket", Text = "Sale", Tag = "Sales" },
-        new() { Icon = "Boxes", Text = "Inventory", Tag = "InventoryProducts" },
+        new() { Icon = "Boxes", Text = "Inventory", Tag = "InventoryProducts", Group = "Inventory" },
         new() { Icon = "Package", Text = "Products", Tag = "InventoryProducts", IsChild = true, Group = "Catalog" },
         new() { Icon = "PackagePlus", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
         new() { Icon = "Boxes", Text = "Receive Stock", Tag = "InventoryReceiveStock", IsChild = true, Group = "Receiving" },
@@ -111,7 +112,10 @@ public static class SampleData
         new() { Icon = "FileSpreadsheet", Text = "Import Excel", Tag = "InventoryImport", IsChild = true },
         new() { Icon = "Truck", Text = "Suppliers", Tag = "InventorySuppliers", IsChild = true, Group = "Operations" },
         new() { Icon = "ArrowLeftRight", Text = "Stock Movements", Tag = "InventoryMovements", IsChild = true },
-        new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports" },
+        new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports", Group = "Insights" },
+        new() { Icon = "CalendarClock", Text = "Cashier Shifts", Tag = "CashierShiftManagement", Group = "Administration" },
+        new() { Icon = "ReceiptText", Text = "Cashier Operations", Tag = "CashierOperations" },
+        new() { Icon = "Bell", Text = "Notifications", Tag = "AdminNotifications" },
         new() { Icon = "Users", Text = "Employees", Tag = "Employees" },
         new() { Icon = "User", Text = "Users", Tag = "Users" },
     };

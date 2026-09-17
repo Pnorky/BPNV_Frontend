@@ -21,6 +21,8 @@ namespace AvaloniaApp.Views;
 
 public class DashboardWindow : Window
 {
+    private bool _allowCloseWithOpenShift;
+    private bool _showingCloseWarning;
     private readonly Flyout _inventoryFlyout;
     private readonly Border _inventoryFlyoutContent;
     private readonly TranslateTransform _inventoryFlyoutOffset;
@@ -178,6 +180,8 @@ public class DashboardWindow : Window
         };
 
         DataContextChanged += OnDataContextChanged;
+        Closing += OnClosing;
+        Closed += (_, _) => (DataContext as IDisposable)?.Dispose();
     }
 
     private Button CreateFooterButton(string text, string commandPath)
@@ -403,6 +407,28 @@ public class DashboardWindow : Window
                 }
 
             };
+        }
+    }
+
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowCloseWithOpenShift || _showingCloseWarning || DataContext is not DashboardViewModel { CashierShift.IsClockedIn: true }) return;
+        e.Cancel = true;
+        _showingCloseWarning = true;
+        try
+        {
+            var dialog = new AvaloniaApp.Views.Dialogs.ConfirmDialog();
+            dialog.SetConfirmation("Exit with an open cashier shift?", "Closing the app does not clock out the cashier. The backend session and terminal lock will remain active until the cashier or an Admin closes it.", "Exit anyway");
+            await dialog.ShowDialog(this);
+            if (dialog.Confirmed)
+            {
+                _allowCloseWithOpenShift = true;
+                Close();
+            }
+        }
+        finally
+        {
+            _showingCloseWarning = false;
         }
     }
 

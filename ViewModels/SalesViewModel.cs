@@ -46,13 +46,14 @@ public partial class ApiCartLine(PosProductResponse product, ProductUnitResponse
             : unit.RegularPrice;
 }
 
-public partial class SalesViewModel : ObservableObject
+public partial class SalesViewModel : ObservableObject, IDisposable
 {
     private readonly StoreApiClient _api;
     private readonly INotificationService _notifications;
     private IReadOnlyList<PosProductResponse> _products = [];
     private Guid? _idempotencyKey;
     private bool _suppressCartMutation;
+    private readonly CashierShiftState? _cashierShift;
 
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private string _scannerText = "";
@@ -68,12 +69,17 @@ public partial class SalesViewModel : ObservableObject
     public ObservableCollection<ApiCartLine> Cart { get; } = [];
     public string CartSummary => Cart.Count == 0 ? "No units added" : $"{Cart.Sum(line => line.Count)} units / {Cart.Sum(line => line.BasePieceQuantity)} pieces";
     public string TotalDisplay => $"₱{Cart.Sum(line => line.Amount):N2}";
+    public bool CanCheckout => _cashierShift?.CanCheckout == true;
+    public bool ShowShiftGate => !CanCheckout;
+    public string ShiftGateMessage => _cashierShift?.ErrorMessage ?? "Clock in to your assigned cashier shift before completing a sale.";
     public event EventHandler? ScannerFocusRequested;
 
-    public SalesViewModel(StoreApiClient api, INotificationService notifications)
+    public SalesViewModel(StoreApiClient api, INotificationService notifications, CashierShiftState? cashierShift = null)
     {
         _api = api;
         _notifications = notifications;
+        _cashierShift = cashierShift;
+        if (_cashierShift is not null) _cashierShift.PropertyChanged += OnCashierShiftChanged;
         Cart.CollectionChanged += OnCartChanged;
         _ = LoadCatalogAsync();
     }
@@ -210,6 +216,15 @@ public partial class SalesViewModel : ObservableObject
     private async Task CompleteSaleAsync()
     {
         if (IsBusy) return;
+        if (_cashierShift is null || !_cashierShift.CanCheckout)
+        {
+            if (_cashierShift is not null) await _cashierShift.RefreshAsync();
+            if (_cashierShift?.CanCheckout != true)
+            {
+                ShowError("Clock-in required", ShiftGateMessage);
+                return;
+            }
+        }
         if (Cart.Count == 0)
         {
             ShowError("Sale not completed", "Add at least one unit before completing the sale.");
@@ -262,6 +277,7 @@ public partial class SalesViewModel : ObservableObject
         catch (ApiClientException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
         {
             ShowError("Sale not completed", exception.Message);
+            if (_cashierShift is not null) await _cashierShift.RefreshAsync();
             await TryRefreshCatalogAsync();
         }
         catch (Exception exception) when (IsApiFailure(exception))
@@ -379,6 +395,18 @@ public partial class SalesViewModel : ObservableObject
         OnPropertyChanged(nameof(TotalDisplay));
     }
     private void RequestScannerFocus() => ScannerFocusRequested?.Invoke(this, EventArgs.Empty);
+    private void OnCashierShiftChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(CanCheckout));
+        OnPropertyChanged(nameof(ShowShiftGate));
+        OnPropertyChanged(nameof(ShiftGateMessage));
+    }
+    public void Dispose()
+    {
+        if (_cashierShift is not null) _cashierShift.PropertyChanged -= OnCashierShiftChanged;
+        foreach (var line in Cart) line.PropertyChanged -= OnCartLineChanged;
+        Cart.CollectionChanged -= OnCartChanged;
+    }
     private void ShowError(string title, string message)
     {
         StatusMessage = message;

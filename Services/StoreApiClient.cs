@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -239,6 +240,127 @@ public sealed class StoreApiClient(AuthApiClient authClient)
         CancellationToken cancellationToken = default) =>
         SendJsonAsync<SaleResponse, CreateSaleRequest>(HttpMethod.Post, "api/sales", request, cancellationToken);
 
+    public Task<IReadOnlyList<ShiftDefinitionResponse>> GetShiftDefinitionsAsync(bool includeInactive = false, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<ShiftDefinitionResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/cashier-shifts/definitions", ("includeInactive", includeInactive ? "true" : "false"))), cancellationToken);
+
+    public Task<ShiftDefinitionResponse> CreateShiftDefinitionAsync(CreateShiftDefinitionRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<ShiftDefinitionResponse, CreateShiftDefinitionRequest>(HttpMethod.Post, "api/cashier-shifts/definitions", request, cancellationToken);
+
+    public Task<ShiftDefinitionResponse> UpdateShiftDefinitionAsync(Guid id, UpdateShiftDefinitionRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<ShiftDefinitionResponse, UpdateShiftDefinitionRequest>(HttpMethod.Put, $"api/cashier-shifts/definitions/{id}", request, cancellationToken);
+
+    public Task DeactivateShiftDefinitionAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Delete, $"api/cashier-shifts/definitions/{id}", cancellationToken);
+
+    public Task ReactivateShiftDefinitionAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/cashier-shifts/definitions/{id}/reactivate", cancellationToken);
+
+    public Task<IReadOnlyList<CashierShiftScheduleResponse>> GetCashierShiftSchedulesAsync(
+        DateOnly? fromDate = null, DateOnly? toDateExclusive = null, Guid? cashierUserId = null,
+        Guid? shiftDefinitionId = null, bool includeInactive = false, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<CashierShiftScheduleResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/cashier-shifts/schedules",
+                ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)),
+                ("cashierUserId", cashierUserId?.ToString()), ("shiftDefinitionId", shiftDefinitionId?.ToString()),
+                ("includeInactive", includeInactive ? "true" : "false"))), cancellationToken);
+
+    public Task<CashierShiftScheduleResponse> CreateCashierShiftScheduleAsync(CreateCashierShiftScheduleRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftScheduleResponse, CreateCashierShiftScheduleRequest>(HttpMethod.Post, "api/cashier-shifts/schedules", request, cancellationToken);
+
+    public Task<CashierShiftScheduleResponse> UpdateCashierShiftScheduleAsync(Guid id, UpdateCashierShiftScheduleRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftScheduleResponse, UpdateCashierShiftScheduleRequest>(HttpMethod.Put, $"api/cashier-shifts/schedules/{id}", request, cancellationToken);
+
+    public Task DeactivateCashierShiftScheduleAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Delete, $"api/cashier-shifts/schedules/{id}", cancellationToken);
+
+    public Task ReactivateCashierShiftScheduleAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/cashier-shifts/schedules/{id}/reactivate", cancellationToken);
+
+    public Task<IReadOnlyList<CashierShiftOverrideResponse>> GetCashierShiftOverridesAsync(DateOnly fromDate, DateOnly toDateExclusive, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<CashierShiftOverrideResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/cashier-shifts/assignment-overrides",
+                ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)))), cancellationToken);
+
+    public Task<IReadOnlyList<ResolvedCashierShiftAssignmentResponse>> GetResolvedCashierScheduleAsync(DateOnly fromDate, DateOnly toDateExclusive, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<ResolvedCashierShiftAssignmentResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/cashier-shifts/resolved-schedule",
+                ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)))), cancellationToken);
+
+    public Task<CashierShiftOverrideResponse> CreateCashierShiftOverrideAsync(CreateCashierShiftOverrideRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftOverrideResponse, CreateCashierShiftOverrideRequest>(HttpMethod.Post, "api/cashier-shifts/assignment-overrides", request, cancellationToken);
+
+    public Task<CashierShiftOverrideResponse> UpdateCashierShiftOverrideAsync(Guid id, UpdateCashierShiftOverrideRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftOverrideResponse, UpdateCashierShiftOverrideRequest>(HttpMethod.Put, $"api/cashier-shifts/assignment-overrides/{id}", request, cancellationToken);
+
+    public Task DeleteCashierShiftOverrideAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Delete, $"api/cashier-shifts/assignment-overrides/{id}", cancellationToken);
+
+    public Task<CashierClockStatusResponse> GetCashierClockStatusAsync(CancellationToken cancellationToken = default) =>
+        SendAsync<CashierClockStatusResponse>(() => new HttpRequestMessage(HttpMethod.Get, "api/cashier-shifts/clock-status"), cancellationToken);
+
+    public Task<CashierShiftSessionResponse> ClockInAsync(ClockInRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftSessionResponse, ClockInRequest>(HttpMethod.Post, "api/cashier-shifts/clock-in", request, cancellationToken);
+
+    public Task<CashierShiftSessionResponse> ClockOutAsync(ClockOutRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftSessionResponse, ClockOutRequest>(HttpMethod.Post, "api/cashier-shifts/clock-out", request, cancellationToken);
+
+    public Task<PagedResponse<CashierShiftSessionResponse>> GetCashierShiftSessionsAsync(
+        DateOnly? fromDate = null, DateOnly? toDateExclusive = null, Guid? cashierUserId = null,
+        Guid? shiftDefinitionId = null, ApiCashierShiftSessionStatus? status = null,
+        int page = 1, int pageSize = 20, CancellationToken cancellationToken = default) =>
+        SendAsync<PagedResponse<CashierShiftSessionResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/cashier-shifts/sessions",
+                ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)),
+                ("cashierUserId", cashierUserId?.ToString()), ("shiftDefinitionId", shiftDefinitionId?.ToString()),
+                ("status", status?.ToString()), ("page", page.ToString(CultureInfo.InvariantCulture)),
+                ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+
+    public Task<CashierShiftSessionDetailResponse> GetCashierShiftSessionAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendAsync<CashierShiftSessionDetailResponse>(() => new HttpRequestMessage(HttpMethod.Get, $"api/cashier-shifts/sessions/{id}"), cancellationToken);
+
+    public Task<CashierShiftSessionResponse> AdministrativeClockOutAsync(Guid sessionId, AdministrativeClockOutRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftSessionResponse, AdministrativeClockOutRequest>(HttpMethod.Post, $"api/cashier-shifts/sessions/{sessionId}/administrative-clock-out", request, cancellationToken);
+
+    public Task<CashierShiftSessionResponse> RecordRemittanceAsync(Guid sessionId, RecordRemittanceRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftSessionResponse, RecordRemittanceRequest>(HttpMethod.Post, $"api/cashier-shifts/sessions/{sessionId}/remittance", request, cancellationToken);
+
+    public Task<CashierShiftCorrectionResponse> CorrectShiftRemittanceAsync(Guid sessionId, CorrectShiftRemittanceRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftCorrectionResponse, CorrectShiftRemittanceRequest>(HttpMethod.Post, $"api/cashier-shifts/sessions/{sessionId}/corrections", request, cancellationToken);
+
+    public Task<IReadOnlyList<CashierCashAdjustmentResponse>> GetCashAdjustmentsAsync(Guid sessionId, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<CashierCashAdjustmentResponse>>(() => new HttpRequestMessage(HttpMethod.Get, $"api/cashier-shifts/sessions/{sessionId}/cash-adjustments"), cancellationToken);
+
+    public Task<CashierCashAdjustmentResponse> CreateCashAdjustmentAsync(Guid sessionId, CreateCashAdjustmentRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierCashAdjustmentResponse, CreateCashAdjustmentRequest>(HttpMethod.Post, $"api/cashier-shifts/sessions/{sessionId}/cash-adjustments", request, cancellationToken);
+
+    public Task<CashierCashAdjustmentResponse> ApproveCashAdjustmentAsync(Guid adjustmentId, CashAdjustmentReviewRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierCashAdjustmentResponse, CashAdjustmentReviewRequest>(HttpMethod.Post, $"api/cashier-shifts/cash-adjustments/{adjustmentId}/approve", request, cancellationToken);
+
+    public Task<CashierCashAdjustmentResponse> RejectCashAdjustmentAsync(Guid adjustmentId, CashAdjustmentReviewRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierCashAdjustmentResponse, CashAdjustmentReviewRequest>(HttpMethod.Post, $"api/cashier-shifts/cash-adjustments/{adjustmentId}/reject", request, cancellationToken);
+
+    public Task<CashierShiftCorrectionResponse> CorrectCashAdjustmentAsync(Guid adjustmentId, CorrectCashAdjustmentRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftCorrectionResponse, CorrectCashAdjustmentRequest>(HttpMethod.Post, $"api/cashier-shifts/cash-adjustments/{adjustmentId}/corrections", request, cancellationToken);
+
+    public Task<AdminNotificationPageResponse> GetAdminNotificationsAsync(bool unreadOnly = false, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default) =>
+        SendAsync<AdminNotificationPageResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/admin-notifications",
+            ("unreadOnly", unreadOnly ? "true" : "false"), ("page", page.ToString(CultureInfo.InvariantCulture)),
+            ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+
+    public Task MarkAdminNotificationReadAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/admin-notifications/{id}/read", cancellationToken);
+
+    public Task MarkAllAdminNotificationsReadAsync(CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, "api/admin-notifications/read-all", cancellationToken);
+
+    public Task<CashierShiftReportResponse> GetCashierShiftReportAsync(
+        DateOnly fromDate, DateOnly toDateExclusive, Guid? cashierUserId = null,
+        Guid? shiftDefinitionId = null, CancellationToken cancellationToken = default) =>
+        SendAsync<CashierShiftReportResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/reports/cashier-shifts",
+            ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)),
+            ("cashierUserId", cashierUserId?.ToString()), ("shiftDefinitionId", shiftDefinitionId?.ToString()))), cancellationToken);
+
     public Task<DashboardResponse> GetDashboardAsync(CancellationToken cancellationToken = default) =>
         SendAsync<DashboardResponse>(() => new HttpRequestMessage(HttpMethod.Get, "api/dashboard"), cancellationToken);
 
@@ -368,6 +490,8 @@ public sealed class StoreApiClient(AuthApiClient authClient)
             .Select(value => $"{Uri.EscapeDataString(value.Name)}={Uri.EscapeDataString(value.Value!)}"));
         return query.Length == 0 ? path : $"{path}?{query}";
     }
+
+    private static string? Date(DateOnly? value) => value?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static JsonSerializerOptions CreateJsonOptions()
     {

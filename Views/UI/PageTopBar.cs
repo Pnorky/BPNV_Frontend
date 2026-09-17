@@ -54,12 +54,43 @@ public sealed class PageTopBar : UserControl
         };
         Grid.SetColumn(_actions, 2);
 
+        var storeClock = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Right };
+        storeClock.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.StoreClockDisplay)));
+        var shiftStatus = new TextBlock { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Right, TextTrimming = TextTrimming.CharacterEllipsis };
+        shiftStatus.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.ShiftStatusDisplay)));
+        shiftStatus.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsCashier)));
+        shiftStatus.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
+        var shiftTooltip = new TextBlock();
+        shiftTooltip.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.ShiftStatusDisplay)));
+        ToolTip.SetTip(shiftStatus, shiftTooltip);
+        var shiftButton = new Button { Content = "Shift", FontSize = 11, Padding = new Thickness(7, 2), Margin = new Thickness(8, 0, 0, 0) };
+        shiftButton.Classes.Add("ghost");
+        shiftButton.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsCashier)));
+        shiftButton.Click += (_, _) => NavigationRequested?.Invoke(this, "CashierShift");
+        var notificationsButton = new Button { FontSize = 11, Padding = new Thickness(8, 4), Margin = new Thickness(4, 0, 0, 0) };
+        notificationsButton.Classes.Add("secondary");
+        notificationsButton.Bind(ContentControl.ContentProperty, new Binding(nameof(DashboardViewModel.AdminNotificationDisplay)));
+        notificationsButton.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsAdmin)));
+        notificationsButton.Click += (_, _) => NavigationRequested?.Invoke(this, "AdminNotifications");
+        var clockPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            MaxWidth = 200,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { new StackPanel { Children = { storeClock, shiftStatus } }, shiftButton }
+        };
+        _actions.Margin = new Thickness(16, 0, 0, 0);
+        Grid.SetColumn(_actions, 2);
+
         var layout = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
             ColumnSpacing = 20,
-            Children = { title, _filters, _actions }
+            Children = { title, _filters, _actions, clockPanel, notificationsButton }
         };
+        Grid.SetColumn(clockPanel, 3);
+        Grid.SetColumn(notificationsButton, 4);
 
         var border = new Border
         {

@@ -57,6 +57,7 @@ public class ProductCatalogView : UserControl
         {
             Orientation = Orientation.Horizontal,
             Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             Children = { edit, stockCount, deactivate, reactivate }
         };
@@ -66,8 +67,8 @@ public class ProductCatalogView : UserControl
             ColumnSpacing = 14,
             Children =
             {
-                new StackPanel { Children = { Text("Name", FontWeight.SemiBold), Text("Sku", resource: "MutedForeground"), Text("BarcodeDisplay", resource: "MutedForeground") } },
-                At(new StackPanel { Children = { Text("SupplierName"), Text("Category", resource: "MutedForeground") } }, column: 1),
+                new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("Name", FontWeight.SemiBold), Text("Sku", resource: "MutedForeground"), Text("BarcodeDisplay", resource: "MutedForeground") } },
+                At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("SupplierName"), Text("Category", resource: "MutedForeground") } }, column: 1),
                 At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 4, Children = { Text("ItemType"), Badge("StockStatus") } }, column: 2),
                 At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("StockDisplay"), Text("ReorderActionDisplay", resource: "MutedForeground") } }, column: 3),
                 At(Badge(nameof(ProductResponse.ActivityStatus)), column: 4),
@@ -77,7 +78,14 @@ public class ProductCatalogView : UserControl
                 At(actions, column: 8)
             }
         };
-        var border = new Border { BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 12), Child = row };
+        var border = new Border
+        {
+            MinHeight = 112,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(16, 12),
+            Child = row
+        };
         border.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("Border"));
         return border;
     }
@@ -92,6 +100,8 @@ public class ProductCatalogView : UserControl
             label.FontSize = 10;
             label.FontWeight = FontWeight.SemiBold;
             label.LetterSpacing = 0.6;
+            if (index == labels.Length - 1)
+                label.HorizontalAlignment = HorizontalAlignment.Right;
             grid.Children.Add(At(label, column: index));
         }
 
@@ -100,7 +110,7 @@ public class ProductCatalogView : UserControl
         return header;
     }
 
-    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.75*,1*,96,0.8*,0.7*,0.85*,250");
+    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.95*,1*,96,0.8*,0.7*,0.85*,190");
 
     private static Button Action(string text, string commandPath)
     {

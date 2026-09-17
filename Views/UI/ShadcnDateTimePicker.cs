@@ -32,8 +32,14 @@ public sealed class ShadcnDateTimePicker : Grid
     public static readonly StyledProperty<string> DatePlaceholderProperty =
         AvaloniaProperty.Register<ShadcnDateTimePicker, string>(nameof(DatePlaceholder), "Select date");
 
+    public static readonly StyledProperty<bool> ShowDateLabelProperty =
+        AvaloniaProperty.Register<ShadcnDateTimePicker, bool>(nameof(ShowDateLabel), true);
+
     public static readonly StyledProperty<string> TimePlaceholderProperty =
         AvaloniaProperty.Register<ShadcnDateTimePicker, string>(nameof(TimePlaceholder), "12:30 PM");
+
+    public static readonly StyledProperty<bool> ShowTimeProperty =
+        AvaloniaProperty.Register<ShadcnDateTimePicker, bool>(nameof(ShowTime), true);
 
     private readonly TextBlock _dateLabel;
     private readonly TextBlock _timeLabel;
@@ -259,44 +265,29 @@ public sealed class ShadcnDateTimePicker : Grid
         set => SetValue(DatePlaceholderProperty, value);
     }
 
+    public bool ShowDateLabel
+    {
+        get => GetValue(ShowDateLabelProperty);
+        set => SetValue(ShowDateLabelProperty, value);
+    }
+
     public string TimePlaceholder
     {
         get => GetValue(TimePlaceholderProperty);
         set => SetValue(TimePlaceholderProperty, value);
     }
 
-    internal static bool TryParseTime(string? text, CultureInfo culture, out TimeSpan? value)
+    public bool ShowTime
     {
-        value = null;
-        if (string.IsNullOrWhiteSpace(text)) return true;
-
-        var input = text.Trim();
-        string[] twelveHourFormats = ["h:mm tt", "hh:mm tt", "h:mmtt", "hh:mmtt"];
-        if (DateTime.TryParseExact(input, twelveHourFormats, culture,
-                DateTimeStyles.AllowWhiteSpaces, out var twelveHour))
-        {
-            value = new TimeSpan(twelveHour.Hour, twelveHour.Minute, 0);
-            return true;
-        }
-
-        string[] twentyFourHourFormats = ["H:mm", "HH:mm"];
-        if (DateTime.TryParseExact(input, twentyFourHourFormats, CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var twentyFourHour))
-        {
-            value = new TimeSpan(twentyFourHour.Hour, twentyFourHour.Minute, 0);
-            return true;
-        }
-
-        return false;
+        get => GetValue(ShowTimeProperty);
+        set => SetValue(ShowTimeProperty, value);
     }
 
-    internal static string FormatTime(TimeSpan? value, CultureInfo culture)
-    {
-        if (!value.HasValue || value.Value < TimeSpan.Zero || value.Value >= TimeSpan.FromDays(1))
-            return string.Empty;
+    internal static bool TryParseTime(string? text, CultureInfo culture, out TimeSpan? value) =>
+        ShadcnTimePicker.TryParseTime(text, culture, out value);
 
-        return new DateTime(2000, 1, 1).Add(value.Value).ToString("h:mm tt", culture);
-    }
+    internal static string FormatTime(TimeSpan? value, CultureInfo culture) =>
+        ShadcnTimePicker.FormatTime(value, culture);
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
@@ -327,9 +318,18 @@ public sealed class ShadcnDateTimePicker : Grid
         {
             UpdateDateDisplay();
         }
+        else if (change.Property == ShowDateLabelProperty)
+        {
+            _dateLabel.IsVisible = ShowDateLabel;
+        }
         else if (change.Property == TimePlaceholderProperty)
         {
             _timeInput.PlaceholderText = TimePlaceholder;
+        }
+        else if (change.Property == ShowTimeProperty)
+        {
+            _timeField.IsVisible = ShowTime;
+            UpdateLayoutMode(Bounds.Width);
         }
         else if ((change.Property == IsEnabledProperty && !IsEnabled) ||
                  (change.Property == IsVisibleProperty && !IsVisible))
@@ -523,6 +523,17 @@ public sealed class ShadcnDateTimePicker : Grid
 
     private void UpdateLayoutMode(double width)
     {
+        if (!ShowTime)
+        {
+            ColumnDefinitions = new ColumnDefinitions("*");
+            RowDefinitions = new RowDefinitions("Auto");
+            ColumnSpacing = 0;
+            RowSpacing = 0;
+            Grid.SetColumn(_timeField, 0);
+            Grid.SetRow(_timeField, 0);
+            return;
+        }
+
         var stacked = width < 460;
         if (_isStacked == stacked) return;
         _isStacked = stacked;

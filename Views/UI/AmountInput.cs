@@ -23,7 +23,7 @@ public sealed class AmountInput : TextBox
     public AmountInput()
     {
         Classes.Add("form-input");
-        MaxLength = 16;
+        MaxLength = 19;
         VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center;
         TextInput += OnTextInput;
         LostFocus += (_, _) => UpdateText();

@@ -26,20 +26,29 @@ public class SalesView : UserControl
         _scanner.Bind(TextBox.TextProperty, new Binding("ScannerText"));
         _scanner.KeyDown += OnScannerKeyDown;
 
+        var gateText = Text("ShiftGateMessage");
+        gateText.TextWrapping = TextWrapping.Wrap;
+        var gate = new Border { Padding = new Thickness(12, 9), Child = gateText };
+        gate.Bind(Visual.IsVisibleProperty, new Binding("ShowShiftGate"));
+        gate.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary"));
+        gate.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("Border"));
+        gate.BorderThickness = new Thickness(1);
+        gate.CornerRadius = new CornerRadius(7);
         var body = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,410"),
             ColumnSpacing = 16,
             Children = { Card(Catalog()), At(Card(CurrentSale()), 1) }
         };
-        Grid.SetRow(body, 1);
+        Grid.SetRow(gate, 1);
+        Grid.SetRow(body, 2);
 
         Content = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
             Margin = new Thickness(30),
             RowSpacing = 14,
-            Children = { _scanner, body }
+            Children = { _scanner, gate, body }
         };
         DataContextChanged += OnDataContextChanged;
         AttachedToVisualTree += (_, _) => FocusScanner();
@@ -138,6 +147,7 @@ public class SalesView : UserControl
         totalHost.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Muted"));
         var status = Text("StatusMessage", resource: "MutedForeground"); status.TextWrapping = TextWrapping.Wrap;
         var complete = Button("Complete sale", "CompleteSaleCommand", true);
+        complete.Bind(Avalonia.Controls.Button.IsEnabledProperty, new Binding("CanCheckout"));
         var completeHost = new StackPanel
         {
             HorizontalAlignment = HorizontalAlignment.Right,

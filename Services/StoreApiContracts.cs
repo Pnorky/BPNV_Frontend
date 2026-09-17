@@ -25,6 +25,33 @@ public enum ApiPaymentMethod
     GCash
 }
 
+public enum ApiCashierShiftSessionStatus
+{
+    Open,
+    ClosedPendingRemittance,
+    Reconciled
+}
+
+public enum ApiCashierShiftCloseType
+{
+    CashierClockOut,
+    AdministrativeClockOut
+}
+
+public enum ApiCashAdjustmentType
+{
+    CashRefund,
+    CashPayout,
+    StoreExpense
+}
+
+public enum ApiCashAdjustmentStatus
+{
+    Pending,
+    Approved,
+    Rejected
+}
+
 public sealed record ProductUnitResponse(
     Guid Id,
     string? Barcode,
@@ -71,7 +98,7 @@ public sealed record ProductResponse(
     public string ReorderRulesDisplay => $"Critical ≤ {CriticalReorderLevel}: {CriticalOrderQuantity} · Warning ≤ {WarningReorderLevel}: {WarningOrderQuantity}";
     public string PurchasePriceDisplay => $"₱{CostPrice:N2}";
     public string SellingPriceDisplay => $"₱{RegularPrice:N2}";
-    public string EmployeePriceDisplay => EmployeePrice > 0 ? $"₱{EmployeePrice:N2}" : "Same as selling";
+    public string EmployeePriceDisplay => $"₱{(EmployeePrice > 0 ? EmployeePrice : RegularPrice):N2}";
     public string StockDisplay => $"{DisplayStock} display / {BodegaStock} bodega";
     public string BarcodeDisplay => string.IsNullOrWhiteSpace(Barcode) ? "No barcode (optional)" : Barcode;
     public bool CanRecordStockCount => IsActive && ItemType != ApiInventoryItemType.Merchandise;
@@ -634,7 +661,8 @@ public sealed record SaleResponse(
     IReadOnlyList<SaleLineResponse> Lines,
     Guid? EmployeeId = null,
     string? EmployeeNumber = null,
-    string? EmployeeName = null)
+    string? EmployeeName = null,
+    Guid? ShiftSessionId = null)
 {
     public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
 }
@@ -670,7 +698,8 @@ public sealed record ReportSaleResponse(
     IReadOnlyList<ReportSaleLineResponse> Lines,
     Guid? EmployeeId = null,
     string? EmployeeNumber = null,
-    string? EmployeeName = null)
+    string? EmployeeName = null,
+    Guid? ShiftSessionId = null)
 {
     public int ItemCount => Lines.Sum(line => line.BasePieceQuantity);
     public string PaymentMethodDisplay => PaymentMethod.ToString();
@@ -808,6 +837,145 @@ public sealed record ApiReportSnapshot(
     InventoryReportResponse Inventory,
     OrderReportResponse Orders,
     EmployeePurchaseReportResponse? EmployeePurchases = null);
+
+public sealed record ShiftDefinitionResponse(Guid Id, string Name, TimeOnly StartLocalTime, TimeOnly EndLocalTime, bool IsActive)
+{
+    public bool IsOvernight => EndLocalTime <= StartLocalTime;
+    public string ScheduleDisplay => $"{StartLocalTime:h:mm tt} - {EndLocalTime:h:mm tt}{(IsOvernight ? " next day" : "")}";
+    public string Status => IsActive ? "Active" : "Inactive";
+    public override string ToString() => $"{Name} · {ScheduleDisplay}";
+}
+
+public sealed record CreateShiftDefinitionRequest(string Name, TimeOnly StartLocalTime, TimeOnly EndLocalTime);
+public sealed record UpdateShiftDefinitionRequest(string Name, TimeOnly StartLocalTime, TimeOnly EndLocalTime);
+
+public sealed record CashierShiftScheduleResponse(
+    Guid Id, Guid CashierUserId, string CashierName, Guid ShiftDefinitionId, string ShiftName,
+    TimeOnly StartLocalTime, TimeOnly EndLocalTime, byte DaysOfWeekMask, DateOnly EffectiveFrom,
+    DateOnly? EffectiveTo, bool IsActive)
+{
+    public string DaysDisplay => CashierShiftFormatting.FormatDays(DaysOfWeekMask);
+    public string EffectiveDisplay => EffectiveTo is null ? $"From {EffectiveFrom:MMM d, yyyy}" : $"{EffectiveFrom:MMM d, yyyy} - {EffectiveTo:MMM d, yyyy}";
+    public string Status => IsActive ? "Active" : "Inactive";
+}
+
+public sealed record CreateCashierShiftScheduleRequest(Guid CashierUserId, Guid ShiftDefinitionId, byte DaysOfWeekMask, DateOnly EffectiveFrom, DateOnly? EffectiveTo);
+public sealed record UpdateCashierShiftScheduleRequest(Guid CashierUserId, Guid ShiftDefinitionId, byte DaysOfWeekMask, DateOnly EffectiveFrom, DateOnly? EffectiveTo);
+
+public sealed record CashierShiftOverrideResponse(
+    Guid Id, DateOnly BusinessDate, Guid ShiftDefinitionId, string ShiftName, TimeOnly StartLocalTime,
+    TimeOnly EndLocalTime, Guid ReplacementCashierUserId, string ReplacementCashierName,
+    Guid? ReplacedScheduleId, string Reason);
+
+public sealed record CreateCashierShiftOverrideRequest(DateOnly BusinessDate, Guid ShiftDefinitionId, Guid ReplacementCashierUserId, Guid? ReplacedScheduleId, string Reason);
+public sealed record UpdateCashierShiftOverrideRequest(DateOnly BusinessDate, Guid ShiftDefinitionId, Guid ReplacementCashierUserId, Guid? ReplacedScheduleId, string Reason);
+
+public sealed record ResolvedCashierShiftAssignmentResponse(
+    Guid? ScheduleId, Guid? AssignmentOverrideId, Guid ShiftDefinitionId, string ShiftName,
+    Guid CashierUserId, string CashierName, DateOnly BusinessDate, DateTime ScheduledStartAtUtc,
+    DateTime ScheduledEndAtUtc)
+{
+    public bool IsReplacement => AssignmentOverrideId.HasValue;
+    public string SourceDisplay => IsReplacement ? "Replacement" : "Recurring";
+    public string ScheduleDisplay => $"{StoreDateTime.FormatUtc(ScheduledStartAtUtc)} - {StoreDateTime.FormatUtc(ScheduledEndAtUtc)}";
+}
+
+public sealed record ClockInRequest(Guid IdempotencyKey, decimal OpeningCashFloat);
+public sealed record ClockOutRequest(Guid IdempotencyKey);
+public sealed record AdministrativeClockOutRequest(Guid IdempotencyKey, string Reason);
+public sealed record RecordRemittanceRequest(decimal ActualRemittance, bool CashFloatReturned, string? Note);
+public sealed record CreateCashAdjustmentRequest(ApiCashAdjustmentType Type, decimal Amount, string Note, string? Reference);
+public sealed record CashAdjustmentReviewRequest(string? Note);
+public sealed record CorrectCashAdjustmentRequest(bool Approve, string Reason);
+public sealed record CorrectShiftRemittanceRequest(decimal ActualRemittance, bool CashFloatReturned, string Reason);
+
+public sealed record CashierShiftSessionResponse(
+    Guid Id, Guid? ScheduleId, Guid? AssignmentOverrideId, Guid ShiftDefinitionId, Guid CashierUserId,
+    string CashierName, DateOnly BusinessDate, string ShiftName, DateTime ScheduledStartAtUtc,
+    DateTime ScheduledEndAtUtc, DateTime ClockedInAtUtc, DateTime? ClockedOutAtUtc,
+    Guid? ClockedOutByUserId, ApiCashierShiftSessionStatus Status, ApiCashierShiftCloseType? CloseType,
+    decimal OpeningCashFloat, decimal? ExpectedTerminalCash, int? WorkedMinutes, int ClockInVarianceMinutes,
+    int? ClockOutVarianceMinutes, decimal? TotalSales, decimal? CashSales, decimal? GCashSales,
+    decimal? CashRefunds, decimal? CashPayouts, int? TransactionCount, decimal? ExpectedRemittance,
+    decimal? ActualRemittance, decimal? Variance, bool? CashFloatReturned, string? RemittanceNote,
+    DateTime? RemittanceRecordedAtUtc, Guid? RemittanceRecordedByUserId,
+    DateTime? CashFloatConfirmedAtUtc, Guid? CashFloatConfirmedByUserId,
+    bool IsIdempotentReplay = false)
+{
+    public string StatusDisplay => Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : Status.ToString();
+    public string ScheduledDisplay => $"{StoreDateTime.FormatUtc(ScheduledStartAtUtc)} - {StoreDateTime.FormatUtc(ScheduledEndAtUtc)}";
+    public string ActualDisplay => ClockedOutAtUtc is null ? $"{StoreDateTime.FormatUtc(ClockedInAtUtc)} - Active" : $"{StoreDateTime.FormatUtc(ClockedInAtUtc)} - {StoreDateTime.FormatUtc(ClockedOutAtUtc.Value)}";
+    public string WorkedDisplay => WorkedMinutes is null ? "Active" : $"{WorkedMinutes / 60}:{WorkedMinutes % 60:00}";
+    public string TotalSalesDisplay => CashierShiftFormatting.Money(TotalSales);
+    public string ExpectedRemittanceDisplay => CashierShiftFormatting.Money(ExpectedRemittance);
+    public string ActualRemittanceDisplay => CashierShiftFormatting.Money(ActualRemittance);
+    public string VarianceDisplay => CashierShiftFormatting.SignedMoney(Variance);
+}
+
+public sealed record CashierTerminalOccupancyResponse(Guid SessionId, string CashierName, string ShiftName, DateTime ClockedInAtUtc);
+public sealed record CashierClockStatusResponse(
+    DateTime ServerTimeUtc, DateTimeOffset StoreLocalTime, ResolvedCashierShiftAssignmentResponse? Assignment,
+    CashierShiftSessionResponse? OpenSession, CashierTerminalOccupancyResponse? OccupiedTerminal,
+    int? AssignmentVarianceMinutes, bool CanClockIn, string? BlockReason);
+
+public sealed record CashierCashAdjustmentResponse(
+    Guid Id, Guid ShiftSessionId, ApiCashAdjustmentType Type, decimal Amount, ApiCashAdjustmentStatus Status,
+    string Note, string? Reference, Guid RequestedByUserId, string RequestedByName, DateTime RequestedAtUtc,
+    Guid? ReviewedByUserId, string? ReviewedByName, DateTime? ReviewedAtUtc, string? ReviewNote)
+{
+    public string AmountDisplay => $"₱{Amount:N2}";
+    public string RequestedAtDisplay => StoreDateTime.FormatUtc(RequestedAtUtc);
+}
+
+public sealed record CashierShiftCorrectionResponse(
+    Guid Id, Guid ShiftSessionId, string FieldName, string? OldValue, string? NewValue, string Reason,
+    Guid CorrectedByUserId, string CorrectedByName, DateTime CorrectedAtUtc)
+{
+    public string CorrectedAtDisplay => StoreDateTime.FormatUtc(CorrectedAtUtc);
+}
+
+public sealed record CashierShiftSaleResponse(Guid Id, string SaleNumber, ApiPaymentMethod PaymentMethod, decimal Total, DateTime SoldAtUtc)
+{
+    public string TotalDisplay => $"₱{Total:N2}";
+    public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
+}
+
+public sealed record CashierShiftSessionDetailResponse(
+    CashierShiftSessionResponse Session, IReadOnlyList<CashierShiftSaleResponse> Sales,
+    IReadOnlyList<CashierCashAdjustmentResponse> CashAdjustments,
+    IReadOnlyList<CashierShiftCorrectionResponse> Corrections);
+
+public sealed record AdminNotificationResponse(
+    Guid Id, string Type, string Title, string Message, Guid? ShiftSessionId, DateTime CreatedAtUtc, bool IsRead)
+{
+    public string CreatedAtDisplay => StoreDateTime.FormatUtc(CreatedAtUtc);
+    public string Status => IsRead ? "Read" : "Unread";
+}
+
+public sealed record AdminNotificationPageResponse(
+    IReadOnlyList<AdminNotificationResponse> Items, int Page, int PageSize, int TotalCount, int UnreadCount);
+
+public sealed record CashierShiftReportRowResponse(
+    Guid SessionId, Guid CashierUserId, string CashierName, Guid ShiftDefinitionId, string ShiftName,
+    DateOnly BusinessDate, ApiCashierShiftSessionStatus Status, ApiCashierShiftCloseType? CloseType,
+    DateTime ScheduledStartAtUtc, DateTime ScheduledEndAtUtc, DateTime ClockedInAtUtc,
+    DateTime? ClockedOutAtUtc, int? WorkedMinutes, int ClockInVarianceMinutes, int? ClockOutVarianceMinutes,
+    decimal OpeningCashFloat, decimal? TotalSales, decimal? CashSales, decimal? GCashSales,
+    decimal? CashRefunds, decimal? CashPayouts, int? TransactionCount, decimal? ExpectedRemittance,
+    decimal? ActualRemittance, decimal? Variance, bool? CashFloatReturned);
+
+public sealed record CashierShiftReportSummaryResponse(
+    int Sessions, decimal TotalSales, decimal CashSales, decimal GCashSales,
+    decimal ExpectedRemittance, decimal ActualRemittance, decimal Variance);
+public sealed record CashierShiftReportResponse(CashierShiftReportSummaryResponse Summary, IReadOnlyList<CashierShiftReportRowResponse> Sessions);
+
+public static class CashierShiftFormatting
+{
+    private static readonly string[] Days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    public static string FormatDays(byte mask) => mask == 127 ? "Every day" : string.Join(", ", Days.Where((_, index) => (mask & (1 << index)) != 0));
+    public static string Money(decimal? value) => value is null ? "-" : $"₱{value:N2}";
+    public static string SignedMoney(decimal? value) => value is null ? "-" : value > 0 ? $"+₱{value:N2}" : value < 0 ? $"-₱{Math.Abs(value.Value):N2}" : "₱0.00";
+}
 
 public sealed record ApiProblemDetails(
     string? Type,
