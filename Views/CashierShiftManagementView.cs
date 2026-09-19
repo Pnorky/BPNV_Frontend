@@ -363,7 +363,10 @@ public sealed class CashierShiftManagementView : UserControl
         var shift = new ComboBox { Classes = { "form-select" } };
         shift.Bind(ItemsControl.ItemsSourceProperty, new Binding("Replacements.DailyShifts"));
         shift.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("Replacements.Editor.SelectedShift") { Mode = BindingMode.TwoWay });
-        shift.ItemTemplate = new FuncDataTemplate<ResolvedDailyShiftRow>((row, _) => new TextBlock { Text = $"{row.Definition.Name} · {row.Definition.ScheduleDisplay}" }, true);
+        shift.ItemTemplate = new FuncDataTemplate<ResolvedDailyShiftRow>((row, _) => new TextBlock
+        {
+            Text = row is null ? "" : $"{row.Definition.Name} · {row.Definition.ScheduleDisplay}"
+        }, true);
         var search = new TextBox { PlaceholderText = "Filter by name or username", Classes = { "search" } };
         search.Bind(TextBox.TextProperty, new Binding("Replacements.CashierSearchText") { Mode = BindingMode.TwoWay });
         var cashier = new ComboBox { Classes = { "form-select" } };
