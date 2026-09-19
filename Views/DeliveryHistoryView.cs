@@ -86,9 +86,6 @@ public sealed class DeliveryHistoryView : UserControl
     {
         var status = new StatusBadge();
         status.Bind(StatusBadge.StatusProperty, new Binding("Delivery.Status"));
-        var chevron = new HomisIcon { Width = 16, Height = 16 };
-        chevron.Bind(HomisIcon.KindProperty, new Binding("ChevronKind"));
-        chevron.Bind(HomisIcon.ForegroundProperty, new DynamicResourceExtension("Primary"));
         var action = Bound("DetailsActionLabel");
         action.FontSize = 11;
         action.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("Primary"));
@@ -96,30 +93,37 @@ public sealed class DeliveryHistoryView : UserControl
         {
             Orientation = Orientation.Horizontal,
             Spacing = 6,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { status, action, chevron }
+            Children = { status, action }
         };
         var actionField = new StackPanel
         {
-            Width = 200,
             Margin = new Thickness(0, 0, 12, 10),
             Spacing = 5,
             Children = { Label("STATUS / DETAILS"), actionArea }
         };
-        var summary = new WrapPanel
+        var summary = new Grid
         {
-            Orientation = Orientation.Horizontal,
+            ColumnDefinitions = new ColumnDefinitions("1.15*,1.45*,1*,1.1*,0.7*,1.15*,0.95*"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Children =
             {
-                SizedMetadata("RECEIPT / INVOICE NO.", "Delivery.ReceiptNumberDisplay", 190),
-                SizedMetadata("DELIVERED (PH TIME)", "Delivery.DeliveryAtDisplay", 205),
-                SizedMetadata("SUPPLIERS", "Delivery.SuppliersDisplay", 220),
-                SizedMetadata("PRODUCTS / PIECES", "Delivery.ProductsPiecesDisplay", 175),
-                SizedMetadata("TOTAL COST", "Delivery.TotalCostDisplay", 130),
-                SizedMetadata("RECEIVED BY", "Delivery.ReceivedByName", 170),
+                FillMetadata("RECEIPT / INVOICE NO.", "Delivery.ReceiptNumberDisplay"),
+                FillMetadata("DELIVERED (PH TIME)", "Delivery.DeliveryAtDisplay"),
+                FillMetadata("SUPPLIERS", "Delivery.SuppliersDisplay"),
+                FillMetadata("PRODUCTS / PIECES", "Delivery.ProductsPiecesDisplay"),
+                FillMetadata("TOTAL COST", "Delivery.TotalCostDisplay"),
+                FillMetadata("RECEIVED BY", "Delivery.ReceivedByName"),
                 actionField
             }
+        };
+        for (var index = 0; index < summary.Children.Count; index++) Grid.SetColumn(summary.Children[index], index);
+        var rowViewport = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = summary
         };
         var toggle = new Button
         {
@@ -127,7 +131,7 @@ public sealed class DeliveryHistoryView : UserControl
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
-            Content = summary
+            Content = rowViewport
         };
         toggle.Classes.Add("ghost");
         toggle.Bind(Button.CommandProperty, new Binding("DataContext.ToggleDetailsCommand")
@@ -142,11 +146,13 @@ public sealed class DeliveryHistoryView : UserControl
             Child = DetailArea()
         }, Border.BackgroundProperty, "Secondary");
         detail.Bind(Visual.IsVisibleProperty, new Binding("IsExpanded"));
-        return Resource(new Border
+        var row = Resource(new Border
         {
             BorderThickness = new Thickness(0, 1, 0, 0),
             Child = new StackPanel { Children = { toggle, detail } }
         }, Border.BorderBrushProperty, "Border");
+        row.SizeChanged += (_, args) => summary.Width = Math.Max(1400, args.NewSize.Width - 32);
+        return row;
     }
 
     private static Control DetailArea()
@@ -199,47 +205,74 @@ public sealed class DeliveryHistoryView : UserControl
         return new Grid { Children = { loading, error, content } };
     }
 
-    private static Control DetailMetadata() => new WrapPanel
+    private static Control DetailMetadata() => new StackPanel
     {
-        Orientation = Orientation.Horizontal,
+        Spacing = 12,
         Children =
         {
-            SizedMetadata("RECEIPT / INVOICE NO.", "Detail.Delivery.ReceiptNumberDisplay", 240),
-            SizedMetadata("DELIVERED (PH TIME)", "Detail.Delivery.DeliveryAtDisplay", 240),
-            SizedMetadata("RECORDED (PH TIME)", "Detail.Delivery.CompletedAtDisplay", 240),
-            SizedMetadata("NOTES", "Detail.NotesDisplay", 300),
-            SizedMetadata("SUPPLIERS", "Detail.Delivery.SuppliersDisplay", 260),
-            SizedMetadata("RECEIVED BY", "Detail.Delivery.ReceivedByName", 220),
-            SizedMetadata("INPUT RECORDS", "Detail.Delivery.AcceptedRecordCount", 150),
-            SizedMetadata("PRODUCTS / PIECES", "Detail.Delivery.ProductsPiecesDisplay", 210),
-            SizedMetadata("TOTAL COST", "Detail.Delivery.TotalCostDisplay", 160)
+            DistributedMetadata(
+                ("RECEIPT / INVOICE NO.", "Detail.Delivery.ReceiptNumberDisplay"),
+                ("DELIVERED (PH TIME)", "Detail.Delivery.DeliveryAtDisplay"),
+                ("RECORDED (PH TIME)", "Detail.Delivery.CompletedAtDisplay"),
+                ("SUPPLIERS", "Detail.Delivery.SuppliersDisplay"),
+                ("RECEIVED BY", "Detail.Delivery.ReceivedByName")),
+            DistributedMetadata(
+                ("NOTES", "Detail.NotesDisplay"),
+                ("INPUT RECORDS", "Detail.Delivery.AcceptedRecordCount"),
+                ("PRODUCTS / PIECES", "Detail.Delivery.ProductsPiecesDisplay"),
+                ("TOTAL COST", "Detail.Delivery.TotalCostDisplay"))
         }
     };
 
     private static Control DetailLine()
     {
-        var grid = new WrapPanel
+        var fields = new Grid
         {
-            Orientation = Orientation.Horizontal,
-            Children =
-            {
-                SizedMetadata("PRODUCT / SKU", "ProductDisplay", 250),
-                SizedMetadata("BARCODE / UNIT", "BarcodeUnitDisplay", 210),
-                SizedMetadata("SUPPLIER / SCANNER LIBRARY", "SupplierDisplay", 260),
-                SizedMetadata("RECEIVED", "ReceivedQuantityDisplay", 230),
-                SizedMetadata("UNIT COST", "CostPriceDisplay", 220),
-                SizedMetadata("SELLING / EMPLOYEE", "RegularEmployeePriceDisplay", 300),
-                SizedMetadata("LINE TOTAL / PRODUCT", "LineTotalProductDisplay", 220),
-                SizedMetadata("BODEGA BEFORE -> AFTER", "BodegaChangeDisplay", 230)
-            }
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            ColumnSpacing = 20,
+            RowSpacing = 16
         };
+        var firstRow = new[]
+        {
+            Metadata("PRODUCT / SKU", "ProductDisplay"),
+            Metadata("BARCODE / UNIT", "BarcodeUnitDisplay"),
+            Metadata("SUPPLIER / SCANNER LIBRARY", "SupplierDisplay"),
+            Metadata("RECEIVED", "ReceivedQuantityDisplay"),
+            Metadata("UNIT COST", "CostPriceDisplay")
+        };
+        for (var index = 0; index < firstRow.Length; index++)
+        {
+            Grid.SetColumn(firstRow[index], index);
+            fields.Children.Add(firstRow[index]);
+        }
+        var selling = At(Metadata("SELLING / EMPLOYEE", "RegularEmployeePriceDisplay"), row: 1);
+        Grid.SetColumnSpan(selling, 2);
+        var lineTotal = At(Metadata("LINE TOTAL / PRODUCT", "LineTotalProductDisplay"), column: 2, row: 1);
+        Grid.SetColumnSpan(lineTotal, 2);
+        fields.Children.Add(selling);
+        fields.Children.Add(lineTotal);
+        fields.Children.Add(At(Metadata("BODEGA BEFORE -> AFTER", "BodegaChangeDisplay"), column: 4, row: 1));
         return Resource(new Border
         {
             Padding = new Thickness(14, 12),
             CornerRadius = new CornerRadius(7),
             BorderThickness = new Thickness(1),
-            Child = grid
+            Child = fields
         }, Border.BorderBrushProperty, "Border");
+    }
+
+    private static Grid DistributedMetadata(params (string Label, string Path)[] fields)
+    {
+        var grid = new Grid { ColumnSpacing = 16 };
+        for (var index = 0; index < fields.Length; index++)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+            var field = Metadata(fields[index].Label, fields[index].Path);
+            Grid.SetColumn(field, index);
+            grid.Children.Add(field);
+        }
+        return grid;
     }
 
     private static StackPanel Metadata(string label, string path)
@@ -255,6 +288,19 @@ public sealed class DeliveryHistoryView : UserControl
         value.Width = width;
         value.Margin = new Thickness(0, 0, 12, 10);
         return value;
+    }
+
+    private static StackPanel FillMetadata(string label, string path)
+    {
+        var text = Bound(path);
+        text.FontWeight = FontWeight.SemiBold;
+        text.TextTrimming = TextTrimming.CharacterEllipsis;
+        return new StackPanel
+        {
+            Margin = new Thickness(0, 0, 12, 10),
+            Spacing = 4,
+            Children = { Label(label), text }
+        };
     }
 
     private static TextBlock Heading(string text, string style)

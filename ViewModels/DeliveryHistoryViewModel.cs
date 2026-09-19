@@ -82,12 +82,12 @@ public partial class DeliveryHistoryViewModel : ObservableObject
             ? "Unable to load deliveries"
             : IsFiltered ? "No matching deliveries" : "No deliveries available";
     public string StateMessage => IsLoading
-        ? "Retrieving completed Batch Receive deliveries."
+        ? "Retrieving completed deliveries and receipts."
         : ListError is not null
             ? ListError
             : IsFiltered
                 ? "Adjust or clear the filters to see other deliveries."
-                : "Complete a Batch Receive delivery to create the first history record.";
+                : "Receive stock or complete a Batch Receive delivery to create the first history record.";
     public string StateActionText => ListError is not null ? "Try Again" : "Clear Filters";
     public bool HasStateAction => ListError is not null || IsFiltered;
     public IRelayCommand StateActionCommand => ListError is not null ? LoadCommand : ClearFiltersCommand;

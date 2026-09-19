@@ -266,6 +266,7 @@ public sealed class BatchReceivingView : UserControl
     {
         var rows = new ItemsControl
         {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             ItemTemplate = new FuncDataTemplate<BatchReceivingRowViewModel>((_, _) => PreviewRow(), true)
         };
         Bind(rows, ItemsControl.ItemsSourceProperty, "PreviewPager.Items");
@@ -322,7 +323,12 @@ public sealed class BatchReceivingView : UserControl
             Children =
             {
                 previewHeader,
-                At(tableBody, row: 1),
+                At(new ScrollViewer
+                {
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Content = tableBody
+                }, row: 1),
                 At(pager, row: 2)
             }
         };
@@ -342,6 +348,7 @@ public sealed class BatchReceivingView : UserControl
 
         var summary = new Grid
         {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             ColumnDefinitions = PreviewColumns(),
             ColumnSpacing = 12,
             Children =
@@ -351,13 +358,20 @@ public sealed class BatchReceivingView : UserControl
                 At(Cell(nameof(BatchReceivingRowViewModel.SupplierResolutionDisplay), true), column: 2),
                 At(Cell(nameof(BatchReceivingRowViewModel.ScannedQuantityDisplay)), column: 3),
                 At(Cell(nameof(BatchReceivingRowViewModel.BasePieceQuantityDisplay)), column: 4),
-                At(new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8, Children = { status, At(detailsLabel, column: 1) } }, column: 5)
+                At(new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("Auto,Auto"),
+                    ColumnSpacing = 8,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                     Children = { status, At(detailsLabel, column: 1) }
+                }, column: 5)
             }
         };
 
         var toggle = new Button
         {
             Padding = new Thickness(16, 12),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
@@ -377,17 +391,19 @@ public sealed class BatchReceivingView : UserControl
         }, Border.BackgroundProperty, "Secondary");
         detail.Bind(Visual.IsVisibleProperty, new Binding(nameof(BatchReceivingRowViewModel.IsExpanded)));
 
-        return Resource(new Border
+        var rowBorder = Resource(new Border
         {
             BorderThickness = new Thickness(0, 1, 0, 0),
             Child = new StackPanel { Children = { toggle, detail } }
         }, Border.BorderBrushProperty, "Border");
+        rowBorder.HorizontalAlignment = HorizontalAlignment.Stretch;
+        return rowBorder;
     }
 
     private static Control PreviewRowDetails()
     {
         var total = BoundText(nameof(BatchReceivingRowViewModel.TotalCostDisplay));
-        total.FontSize = 18;
+        total.FontSize = 22;
         total.FontWeight = FontWeight.SemiBold;
 
         var productAction = new ActionButton("Add product", ActionButtonVariant.Secondary, ActionButtonSize.Sm);
@@ -420,7 +436,7 @@ public sealed class BatchReceivingView : UserControl
     private static StackPanel DetailValue(string label, string path)
     {
         var value = BoundText(path);
-        value.FontSize = 16;
+        value.FontSize = 20;
         value.FontWeight = FontWeight.SemiBold;
         return new StackPanel { Spacing = 5, Children = { Label(label), value } };
     }
@@ -430,13 +446,14 @@ public sealed class BatchReceivingView : UserControl
         var previous = BoundText(previousPath);
         previous.FontSize = 10;
         previous.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground"));
-        var input = new AmountInput { MinHeight = 38, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var input = new AmountInput { Width = 240, MinHeight = 46, HorizontalAlignment = HorizontalAlignment.Left };
         input.Bind(AmountInput.ValueProperty, new Binding(valuePath) { Mode = BindingMode.TwoWay });
         input.Bind(InputElement.IsEnabledProperty, new Binding(nameof(BatchReceivingRowViewModel.CanEditPrices)));
         return new StackPanel { Spacing = 5, Children = { Label(label), previous, input } };
     }
 
-    private static ColumnDefinitions PreviewColumns() => new("1.35*,1*,1.35*,0.9*,0.85*,1.15*");
+    // Fixed boundaries keep the header and item templates aligned when rows measure to content.
+    private static ColumnDefinitions PreviewColumns() => new("280,210,300,180,180,220");
 
     private static Border ResultCard()
     {

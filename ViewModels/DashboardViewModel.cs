@@ -11,7 +11,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AvaloniaApp.ViewModels;
 
-public partial class DashboardViewModel : ObservableObject, IDisposable
+public partial class DashboardViewModel : ObservableObject, IDisposable, IInputValidationNotifier
 {
     private readonly StoreState _store;
     private readonly AuthApiClient _authClient;
@@ -118,6 +118,9 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         if (_session.HasRole("Cashier")) _ = CashierShift.RefreshAsync();
         if (AdminNotifications is not null) _ = AdminNotifications.RefreshAsync();
     }
+
+    public void ShowInputValidationError(string message) =>
+        _notifications.ShowError("Invalid number", message);
 
     partial void OnSelectedNavItemChanged(NavItem? value)
     {

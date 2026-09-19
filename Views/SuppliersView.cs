@@ -148,7 +148,9 @@ public class SuppliersView : UserControl
         return border;
     }
 
-    private static ColumnDefinitions SupplierColumns() => new("1.4*,1*,1*,Auto,Auto");
+    // Keep status and action columns identical between the header and each row.
+    // Auto-sized columns were measured from different content in each grid.
+    private static ColumnDefinitions SupplierColumns() => new("1.4*,1*,1*,112,174");
     internal static async Task ConfirmDeactivationAsync(
         SupplierResponse supplier,
         SuppliersViewModel viewModel,

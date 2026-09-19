@@ -351,7 +351,7 @@ public sealed class ExcelInventoryImportView : UserControl
     }
     private static NumberField Number(string path, string format, decimal minimum = 0)
     {
-        var value = new NumberField { Minimum = minimum, FormatString = format, Increment = 1 };
+        var value = new NumberField { Minimum = minimum, Maximum = format.Contains('.') ? decimal.MaxValue : int.MaxValue, FormatString = format, Increment = 1 };
         Bind(value, NumberField.ValueProperty, path);
         return value;
     }

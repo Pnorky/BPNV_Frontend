@@ -21,7 +21,7 @@ public sealed class ApiStockMovementsView : UserControl
             new StackPanel { Children = { Text("Name"), Text("StockDisplay", true) } }, true);
         var search = new IconInput("Search", "Search product, SKU, or supplier...");
         search.Input.Bind(TextBox.TextProperty, new Binding("SearchText"));
-        var quantity = new NumberField { Minimum = 1, Increment = 1, FormatString = "0" };
+        var quantity = new NumberField { Minimum = 1, Maximum = int.MaxValue, Increment = 1, FormatString = "0" };
         quantity.Bind(NumberField.ValueProperty, new Binding("Quantity"));
         var reference = Input("Reference", "Optional reference");
         var notes = Input("Notes", "Optional notes");
@@ -68,7 +68,8 @@ public sealed class ApiStockMovementsView : UserControl
         table.Bind(PagedTable.IsFilteredProperty, new Binding("IsHistoryFiltered"));
         table.Bind(PagedTable.RetryCommandProperty, new Binding("LoadHistoryCommand"));
         table.Bind(PagedTable.ClearFiltersCommandProperty, new Binding("ClearHistoryFiltersCommand"));
-        table.Columns.Add(Column("Date & time", item => item.OccurredAtDisplay, 1.25));
+        // Keep the full local timestamp visible; the table truncates non-wrapping cells.
+        table.Columns.Add(Column("Date & time", item => item.OccurredAtDisplay, 1.8));
         table.Columns.Add(Column("Product", item => item.ProductName, 1.35));
         table.Columns.Add(Column("Movement", item => item.MovementTypeDisplay, 1.15));
         table.Columns.Add(Column("Quantity", item => item.QuantityDisplay, 0.7, HorizontalAlignment.Right));

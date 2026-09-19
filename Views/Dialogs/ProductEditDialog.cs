@@ -215,7 +215,7 @@ public sealed class ProductEditDialog : Window
     private static TextBlock BoundText(string path) { var value = new TextBlock(); Bind(value, TextBlock.TextProperty, path); return value; }
     private static TextBox Input(string path, string placeholder) { var value = new TextBox { PlaceholderText = placeholder }; value.Classes.Add("form-input"); Bind(value, TextBox.TextProperty, path); return value; }
     private static AmountInput Amount(string path) { var value = new AmountInput { MinHeight = 42 }; Bind(value, AmountInput.ValueProperty, path); return value; }
-    private static NumberField Number(string path, decimal minimum) { var value = new NumberField { Minimum = minimum, FormatString = "0", Increment = 1 }; Bind(value, NumberField.ValueProperty, path); return value; }
+    private static NumberField Number(string path, decimal minimum) { var value = new NumberField { Minimum = minimum, Maximum = int.MaxValue, FormatString = "0", Increment = 1 }; Bind(value, NumberField.ValueProperty, path); return value; }
     private static T Bind<T>(T target, AvaloniaProperty property, string path) where T : AvaloniaObject { target.Bind(property, new Binding(path) { Mode = BindingMode.TwoWay }); return target; }
     private static T At<T>(T control, int row = 0, int column = 0) where T : Control { Grid.SetRow(control, row); Grid.SetColumn(control, column); return control; }
 }

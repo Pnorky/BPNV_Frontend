@@ -388,7 +388,7 @@ public class InventoryView : UserControl
 
     private static NumberField Number(string path, string format, decimal minimum = 0)
     {
-        var number = new NumberField { Minimum = minimum, Increment = 1, FormatString = format };
+        var number = new NumberField { Minimum = minimum, Maximum = format.Contains('.') ? decimal.MaxValue : int.MaxValue, Increment = 1, FormatString = format };
         Bind(number, NumberField.ValueProperty, path);
         return number;
     }

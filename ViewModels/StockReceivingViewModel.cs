@@ -142,6 +142,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             SelectedProduct = null;
             SelectedUnit = null;
             SelectedCatalogProduct = null;
+            CatalogLookupSelection = null;
             Count = 1;
             UnitCost = 0;
             SellingPrice = 0;
@@ -174,7 +175,10 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         if (SelectedUnit is null) return;
         UnitCost = (SelectedCatalogProduct?.CostPrice ?? 0) * SelectedUnit.PiecesPerUnit;
         SellingPrice = SelectedUnit.RegularPrice;
-        EmployeePrice = SelectedUnit.EmployeePrice;
+        // A zero employee price means employees use the regular selling price.
+        EmployeePrice = SelectedUnit.EmployeePrice > 0
+            ? SelectedUnit.EmployeePrice
+            : SelectedUnit.RegularPrice;
     }
 
     private void SelectCatalogProduct(ProductResponse product)

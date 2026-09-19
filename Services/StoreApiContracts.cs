@@ -278,7 +278,7 @@ public sealed record InventoryImportCommitResult(
 
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
 
-public sealed record ReceiveStockRequest(Guid ProductId, Guid UnitId, int Count, decimal UnitCost, decimal SellingPrice, decimal EmployeePrice, string? Reference, string? Notes);
+public sealed record ReceiveStockRequest(Guid ProductId, Guid UnitId, int Count, decimal UnitCost, decimal RegularPrice, decimal EmployeePrice, string? Reference, string? Notes);
 public sealed record TransferStockRequest(Guid ProductId, int Quantity, string? Reference, string? Notes);
 public sealed record RecordStockCountRequest(
     Guid ProductId,

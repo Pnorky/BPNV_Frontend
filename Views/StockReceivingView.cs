@@ -75,7 +75,7 @@ public class StockReceivingView : UserControl
             Children =
             {
                 Field("COUNT OF SCANNED UNIT", Number("Count")),
-                At(Field("REFERENCE", Input("Reference", "Delivery receipt")), 1),
+                At(Field("RECEIPT / INVOICE NO.", Input("Reference", "Receipt or invoice number (optional)")), 1),
                 At(Field("NOTES", Input("Notes", "Optional notes")), 2)
             }
         };
@@ -123,7 +123,7 @@ public class StockReceivingView : UserControl
     private void FocusScanner() => Dispatcher.UIThread.Post(() => _scanner.Focus());
     private static StackPanel Field(string label, Control control) { var caption = new TextBlock { Text = label }; caption.Classes.Add("form-label"); return new StackPanel { Spacing = 5, Children = { caption, control } }; }
     private static TextBox Input(string path, string placeholder) { var value = new TextBox { PlaceholderText = placeholder }; value.Classes.Add("form-input"); value.Bind(TextBox.TextProperty, new Binding(path)); return value; }
-    private static NumberField Number(string path) { var value = new NumberField { Minimum = 1, Increment = 1, FormatString = "0" }; value.Bind(NumberField.ValueProperty, new Binding(path)); return value; }
+    private static NumberField Number(string path) { var value = new NumberField { Minimum = 1, Maximum = int.MaxValue, Increment = 1, FormatString = "0" }; value.Bind(NumberField.ValueProperty, new Binding(path)); return value; }
     private static TextBlock Heading(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("h3"); return value; }
     private static TextBlock Bound(string path, double size, FontWeight weight) { var value = new TextBlock { FontSize = size, FontWeight = weight, TextWrapping = TextWrapping.Wrap }; value.Bind(TextBlock.TextProperty, new Binding(path)); return value; }
     private static TextBlock Muted(string path) { var value = Bound(path, 12, FontWeight.Normal); value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }

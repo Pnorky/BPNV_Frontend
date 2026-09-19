@@ -85,12 +85,16 @@ public partial class BatchReceivingRowViewModel : ObservableObject
         NewProductCorrelationId = row.NewProductCorrelationId;
         PreviousCostPrice = row.PreviousCostPrice;
         PreviousRegularPrice = row.PreviousRegularPrice;
-        PreviousEmployeePrice = row.PreviousEmployeePrice;
+        // A zero stored employee price inherits the previous regular selling price.
+        PreviousEmployeePrice = row.PreviousEmployeePrice is > 0
+            ? row.PreviousEmployeePrice
+            : row.PreviousRegularPrice;
         ProductVersion = row.ProductVersion;
         _suppressChanges = true;
         CostPrice = row.CostPrice;
         RegularPrice = row.RegularPrice;
-        EmployeePrice = row.EmployeePrice;
+        // A zero employee price means employees use the regular selling price.
+        EmployeePrice = row.EmployeePrice is > 0 ? row.EmployeePrice : row.RegularPrice;
         _suppressChanges = false;
     }
 

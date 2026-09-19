@@ -212,7 +212,7 @@ public class AddProductView : UserControl
     private static TextBlock Muted(string text) => Resource(new TextBlock { Text = text, FontSize = 12, TextWrapping = TextWrapping.Wrap }, TextBlock.ForegroundProperty, "MutedForeground");
     private static TextBlock BoundText(string path) { var value = new TextBlock(); Bind(value, TextBlock.TextProperty, path); return value; }
     private static TextBox InputBox(string path, string placeholder) { var value = new TextBox { PlaceholderText = placeholder }; value.Classes.Add("form-input"); Bind(value, TextBox.TextProperty, path); return value; }
-    private static NumberField Number(string path, string format, decimal minimum = 0) { var value = new NumberField { Minimum = minimum, FormatString = format, Increment = 1 }; Bind(value, NumberField.ValueProperty, path); return value; }
+    private static NumberField Number(string path, string format, decimal minimum = 0) { var value = new NumberField { Minimum = minimum, Maximum = format.Contains('.') ? decimal.MaxValue : int.MaxValue, FormatString = format, Increment = 1 }; Bind(value, NumberField.ValueProperty, path); return value; }
     private static Button Button(string text, string command, bool primary = false, Type? ancestor = null)
     {
         var value = new ActionButton(text, primary ? ActionButtonVariant.Primary : ActionButtonVariant.Secondary);

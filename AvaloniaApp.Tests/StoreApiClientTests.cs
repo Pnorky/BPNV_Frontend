@@ -84,6 +84,28 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
+    public async Task ReceiveStockSerializesRegularPriceAndReceiptNumber()
+    {
+        string? body = null;
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            body = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return Json(new StockReceiptResponse(
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "piece", 2, 1, 2, 0, 2, 2, DateTime.UtcNow));
+        });
+        await auth.LoginAsync("inventory", "password");
+
+        await new StoreApiClient(auth).ReceiveStockAsync(new ReceiveStockRequest(
+            Guid.NewGuid(), Guid.NewGuid(), 2, 10m, 12m, 11m, "INV-001", "Delivery"));
+
+        Assert.IsNotNull(body);
+        StringAssert.Contains(body, "\"regularPrice\":12");
+        Assert.IsFalse(body.Contains("\"sellingPrice\"", StringComparison.Ordinal));
+        StringAssert.Contains(body, "\"reference\":\"INV-001\"");
+    }
+
+    [TestMethod]
     public async Task ProductMutationEndpointsUseExactMethodsAndSerializeUpdateContract()
     {
         var product = CatalogProduct();
