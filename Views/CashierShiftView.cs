@@ -27,7 +27,10 @@ public sealed class CashierShiftView : UserControl
         clockIn.Bind(Visual.IsVisibleProperty, new Binding("CanClockIn"));
         var clockOut = new ActionButton("Clock out", ActionButtonVariant.Danger);
         clockOut.Bind(Button.CommandProperty, new Binding("ClockOutCommand"));
-        clockOut.Bind(Visual.IsVisibleProperty, new Binding("CanClockOut"));
+        // Keep the action visible for an open session; pending adjustments should disable it,
+        // not make the cashier wonder where the action went.
+        clockOut.Bind(Visual.IsVisibleProperty, new Binding("HasOpenSession"));
+        clockOut.Bind(Button.IsEnabledProperty, new Binding("CanClockOut"));
         var actions = new StackPanel
         {
             Orientation = Orientation.Horizontal,

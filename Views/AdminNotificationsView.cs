@@ -52,26 +52,17 @@ public sealed class AdminNotificationsView : UserControl
         Content = new Grid
         {
             Margin = new Thickness(30),
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
             RowSpacing = 14,
             Children =
             {
-                new StackPanel
-                {
-                    Spacing = 4,
-                    Children =
-                    {
-                        Heading("Admin notifications", "h1"),
-                        Muted("Persisted cashier shift events and remittance follow-up.")
-                    }
-                },
-                At(new StackPanel { Spacing = 8, Children = { loading, error } }, row: 1),
-                At(Summary(), row: 2),
+                At(new StackPanel { Spacing = 8, Children = { loading, error } }, row: 0),
+                At(Summary(), row: 1),
                 At(new ScrollViewer
                 {
                     HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                     Content = new Grid { Children = { empty, notifications } }
-                }, row: 3)
+                }, row: 2)
             }
         };
     }

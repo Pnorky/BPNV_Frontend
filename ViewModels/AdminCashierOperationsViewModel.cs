@@ -11,6 +11,7 @@ public sealed record CashierShiftStatusFilter(string Label, ApiCashierShiftSessi
 
 public partial class AdminCashierOperationsViewModel : ObservableObject, IDisposable
 {
+    public event Action<CashierShiftSessionDetailResponse>? SessionDetailLoaded;
     private static readonly CashierShiftStatusFilter AllStatuses = new("All statuses", null);
     private readonly StoreApiClient _api;
     private readonly INotificationService _notifications;
@@ -227,6 +228,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             _suppressSelectionLoad = false;
             Detail = detail;
             InitializeForms(detail.Session);
+            SessionDetailLoaded?.Invoke(detail);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {

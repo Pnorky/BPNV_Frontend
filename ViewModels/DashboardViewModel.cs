@@ -157,7 +157,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
         };
         CurrentPage = tag switch
         {
-            "Dashboard" => new DashboardPageViewModel(_storeClient, _notifications),
+            "Dashboard" => new DashboardPageViewModel(_storeClient, _notifications, IsCashier),
             "CashierShift" => _cashierShiftPage ??= new CashierShiftViewModel(CashierShift, _storeClient, _notifications, () => _salesPage?.Cart.Count > 0),
             "Sales" => _salesPage ??= new SalesViewModel(_storeClient, _notifications, CashierShift),
             "InventoryProducts" => new ProductCatalogViewModel(_storeClient, _notifications),
@@ -174,7 +174,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             "AdminNotifications" => CreateAdminNotificationsPage(),
             "Employees" => new EmployeesViewModel(_storeClient, _notifications),
             "Users" => new UsersViewModel(_storeClient, _notifications),
-            _ => new DashboardPageViewModel(_storeClient, _notifications)
+            _ => new DashboardPageViewModel(_storeClient, _notifications, IsCashier)
         };
         if (tag is "Dashboard" or "AdminNotifications" && AdminNotifications is not null)
             _ = AdminNotifications.RefreshAsync();

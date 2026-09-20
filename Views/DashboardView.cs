@@ -40,12 +40,12 @@ public class DashboardView : UserControl
         };
         grid.Children.Add(BuildMetric(0, LucideIconKind.CircleDollarSign, "TodaySalesDisplay", "Sales today"));
         grid.Children.Add(BuildMetric(1, LucideIconKind.ShoppingBag, "TodayTransactions", "Transactions today"));
-        grid.Children.Add(BuildMetric(2, LucideIconKind.Store, "ShelfUnits", "Units on display"));
-        grid.Children.Add(BuildMetric(3, LucideIconKind.Warehouse, "BodegaUnits", "Units in bodega"));
+        grid.Children.Add(BuildMetric(2, LucideIconKind.Store, "ShelfUnits", "Units on display", hideForCashier: true));
+        grid.Children.Add(BuildMetric(3, LucideIconKind.Warehouse, "BodegaUnits", "Units in bodega", hideForCashier: true));
         return grid;
     }
 
-    private static Border BuildMetric(int column, LucideIconKind iconKind, string valuePath, string label)
+    private static Border BuildMetric(int column, LucideIconKind iconKind, string valuePath, string label, bool hideForCashier = false)
     {
         var icon = new LucideIcon
         {
@@ -68,10 +68,12 @@ public class DashboardView : UserControl
             Children = { icon, value, caption }
         }, new Thickness(20));
         Grid.SetColumn(card, column);
+        if (hideForCashier)
+            card.Bind(Visual.IsVisibleProperty, new Binding("ShowInventoryMetrics"));
         return card;
     }
 
-    private static Grid BuildDetails()
+    private static Control BuildDetails()
     {
         var attention = Card(new StackPanel
         {
@@ -82,6 +84,7 @@ public class DashboardView : UserControl
                 BuildAttentionItems()
             }
         }, new Thickness(22));
+        attention.Bind(Visual.IsVisibleProperty, new Binding("ShowInventoryMetrics"));
 
         var recentTitle = new TextBlock { Text = "Recent sales" };
         recentTitle.Classes.Add("h2");
@@ -91,12 +94,10 @@ public class DashboardView : UserControl
             Children = { recentTitle, BuildRecentSales() }
         }, new Thickness(22));
         recent.VerticalAlignment = VerticalAlignment.Top;
-        Grid.SetColumn(recent, 1);
 
-        return new Grid
+        return new StackPanel
         {
-            ColumnDefinitions = new ColumnDefinitions("1.1*,0.9*"),
-            ColumnSpacing = 18,
+            Spacing = 18,
             Children = { attention, recent }
         };
     }

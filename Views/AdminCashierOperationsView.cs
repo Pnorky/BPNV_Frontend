@@ -17,8 +17,11 @@ namespace AvaloniaApp.Views;
 
 public sealed class AdminCashierOperationsView : UserControl
 {
+    private AdminCashierOperationsViewModel? _subscribedViewModel;
+
     public AdminCashierOperationsView()
     {
+        DataContextChanged += OnDataContextChanged;
         var tabs = new TabControl
         {
             Items =
@@ -31,22 +34,28 @@ public sealed class AdminCashierOperationsView : UserControl
         Content = new Grid
         {
             Margin = new Thickness(30),
-            RowDefinitions = new RowDefinitions("Auto,*"),
-            RowSpacing = 16,
+            RowDefinitions = new RowDefinitions("*"),
             Children =
             {
-                new StackPanel
-                {
-                    Spacing = 4,
-                    Children =
-                    {
-                        Heading("Cashier operations", "h1"),
-                        Muted("Review cashier work periods, review cash differences, resolve open work periods, and retain approved cash corrections.")
-                    }
-                },
-                At(tabs, row: 1)
+                tabs
             }
         };
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_subscribedViewModel is not null)
+            _subscribedViewModel.SessionDetailLoaded -= OnSessionDetailLoaded;
+        _subscribedViewModel = DataContext as AdminCashierOperationsViewModel;
+        if (_subscribedViewModel is not null)
+            _subscribedViewModel.SessionDetailLoaded += OnSessionDetailLoaded;
+    }
+
+    private async void OnSessionDetailLoaded(CashierShiftSessionDetailResponse detail)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        var dialog = new CashierShiftSummaryDialog(detail.Session, detail.CashAdjustments, _subscribedViewModel);
+        await dialog.ShowDialog(owner);
     }
 
     private static Control HistorySection()
@@ -58,16 +67,7 @@ public sealed class AdminCashierOperationsView : UserControl
             {
                 Filters(),
                 Status(),
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("0.85*,1.35*"),
-                    ColumnSpacing = 16,
-                    Children =
-                    {
-                        SessionHistory(),
-                        At(SessionDetail(), column: 1)
-                    }
-                }
+                SessionHistory()
             }
         };
         return content;
@@ -131,6 +131,17 @@ public sealed class AdminCashierOperationsView : UserControl
         };
         sessions.Bind(ItemsControl.ItemsSourceProperty, new Binding("Sessions"));
         sessions.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedSession") { Mode = BindingMode.TwoWay });
+        sessions.Tapped += async (_, _) =>
+        {
+            // Tapped fires even when the same already-selected row is opened again.
+            await Task.Yield();
+            if (sessions.SelectedItem is not CashierShiftSessionResponse session ||
+                sessions.GetVisualAncestors().OfType<AdminCashierOperationsView>().FirstOrDefault() is not { } view ||
+                view.DataContext is not AdminCashierOperationsViewModel viewModel ||
+                TopLevel.GetTopLevel(sessions) is not Window) return;
+
+            await viewModel.OpenSessionAsync(session.Id);
+        };
 
         var pageSize = new ComboBox
         {
@@ -145,77 +156,113 @@ public sealed class AdminCashierOperationsView : UserControl
         rowsLabel.VerticalAlignment = VerticalAlignment.Center;
         var pageSummary = Bound("PageSummary", FontWeight.SemiBold);
         pageSummary.VerticalAlignment = VerticalAlignment.Center;
-        var pager = new Grid
+        var navigation = new StackPanel
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-            ColumnSpacing = 16,
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Children =
+            {
+                CommandButton("Previous", ActionButtonVariant.Secondary, "PreviousPageCommand", ActionButtonSize.Sm),
+                CommandButton("Next", ActionButtonVariant.Secondary, "NextPageCommand", ActionButtonSize.Sm)
+            }
+        };
+        navigation.Bind(Visual.IsVisibleProperty, new Binding("HasSessions"));
+
+        var pager = new StackPanel
+        {
+            Spacing = 8,
             Children =
             {
                 new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
                     Spacing = 8,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    VerticalAlignment = VerticalAlignment.Center,
                     Children = { rowsLabel, pageSize, pageSummary }
                 },
-                At(new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 6,
-                    Children =
-                    {
-                        CommandButton("Previous", ActionButtonVariant.Secondary, "PreviousPageCommand", ActionButtonSize.Sm),
-                        CommandButton("Next", ActionButtonVariant.Secondary, "NextPageCommand", ActionButtonSize.Sm)
-                    }
-                }, column: 2)
+                navigation
             }
         };
-        pager.Children[1].Bind(Visual.IsVisibleProperty, new Binding("HasSessions"));
 
-        return Card(new StackPanel
+        var card = Card(new StackPanel
         {
-            Spacing = 12,
+            Spacing = 14,
             Children =
             {
-                Heading("Session history", "h2"),
-                Muted("Select a session to load its server detail."),
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                    Children =
+                    {
+                        new StackPanel
+                        {
+                            Spacing = 3,
+                            Children = { Heading("Session history", "h2"), Muted("Choose a work period to inspect its details.") }
+                        },
+                        At(Bound("PageSummary", FontWeight.SemiBold), column: 1)
+                    }
+                },
+                SessionTableHeader(),
                 sessions,
                 pager
             }
         });
+        card.Padding = new Thickness(16);
+        return card;
     }
+
+    private static Control SessionTableHeader() => new Grid
+    {
+        ColumnDefinitions = new ColumnDefinitions("1.6*,1*,1.7*,1.7*,Auto,1*,1*"),
+        ColumnSpacing = 12,
+        Children =
+        {
+            Label("SHIFT / CASHIER"),
+            At(Label("BUSINESS DATE"), column: 1),
+            At(Label("SCHEDULED"), column: 2),
+            At(Label("ACTUAL"), column: 3),
+            At(Label("STATUS"), column: 4),
+            At(Label("SALES"), column: 5),
+            At(Label("CASH DIFFERENCE"), column: 6)
+        }
+    };
 
     private static Control SessionRow(CashierShiftSessionResponse session)
     {
-        return RowCard(new StackPanel
+        return RowCard(new Grid
         {
-            Spacing = 5,
+            ColumnDefinitions = new ColumnDefinitions("1.6*,1*,1.7*,1.7*,Auto,1*,1*"),
+            ColumnSpacing = 12,
             Children =
             {
-                new Grid
+                new StackPanel
                 {
-                    ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                    Spacing = 3,
+                    VerticalAlignment = VerticalAlignment.Center,
                     Children =
                     {
-                        new TextBlock { Text = $"{session.ShiftName} - {session.CashierName}", FontWeight = FontWeight.SemiBold },
-                        At(Badge(session.StatusDisplay), column: 1)
+                        new TextBlock { Text = session.ShiftName, FontWeight = FontWeight.SemiBold },
+                        Muted(session.CashierName, 11)
                     }
                 },
-                Muted($"{session.BusinessDate:MMM d, yyyy} | Scheduled {session.ScheduledDisplay}", 11),
-                Muted($"Actual {session.ActualDisplay}", 11),
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-                    Children =
-                    {
-                        new TextBlock { Text = $"{session.TransactionCount ?? 0:N0} transactions | {session.TotalSalesDisplay}", FontSize = 12 },
-                        At(new TextBlock { Text = session.VarianceDisplay, FontWeight = FontWeight.SemiBold, FontSize = 12 }, column: 1)
-                    }
-                }
+                At(Cell($"{session.BusinessDate:MMM d, yyyy}"), column: 1),
+                At(Cell(session.ScheduledDisplay), column: 2),
+                At(Cell(session.ActualDisplay), column: 3),
+                At(Badge(session.StatusDisplay), column: 4),
+                At(Cell(session.TotalSalesDisplay, true), column: 5),
+                At(Cell(session.VarianceDisplay, true), column: 6)
             }
         });
     }
+
+    private static TextBlock Cell(string text, bool emphasize = false) => new()
+    {
+        Text = text,
+        FontSize = 12,
+        FontWeight = emphasize ? FontWeight.SemiBold : FontWeight.Normal,
+        TextWrapping = TextWrapping.Wrap,
+        VerticalAlignment = VerticalAlignment.Center
+    };
 
     private static Control SessionDetail()
     {
@@ -261,7 +308,7 @@ public sealed class AdminCashierOperationsView : UserControl
         detail.Bind(Visual.IsVisibleProperty, new Binding("HasDetail"));
 
         var error = Bound("DetailError", FontWeight.SemiBold, wrap: true);
-        return Card(new Grid { Children = { loading, placeholder, error, detail } });
+        return Card(new Grid { Children = { loading, placeholder, error, detail } }, new Thickness(20));
     }
 
     private static Control DetailHeader()
@@ -280,31 +327,56 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control SessionSummary()
     {
-        return Section("Shift Summary", "Financial values and timestamps come from the selected work period details.", new WrapPanel
+        return new StackPanel
         {
-            Orientation = Orientation.Horizontal,
+            Spacing = 12,
             Children =
             {
-                Metadata("BUSINESS DATE", "Detail.Session.BusinessDate", 160, "{0:MMM d, yyyy}"),
-                Metadata("SCHEDULED", "Detail.Session.ScheduledDisplay", 310),
-                Metadata("ACTUAL", "Detail.Session.ActualDisplay", 310),
-                Metadata("WORKED", "Detail.Session.WorkedDisplay", 120),
-                Metadata("CLOSE TYPE", "Detail.Session.CloseType", 180),
-                MoneyMetadata("OPENING FLOAT", "Detail.Session.OpeningCashFloat", 160),
-                MoneyMetadata("EXPECTED TERMINAL CASH", "Detail.Session.ExpectedTerminalCash", 200),
-                MoneyMetadata("TOTAL SALES", "Detail.Session.TotalSales", 160),
-                Metadata("TRANSACTIONS", "Detail.Session.TransactionCount", 130, "{0:N0}"),
-                MoneyMetadata("CASH SALES", "Detail.Session.CashSales", 160),
-                MoneyMetadata("EXPECTED REMITTANCE", "Detail.Session.ExpectedRemittance", 200),
-                MoneyMetadata("GCASH", "Detail.Session.GCashSales", 150),
-                MoneyMetadata("CASH REFUNDS", "Detail.Session.CashRefunds", 160),
-                MoneyMetadata("CASH PAYOUTS", "Detail.Session.CashPayouts", 160),
-                MoneyMetadata("ACTUAL REMITTANCE", "Detail.Session.ActualRemittance", 190),
-                Metadata("VARIANCE", "Detail.Session.VarianceDisplay", 160),
-                Metadata("FLOAT RETURNED", "Detail.Session.CashFloatReturned", 150),
-                Metadata("REMITTANCE NOTE", "Detail.Session.RemittanceNote", 300)
+                Section("Timeline", "When this work period was scheduled and worked.", MetadataGrid(
+                    ("BUSINESS DATE", "Detail.Session.BusinessDate", "{0:MMM d, yyyy}"),
+                    ("SCHEDULED", "Detail.Session.ScheduledDisplay", null),
+                    ("ACTUAL", "Detail.Session.ActualDisplay", null),
+                    ("WORKED", "Detail.Session.WorkedDisplay", null),
+                    ("CLOSE TYPE", "Detail.Session.CloseType", null))),
+                Section("Cash position", "Expected and actual cash movement for this work period.", MetadataGrid(
+                    ("OPENING FLOAT", "Detail.Session.OpeningCashFloat", "₱{0:N2}"),
+                    ("EXPECTED TERMINAL CASH", "Detail.Session.ExpectedTerminalCash", "₱{0:N2}"),
+                    ("EXPECTED REMITTANCE", "Detail.Session.ExpectedRemittance", "₱{0:N2}"),
+                    ("ACTUAL REMITTANCE", "Detail.Session.ActualRemittance", "₱{0:N2}"),
+                    ("CASH DIFFERENCE", "Detail.Session.VarianceDisplay", null),
+                    ("FLOAT RETURNED", "Detail.Session.CashFloatReturned", null))),
+                Section("Sales activity", "Sales and adjustments attributed to this cashier session.", MetadataGrid(
+                    ("TOTAL SALES", "Detail.Session.TotalSales", "₱{0:N2}"),
+                    ("CASH SALES", "Detail.Session.CashSales", "₱{0:N2}"),
+                    ("GCASH", "Detail.Session.GCashSales", "₱{0:N2}"),
+                    ("CASH REFUNDS", "Detail.Session.CashRefunds", "₱{0:N2}"),
+                    ("CASH PAYOUTS", "Detail.Session.CashPayouts", "₱{0:N2}"),
+                    ("TRANSACTIONS", "Detail.Session.TransactionCount", "{0:N0}"))),
+                Section("Remittance note", "The note recorded for this work period.", MetadataGrid(
+                    ("NOTE", "Detail.Session.RemittanceNote", null)))
             }
-        });
+        };
+    }
+
+    private static Grid MetadataGrid(params (string Label, string Path, string? Format)[] fields)
+    {
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            ColumnSpacing = 18,
+            RowSpacing = 12
+        };
+        for (var index = 0; index < fields.Length; index++)
+        {
+            var field = Metadata(fields[index].Label, fields[index].Path, 0, fields[index].Format);
+            field.Width = double.NaN;
+            field.HorizontalAlignment = HorizontalAlignment.Stretch;
+            Grid.SetColumn(field, index % 4);
+            Grid.SetRow(field, index / 4);
+            grid.Children.Add(field);
+        }
+        return grid;
     }
 
     private static Control AdministrativeClockOutForm()
@@ -496,11 +568,47 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control ReportSection()
     {
-        var rows = new ItemsControl
+        var rows = new PagedTable
         {
-            ItemTemplate = new FuncDataTemplate<CashierShiftReportRowResponse>((row, _) => ReportRow(row), true)
+            ItemName = "session",
+            ItemNamePlural = "sessions",
+            PageSize = 10,
+            MinHeight = 0,
+            MinTableWidth = 1100,
+            IsSelectable = false
         };
-        rows.Bind(ItemsControl.ItemsSourceProperty, new Binding("Report.Sessions"));
+        rows.Bind(PagedTable.ItemsSourceProperty, new Binding("Report.Sessions"));
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "DATE / SHIFT", row => $"{row.BusinessDate:MMM d, yyyy} | {row.ShiftName}", new GridLength(1.5, GridUnitType.Star)));
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "CASHIER", row => row.CashierName, new GridLength(1.15, GridUnitType.Star)));
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "STATUS", row => row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString(), new GridLength(1.05, GridUnitType.Star)));
+        var actualColumn = PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "ACTUAL", row => row.ClockedOutAtUtc.HasValue
+                ? $"{StoreDateTime.FormatUtc(row.ClockedInAtUtc)} - {StoreDateTime.FormatUtc(row.ClockedOutAtUtc.Value)}"
+                : $"{StoreDateTime.FormatUtc(row.ClockedInAtUtc)} - Active", new GridLength(2.1, GridUnitType.Star));
+        actualColumn.CellTemplate = new FuncDataTemplate<CashierShiftReportRowResponse>((row, _) => new TextBlock
+        {
+            Text = row.ClockedOutAtUtc.HasValue
+                ? $"{StoreDateTime.FormatUtc(row.ClockedInAtUtc)}\n{StoreDateTime.FormatUtc(row.ClockedOutAtUtc.Value)}"
+                : $"{StoreDateTime.FormatUtc(row.ClockedInAtUtc)}\nActive",
+            TextWrapping = TextWrapping.Wrap,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = 13
+        }, true);
+        rows.Columns.Add(actualColumn);
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "TXNS", row => $"{row.TransactionCount ?? 0:N0}", new GridLength(0.85, GridUnitType.Star)));
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "SALES", row => CashierShiftFormatting.Money(row.TotalSales), new GridLength(1, GridUnitType.Star)));
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "EXPECTED", row => CashierShiftFormatting.Money(row.ExpectedRemittance), new GridLength(1, GridUnitType.Star)));
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "ACTUAL REMIT.", row => CashierShiftFormatting.Money(row.ActualRemittance), new GridLength(1.25, GridUnitType.Star)));
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "CASH DIFFERENCE", row => CashierShiftFormatting.SignedMoney(row.Variance), new GridLength(1, GridUnitType.Star)));
         var report = new StackPanel
         {
             Spacing = 14,
@@ -532,18 +640,19 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control ReportSummary()
     {
-        return Card(new WrapPanel
+        return Card(new Grid
         {
-            Orientation = Orientation.Horizontal,
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*,*,*"),
+            ColumnSpacing = 18,
             Children =
             {
-                Metadata("SESSIONS", "ReportSessionsDisplay", 140),
-                Metadata("TOTAL SALES", "ReportTotalSalesDisplay", 170),
-                Metadata("CASH SALES", "ReportCashSalesDisplay", 170),
-                Metadata("GCASH", "ReportGCashSalesDisplay", 160),
-                Metadata("EXPECTED REMITTANCE", "ReportExpectedDisplay", 210),
-                Metadata("ACTUAL REMITTANCE", "ReportActualDisplay", 190),
-                Metadata("VARIANCE", "ReportVarianceDisplay", 160)
+                ReportMetadata("SESSIONS", "ReportSessionsDisplay"),
+                At(ReportMetadata("TOTAL SALES", "ReportTotalSalesDisplay"), column: 1),
+                At(ReportMetadata("CASH SALES", "ReportCashSalesDisplay"), column: 2),
+                At(ReportMetadata("GCASH", "ReportGCashSalesDisplay"), column: 3),
+                At(ReportMetadata("EXPECTED REMITTANCE", "ReportExpectedDisplay"), column: 4),
+                At(ReportMetadata("ACTUAL REMITTANCE", "ReportActualDisplay"), column: 5),
+                At(ReportMetadata("CASH DIFFERENCE", "ReportVarianceDisplay"), column: 6)
             }
         });
     }
@@ -553,23 +662,38 @@ public sealed class AdminCashierOperationsView : UserControl
         var actual = row.ClockedOutAtUtc.HasValue
             ? $"{StoreDateTime.FormatUtc(row.ClockedInAtUtc)} - {StoreDateTime.FormatUtc(row.ClockedOutAtUtc.Value)}"
             : $"{StoreDateTime.FormatUtc(row.ClockedInAtUtc)} - Active";
-        return RowCard(new WrapPanel
+        return RowCard(new Grid
         {
-            Orientation = Orientation.Horizontal,
+            ColumnDefinitions = new ColumnDefinitions("1.4*,1.1*,1.1*,2*,.8*,1*,1*,1.2*,1*"),
+            ColumnSpacing = 14,
             Children =
             {
-                StaticMetadata("DATE / SHIFT", $"{row.BusinessDate:MMM d, yyyy} | {row.ShiftName}", 230),
-                StaticMetadata("CASHIER", row.CashierName, 180),
-                StaticMetadata("STATUS", row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString(), 180),
-                StaticMetadata("ACTUAL", actual, 300),
-                StaticMetadata("TRANSACTIONS", $"{row.TransactionCount ?? 0:N0}", 130),
-                StaticMetadata("TOTAL SALES", CashierShiftFormatting.Money(row.TotalSales), 150),
-                StaticMetadata("EXPECTED", CashierShiftFormatting.Money(row.ExpectedRemittance), 150),
-                StaticMetadata("ACTUAL REMITTANCE", CashierShiftFormatting.Money(row.ActualRemittance), 190),
-                StaticMetadata("VARIANCE", CashierShiftFormatting.SignedMoney(row.Variance), 150)
+                ReportCell("DATE / SHIFT", $"{row.BusinessDate:MMM d, yyyy} | {row.ShiftName}"),
+                At(ReportCell("CASHIER", row.CashierName), column: 1),
+                At(ReportCell("STATUS", row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString()), column: 2),
+                At(ReportCell("ACTUAL", actual), column: 3),
+                At(ReportCell("TRANSACTIONS", $"{row.TransactionCount ?? 0:N0}"), column: 4),
+                At(ReportCell("TOTAL SALES", CashierShiftFormatting.Money(row.TotalSales)), column: 5),
+                At(ReportCell("EXPECTED", CashierShiftFormatting.Money(row.ExpectedRemittance)), column: 6),
+                At(ReportCell("ACTUAL REMITTANCE", CashierShiftFormatting.Money(row.ActualRemittance)), column: 7),
+                At(ReportCell("CASH DIFFERENCE", CashierShiftFormatting.SignedMoney(row.Variance)), column: 8)
             }
         });
     }
+
+    private static StackPanel ReportMetadata(string label, string path)
+    {
+        var field = Metadata(label, path, 0);
+        field.Width = double.NaN;
+        field.Margin = new Thickness(0);
+        return field;
+    }
+
+    private static StackPanel ReportCell(string label, string value) => new()
+    {
+        Spacing = 4,
+        Children = { Label(label), new TextBlock { Text = value, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap } }
+    };
 
     private static Border Status()
     {
@@ -729,6 +853,8 @@ public sealed class AdminCashierOperationsView : UserControl
         {
             Padding = new Thickness(8, 3),
             CornerRadius = new CornerRadius(12),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock { Text = text, FontSize = 11, FontWeight = FontWeight.SemiBold }
         };
         return Resource(badge, Border.BackgroundProperty, "Muted");
@@ -778,6 +904,7 @@ public sealed class AdminCashierOperationsView : UserControl
     private static ScrollViewer Scroll(Control content) => new()
     {
         HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        HorizontalContentAlignment = HorizontalAlignment.Stretch,
         Content = new Border { Padding = new Thickness(0, 16, 0, 0), Child = content }
     };
 

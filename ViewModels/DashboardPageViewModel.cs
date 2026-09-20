@@ -23,14 +23,18 @@ public partial class DashboardPageViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "Loading store overview...";
     [ObservableProperty] private string? _errorMessage;
 
+    public bool IsCashier { get; }
+    public bool ShowInventoryMetrics => !IsCashier;
+
     public string TodaySalesDisplay => $"₱{TodaySales:N2}";
     public int ShelfUnits => DisplayUnits;
     public int AttentionCount => AttentionItems.Count;
 
-    public DashboardPageViewModel(StoreApiClient api, INotificationService notifications)
+    public DashboardPageViewModel(StoreApiClient api, INotificationService notifications, bool isCashier = false)
     {
         _api = api;
         _notifications = notifications;
+        IsCashier = isCashier;
         _ = RefreshAsync();
     }
 

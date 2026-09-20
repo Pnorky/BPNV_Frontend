@@ -33,20 +33,10 @@ public sealed class CashierShiftManagementView : UserControl
         Content = new Grid
         {
             Margin = new Thickness(30),
-            RowDefinitions = new RowDefinitions("Auto,*"),
-            RowSpacing = 16,
+            RowDefinitions = new RowDefinitions("*"),
             Children =
             {
-                new StackPanel
-                {
-                    Spacing = 4,
-                    Children =
-                    {
-                        Heading("Cashier shifts", "h1"),
-                        Muted("Configure store-local shift windows, weekly cashier assignments, and date-specific replacements.")
-                    }
-                },
-                At(tabs, row: 1)
+                tabs
             }
         };
     }
