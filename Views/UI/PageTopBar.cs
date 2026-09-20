@@ -54,17 +54,35 @@ public sealed class PageTopBar : UserControl
         };
         Grid.SetColumn(_actions, 2);
 
-        var storeClock = new TextBlock { FontSize = 12, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Right };
+        var storeClock = new TextBlock
+        {
+            FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
         storeClock.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.StoreClockDisplay)));
-        var shiftStatus = new TextBlock { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Right, TextTrimming = TextTrimming.CharacterEllipsis };
+        var shiftStatus = new TextBlock
+        {
+            FontSize = 11,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
         shiftStatus.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.ShiftStatusDisplay)));
         shiftStatus.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsCashier)));
         shiftStatus.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
         var shiftTooltip = new TextBlock();
         shiftTooltip.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.ShiftStatusDisplay)));
         ToolTip.SetTip(shiftStatus, shiftTooltip);
-        var shiftButton = new Button { Content = "Shift", FontSize = 11, Padding = new Thickness(7, 2), Margin = new Thickness(8, 0, 0, 0) };
-        shiftButton.Classes.Add("ghost");
+        var shiftButton = new Button
+        {
+            Content = "Shift",
+            FontSize = 11,
+            Padding = new Thickness(8, 4),
+            MinWidth = 68,
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        shiftButton.Classes.Add("secondary");
         shiftButton.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsCashier)));
         shiftButton.Click += (_, _) => NavigationRequested?.Invoke(this, "CashierShift");
         var notificationsButton = new Button { FontSize = 11, Padding = new Thickness(8, 4), Margin = new Thickness(4, 0, 0, 0) };
@@ -72,21 +90,28 @@ public sealed class PageTopBar : UserControl
         notificationsButton.Bind(ContentControl.ContentProperty, new Binding(nameof(DashboardViewModel.AdminNotificationDisplay)));
         notificationsButton.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsAdmin)));
         notificationsButton.Click += (_, _) => NavigationRequested?.Invoke(this, "AdminNotifications");
+        var clockText = new StackPanel
+        {
+            Width = 260,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { storeClock, shiftStatus }
+        };
         var clockPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8,
-            MaxWidth = 200,
+            Width = 336,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { new StackPanel { Children = { storeClock, shiftStatus } }, shiftButton }
+            Children = { clockText, shiftButton }
         };
-        _actions.Margin = new Thickness(16, 0, 0, 0);
+        _actions.Margin = new Thickness(8, 0, 0, 0);
         Grid.SetColumn(_actions, 2);
 
         var layout = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
-            ColumnSpacing = 20,
+            ColumnSpacing = 8,
+            VerticalAlignment = VerticalAlignment.Center,
             Children = { title, _filters, _actions, clockPanel, notificationsButton }
         };
         Grid.SetColumn(clockPanel, 3);
@@ -131,6 +156,10 @@ public sealed class PageTopBar : UserControl
         {
             case DashboardPageViewModel:
                 yield return Button("Refresh", "RefreshCommand", ActionButtonVariant.Secondary);
+                break;
+            case AdminNotificationsViewModel:
+                yield return Button("Refresh", "RefreshCommand", ActionButtonVariant.Secondary);
+                yield return Button("Mark all read", "MarkAllReadCommand", ActionButtonVariant.Primary);
                 break;
             case SalesViewModel:
                 var pricing = new SearchableSelect { PlaceholderText = "Pricing type", Width = 160 };

@@ -42,7 +42,7 @@ public sealed class CashierShiftView : UserControl
         var shift = Detail("CURRENT STATUS", "Shift.StatusDisplay", 1, 1);
         var details = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,*"),
+            ColumnDefinitions = new ColumnDefinitions("1.2*,*"),
             RowDefinitions = new RowDefinitions("Auto,Auto"),
             ColumnSpacing = 24,
             RowSpacing = 20,
@@ -79,10 +79,10 @@ public sealed class CashierShiftView : UserControl
         adjustmentCard.Bind(Visual.IsVisibleProperty, new Binding("HasOpenSession"));
         Content = new ScrollViewer
         {
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Content = new StackPanel
             {
                 Margin = new Thickness(30),
-                MaxWidth = 900,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Spacing = 16,
                 Children = { card, adjustmentCard }
@@ -165,6 +165,7 @@ public sealed class CashierShiftView : UserControl
         var value = Text(path);
         value.FontSize = 15;
         value.FontWeight = FontWeight.SemiBold;
+        value.TextWrapping = TextWrapping.Wrap;
         var panel = new StackPanel { Spacing = 5, Children = { Muted(label), value } };
         Grid.SetColumn(panel, column);
         Grid.SetRow(panel, row);

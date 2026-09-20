@@ -9,7 +9,7 @@ public class StatusToColorConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var status = value?.ToString() ?? "";
+        var status = (value?.ToString() ?? "").Split(" · ", 2)[0];
         var resourceKey = status.ToLowerInvariant() switch
         {
             "admitted" or "active" or "in stock" or "paid" or "completed" or "scheduled" or "valid" => "SuccessGreen",
@@ -36,7 +36,7 @@ public class StatusToForegroundConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var status = value?.ToString() ?? "";
+        var status = (value?.ToString() ?? "").Split(" · ", 2)[0];
         var resourceKey = status.ToLowerInvariant() switch
         {
             "admitted" or "active" or "in stock" or "paid" or "completed" or "scheduled" or "valid" => "SuccessForeground",

@@ -490,6 +490,7 @@ public sealed class ResolvedDailyShiftRow
     public bool HasOverride => AssignmentOverride is not null;
     public bool IsOccupied => ExistingSession?.Status == ApiCashierShiftSessionStatus.Open;
     public bool CanReplace => ExistingSession is null || ExistingSession.CloseType == ApiCashierShiftCloseType.AdministrativeClockOut;
+    public override string ToString() => $"{Definition.Name} · {Definition.ScheduleDisplay}";
 }
 
 public partial class ShiftReplacementEditor : ObservableObject
@@ -586,6 +587,9 @@ public partial class ShiftReplacementsViewModel : ObservableObject
 
     [RelayCommand]
     private void EditReplacement(ResolvedDailyShiftRow? row)
+        => SelectReplacement(row);
+
+    public void SelectReplacement(ResolvedDailyShiftRow? row)
     {
         if (row is null) return;
         CashierSearchText = "";

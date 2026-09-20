@@ -166,6 +166,23 @@ public sealed class CashierShiftTests
         Assert.IsFalse(normalClose.CanReplace);
         Assert.IsTrue(administrativeClose.CanReplace);
         Assert.IsTrue(unused.CanReplace);
+        Assert.AreEqual("Shift 1 · 6:00 am - 2:00 pm", unused.ToString());
+    }
+
+    [TestMethod]
+    public async Task SelectingReplacementShiftLoadsEditor()
+    {
+        var (api, _) = await CreateApiAsync(_ => throw new InvalidOperationException());
+        var replacements = new ShiftReplacementsViewModel(api, new TestNotificationService());
+        var definition = new ShiftDefinitionResponse(
+            Guid.NewGuid(), "Shift 1", new TimeOnly(6, 0), new TimeOnly(14, 0), true);
+        var row = new ResolvedDailyShiftRow(
+            DateOnly.FromDateTime(StoreDateTime.StoreToday), definition, null, null, null, null);
+
+        replacements.SelectReplacement(row);
+
+        Assert.AreSame(row, replacements.Editor.SelectedShift);
+        Assert.AreEqual("Create replacement", replacements.Editor.Title);
     }
 
     private static async Task<(StoreApiClient Api, AuthSession Session)> CreateApiAsync(

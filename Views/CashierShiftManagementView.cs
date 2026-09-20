@@ -281,7 +281,7 @@ public sealed class CashierShiftManagementView : UserControl
         return panel;
     }
 
-    private static Control ReplacementsSection()
+    private Control ReplacementsSection()
     {
         var previous = Button("Previous day", ActionButtonVariant.Secondary, "Replacements.PreviousDayCommand");
         var today = Button("Today", ActionButtonVariant.Ghost, "Replacements.TodayCommand");
@@ -301,7 +301,7 @@ public sealed class CashierShiftManagementView : UserControl
 
         var list = new ItemsControl
         {
-            ItemTemplate = new FuncDataTemplate<ResolvedDailyShiftRow>((row, _) => DailyShiftRow(row), true)
+            ItemTemplate = new FuncDataTemplate<ResolvedDailyShiftRow>((row, _) => DailyShiftRow(row, this), true)
         };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding("Replacements.DailyShifts"));
 
@@ -320,11 +320,15 @@ public sealed class CashierShiftManagementView : UserControl
         };
     }
 
-    private static Control DailyShiftRow(ResolvedDailyShiftRow row)
+    private static Control DailyShiftRow(ResolvedDailyShiftRow row, CashierShiftManagementView view)
     {
         var edit = SmallButton(row.HasOverride ? "Edit" : "Replace", ActionButtonVariant.Secondary);
         edit.IsEnabled = row.CanReplace;
-        edit.Click += (_, _) => FindViewModel(edit)?.Replacements.EditReplacementCommand.Execute(row);
+        edit.Click += (_, _) =>
+        {
+            if (view.DataContext is CashierShiftManagementViewModel viewModel)
+                viewModel.Replacements.SelectReplacement(row);
+        };
         ToolTip.SetTip(edit, row.CanReplace ? "Create or edit this date-specific replacement" : row.IsOccupied ? "Administratively clock out the occupied session first" : "A normally completed session cannot be replaced");
         var delete = SmallButton("Delete", ActionButtonVariant.Danger);
         delete.IsVisible = row.HasOverride;
@@ -364,18 +368,27 @@ public sealed class CashierShiftManagementView : UserControl
 
     private static Control ReplacementEditor()
     {
-        var shift = new ComboBox { Classes = { "form-select" }, MinWidth = 280, HorizontalAlignment = HorizontalAlignment.Stretch };
-        shift.Bind(ItemsControl.ItemsSourceProperty, new Binding("Replacements.DailyShifts"));
-        shift.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("Replacements.Editor.SelectedShift") { Mode = BindingMode.TwoWay });
-        shift.ItemTemplate = new FuncDataTemplate<ResolvedDailyShiftRow>((row, _) => new TextBlock
+        var shift = new ComboBox
         {
-            Text = row is null ? "" : $"{row.Definition.Name} · {row.Definition.ScheduleDisplay}"
-        }, true);
+            Classes = { "form-select" },
+            MinWidth = 280,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            PlaceholderText = "Select a shift"
+        };
+        shift.Bind(ItemsControl.ItemsSourceProperty, new Binding("Replacements.DailyShifts"));
+        shift.Bind(SelectingItemsControl.SelectedItemProperty,
+            new Binding("Replacements.Editor.SelectedShift") { Mode = BindingMode.TwoWay });
+        shift.SelectionChanged += (_, _) =>
+        {
+            if (shift.SelectedItem is ResolvedDailyShiftRow row && FindViewModel(shift) is { } viewModel)
+                viewModel.Replacements.SelectReplacement(row);
+        };
         var search = new TextBox { PlaceholderText = "Filter by name or username", Classes = { "search" } };
         search.Bind(TextBox.TextProperty, new Binding("Replacements.CashierSearchText") { Mode = BindingMode.TwoWay });
         var cashier = new ComboBox { Classes = { "form-select" }, MinWidth = 280, HorizontalAlignment = HorizontalAlignment.Stretch };
         cashier.Bind(ItemsControl.ItemsSourceProperty, new Binding("Replacements.FilteredCashiers"));
-        cashier.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("Replacements.Editor.SelectedCashier") { Mode = BindingMode.TwoWay });
+        cashier.Bind(SelectingItemsControl.SelectedItemProperty,
+            new Binding("Replacements.Editor.SelectedCashier") { Mode = BindingMode.TwoWay });
         var reason = new TextBox
         {
             PlaceholderText = "Required absence or replacement reason",
@@ -386,7 +399,6 @@ public sealed class CashierShiftManagementView : UserControl
             Classes = { "form-input" }
         };
         reason.Bind(TextBox.TextProperty, new Binding("Replacements.Editor.Reason") { Mode = BindingMode.TwoWay });
-
         var form = new StackPanel
         {
             Spacing = 14,
@@ -467,8 +479,11 @@ public sealed class CashierShiftManagementView : UserControl
         return row;
     }
 
-    private static Border Badge(string text)
+    private static Control Badge(string text)
     {
+        if (text.StartsWith("Active", StringComparison.OrdinalIgnoreCase))
+            return new StatusBadge { Status = text };
+
         var badge = new Border
         {
             Padding = new Thickness(8, 3),

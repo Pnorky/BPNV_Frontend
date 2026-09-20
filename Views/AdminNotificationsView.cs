@@ -17,12 +17,6 @@ public sealed class AdminNotificationsView : UserControl
 {
     public AdminNotificationsView()
     {
-        var refresh = new ActionButton("Refresh", ActionButtonVariant.Secondary);
-        refresh.Bind(Button.CommandProperty, new Binding("RefreshCommand"));
-
-        var markAll = new ActionButton("Mark all read", ActionButtonVariant.Primary);
-        markAll.Bind(Button.CommandProperty, new Binding("MarkAllReadCommand"));
-
         var loading = new ProgressBar { Height = 4, IsIndeterminate = true };
         loading.Bind(Visual.IsVisibleProperty, new Binding("IsLoading"));
 
@@ -62,28 +56,13 @@ public sealed class AdminNotificationsView : UserControl
             RowSpacing = 14,
             Children =
             {
-                new Grid
+                new StackPanel
                 {
-                    ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-                    ColumnSpacing = 16,
+                    Spacing = 4,
                     Children =
                     {
-                        new StackPanel
-                        {
-                            Spacing = 4,
-                            Children =
-                            {
-                                Heading("Admin notifications", "h1"),
-                                Muted("Persisted cashier shift events and remittance follow-up.")
-                            }
-                        },
-                        At(new StackPanel
-                        {
-                            Orientation = Orientation.Horizontal,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Spacing = 8,
-                            Children = { refresh, markAll }
-                        }, column: 1)
+                        Heading("Admin notifications", "h1"),
+                        Muted("Persisted cashier shift events and remittance follow-up.")
                     }
                 },
                 At(new StackPanel { Spacing = 8, Children = { loading, error } }, row: 1),
@@ -125,13 +104,20 @@ public sealed class AdminNotificationsView : UserControl
 
         var status = new Border
         {
-            Padding = new Thickness(9, 4),
+            MinWidth = 62,
+            MinHeight = 30,
+            Padding = new Thickness(10, 5),
             CornerRadius = new CornerRadius(12),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock
             {
                 Text = notification.Status,
-                FontSize = 11,
-                FontWeight = FontWeight.SemiBold
+                FontSize = 13,
+                FontWeight = FontWeight.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
             }
         };
         Resource(status, Border.BackgroundProperty, notification.IsRead ? "Muted" : "Secondary");
@@ -183,6 +169,7 @@ public sealed class AdminNotificationsView : UserControl
                         {
                             Orientation = Orientation.Horizontal,
                             Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
                             Children = { markRead, review }
                         }, column: 1)
                     }
