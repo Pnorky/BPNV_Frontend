@@ -128,7 +128,7 @@ public sealed class BatchReceivingView : UserControl
                     Spacing = 2,
                     Children =
                     {
-                        new TextBlock { Text = "Use exact commit time", FontWeight = FontWeight.SemiBold },
+                        new TextBlock { Text = "Use exact save time", FontWeight = FontWeight.SemiBold },
                         Muted(path: "DeliveryTimeHelpText")
                     }
                 }, column: 1)
@@ -230,7 +230,7 @@ public sealed class BatchReceivingView : UserControl
             Spacing = 10,
             Children =
             {
-                new StackPanel { Spacing = 3, Children = { Heading("Review findings"), Muted("Warnings are advisory and may be accepted; errors must be resolved before the batch can be committed.") } },
+                new StackPanel { Spacing = 3, Children = { Heading("Review findings"), Muted("You may continue with warnings, but you must fix errors before saving the batch.") } },
                 new ScrollViewer { Content = items, MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }
             }
         };

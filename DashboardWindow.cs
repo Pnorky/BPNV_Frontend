@@ -277,7 +277,7 @@ public class DashboardWindow : Window
                     CreateInventoryFlyoutItem("Delivery History", "InventoryDeliveryHistory", LucideIconKind.History),
                     CreateInventoryFlyoutItem("Import Excel", "InventoryImport", LucideIconKind.FileSpreadsheet),
                     CreateInventoryFlyoutItem("Suppliers", "InventorySuppliers", LucideIconKind.Truck),
-                    CreateInventoryFlyoutItem("Stock Movements", "InventoryMovements", LucideIconKind.ArrowLeftRight)
+                    CreateInventoryFlyoutItem("Stock Activity", "InventoryMovements", LucideIconKind.ArrowLeftRight)
                 }
             }
         };

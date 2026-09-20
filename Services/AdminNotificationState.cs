@@ -59,7 +59,7 @@ public partial class AdminNotificationState : ObservableObject, IDisposable
                 var message = newUnread.Length == 1
                     ? newUnread[0].Title
                     : $"{newUnread.Length:N0} new shift notifications are waiting for review.";
-                _notifications.ShowInformation("New Admin notification", message);
+                _notifications.ShowInformation("New admin notification", message);
             }
 
             return true;
@@ -74,7 +74,7 @@ public partial class AdminNotificationState : ObservableObject, IDisposable
             if (!_refreshFailureToastShown)
             {
                 _refreshFailureToastShown = true;
-                _notifications.ShowWarning("Notifications could not be refreshed", ErrorMessage);
+                _notifications.ShowWarning("Notifications could not be refreshed", "Please try again.");
             }
 
             return false;
@@ -114,7 +114,7 @@ public partial class AdminNotificationState : ObservableObject, IDisposable
         catch (Exception exception) when (IsApiFailure(exception))
         {
             ErrorMessage = FailureMessage(exception);
-            _notifications.ShowError("Notification was not marked read", ErrorMessage);
+            _notifications.ShowError("Notification could not be marked as read", "Please try again.");
             return false;
         }
         finally
@@ -151,7 +151,7 @@ public partial class AdminNotificationState : ObservableObject, IDisposable
         catch (Exception exception) when (IsApiFailure(exception))
         {
             ErrorMessage = FailureMessage(exception);
-            _notifications.ShowError("Notifications were not marked read", ErrorMessage);
+            _notifications.ShowError("Notifications could not be marked as read", "Please try again.");
             return false;
         }
         finally

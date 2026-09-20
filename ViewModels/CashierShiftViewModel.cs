@@ -77,16 +77,16 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
         {
             var session = await Shift.ClockInAsync(openingFloat.Value);
             StatusMessage = $"Clocked in to {session.ShiftName} at {StoreDateTime.FormatUtc(session.ClockedInAtUtc)}.";
-            _notifications.ShowSuccess("Clocked in", StatusMessage);
+            _notifications.ShowSuccess("Cashier work period started", StatusMessage);
             await LoadAdjustmentsAsync();
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
             if (exception is ApiClientException) await Shift.RefreshAsync();
             StatusMessage = Shift.PendingClockInOpeningFloat is { } pending
-                ? $"{exception.Message} Retry will reuse the original ₱{pending:N2} opening float and idempotency key."
+                ? $"{exception.Message} Retry will reuse the original ₱{pending:N2} starting cash and idempotency key."
                 : exception.Message;
-            _notifications.ShowError("Clock-in failed", exception.Message);
+            _notifications.ShowError("Cashier work period could not be started", FailureMessage(exception));
         }
     }
 
@@ -102,7 +102,7 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
             AdjustmentNote = "";
             AdjustmentReference = "";
             StatusMessage = "Cash adjustment request sent for Admin review.";
-            _notifications.ShowSuccess("Request submitted", StatusMessage);
+            _notifications.ShowSuccess("Request submitted successfully", StatusMessage);
             await LoadAdjustmentsAsync();
         }
         catch (Exception exception) when (IsApiFailure(exception))
@@ -113,7 +113,7 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
                 await LoadAdjustmentsAsync();
             }
             StatusMessage = exception.Message;
-            _notifications.ShowError("Request not submitted", exception.Message);
+            _notifications.ShowError("Request could not be submitted", FailureMessage(exception));
         }
     }
 
@@ -156,7 +156,7 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
         {
             var session = await Shift.ClockOutAsync();
             StatusMessage = $"Clocked out at {StoreDateTime.FormatUtc(session.ClockedOutAtUtc ?? DateTime.UtcNow)}. Remittance is pending Admin review.";
-            _notifications.ShowSuccess("Clocked out", StatusMessage);
+            _notifications.ShowSuccess("Cashier work period ended", StatusMessage);
             await new CashierShiftSummaryDialog(session).ShowDialog(owner);
         }
         catch (Exception exception) when (IsApiFailure(exception))
@@ -167,7 +167,7 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
                 await LoadAdjustmentsAsync();
             }
             StatusMessage = exception.Message;
-            _notifications.ShowError("Clock-out failed", exception.Message);
+            _notifications.ShowError("Cashier work period could not be ended", FailureMessage(exception));
         }
     }
 
@@ -209,6 +209,12 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
     }
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;
+    private static string FailureMessage(Exception exception) => exception switch
+    {
+        HttpRequestException => "We could not connect to the store.",
+        TaskCanceledException => "The store took too long to respond. Please try again.",
+        _ => exception.Message
+    };
 
     public void Dispose() => Shift.PropertyChanged -= OnShiftChanged;
 }

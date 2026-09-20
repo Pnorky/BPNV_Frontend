@@ -103,7 +103,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             SelectedUnit = null;
             SelectedCatalogProduct = null;
             CatalogLookupSelection = null;
-            ShowError("Barcode lookup failed", FailureMessage(exception));
+            ShowError("Product could not be found", FailureMessage(exception));
         }
         finally
         {
@@ -119,13 +119,13 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         if (IsBusy) return;
         if (SelectedProduct is null || SelectedUnit is null)
         {
-            ShowError("Stock not received", "Scan a product unit before receiving stock.");
+            ShowError("Stock could not be received", "Scan a product unit before receiving stock.");
             RequestScannerFocus();
             return;
         }
         if (!WholeNumber(Count) || Count <= 0 || Count > int.MaxValue)
         {
-            ShowError("Stock not received", "Count must be a whole number greater than zero.");
+            ShowError("Stock could not be received", "Enter a whole number greater than zero.");
             return;
         }
 
@@ -153,7 +153,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            ShowError("Stock not received", FailureMessage(exception));
+            ShowError("Stock could not be received", FailureMessage(exception));
         }
         finally
         {

@@ -73,7 +73,7 @@ public sealed class ApiStockMovementsView : UserControl
         table.Columns.Add(Column("Product", item => item.ProductName, 1.35));
         table.Columns.Add(Column("Movement", item => item.MovementTypeDisplay, 1.15));
         table.Columns.Add(Column("Quantity", item => item.QuantityDisplay, 0.7, HorizontalAlignment.Right));
-        table.Columns.Add(Column("Stock change", item => item.ChangeDisplay, 1.2));
+            table.Columns.Add(Column("Stock update", item => item.ChangeDisplay, 1.2));
         table.Columns.Add(Column("Balances after", item => item.BalanceDisplay, 1.05));
         table.Columns.Add(Column("Reference / notes", item => item.ReferenceNotesDisplay, 1.25));
         table.Columns.Add(Column("User", item => item.CreatedByName, 1.25));

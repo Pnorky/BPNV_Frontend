@@ -146,7 +146,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             "InventoryDeliveryHistory" => "Delivery History",
             "InventoryImport" => "Import Excel",
             "InventorySuppliers" => "Suppliers",
-            "InventoryMovements" => "Stock Movements",
+            "InventoryMovements" => "Stock Activity",
             "Reports" => "Reports",
             "CashierShiftManagement" => "Cashier Shifts",
             "CashierOperations" => "Cashier Operations",

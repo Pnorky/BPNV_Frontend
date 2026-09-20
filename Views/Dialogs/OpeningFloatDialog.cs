@@ -41,7 +41,7 @@ public sealed class OpeningFloatDialog : Window
         var title = new TextBlock { Text = "Confirm opening cash", FontSize = 20, FontWeight = Avalonia.Media.FontWeight.SemiBold };
         var description = new TextBlock
         {
-            Text = "Count the terminal cash before starting sales. This amount becomes part of the shift reconciliation.",
+            Text = "Count the terminal cash before starting sales. This amount is included in the shift cash difference review.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap
         };
         description.BindResource(TextBlock.ForegroundProperty, "MutedForeground");

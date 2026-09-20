@@ -168,12 +168,12 @@ public partial class BatchReceivingViewModel : ObservableObject
         ? null
         : StoreDateTime.CombineStoreDateAndTimeToUtc(DeliveryDate.Value, DeliveryTime.Value);
     public string DeliveryTimePreview => UseCommitTime
-        ? "Exact commit time"
+        ? "Exact save time"
         : DeliveryAtUtc.HasValue
             ? $"{StoreDateTime.FormatUtc(DeliveryAtUtc.Value.UtcDateTime)} (Philippine time)"
             : "Select a Philippine delivery date and time";
     public string DeliveryTimeConfirmationText => UseCommitTime
-        ? "Delivery time: exact server commit time"
+        ? "Delivery time: exact save time"
         : $"Delivery time: {DeliveryTimePreview}";
     public string DeliveryTimeHelpText => UseCommitTime
         ? "Set automatically by the server when this delivery is received."
@@ -309,26 +309,26 @@ public partial class BatchReceivingViewModel : ObservableObject
                 StatusMessage = $"Validation found {summary.ErrorCount:N0} blocking error{Plural(summary.ErrorCount)}" +
                     (summary.WarningCount > 0 ? $" and {summary.WarningCount:N0} warning{Plural(summary.WarningCount)}" : "") +
                     ". No stock has been changed.";
-                _notifications.ShowError("Batch validation blocked", StatusMessage);
+            _notifications.ShowError("Please fix the batch issues", StatusMessage);
             }
             else if (summary.WarningCount > 0)
             {
                 StatusMessage = $"Validation passed with {summary.WarningCount:N0} warning{Plural(summary.WarningCount)}. " +
                     "Review the findings; the registered supplier resolved from each barcode is authoritative and will be used for receipt.";
-                _notifications.ShowWarning("Batch validation passed with warnings", StatusMessage);
+                _notifications.ShowWarning("Batch is ready with warnings", StatusMessage);
             }
             else
             {
                 StatusMessage = "Validation passed with no findings. Review every line, then receive the batch into Bodega.";
-                _notifications.ShowSuccess("Batch validation passed", StatusMessage);
+                _notifications.ShowSuccess("Batch check complete", StatusMessage);
             }
             RefreshStateProperties();
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
             PreviewError = FailureMessage(exception);
-            StatusMessage = $"Validation failed: {PreviewError} The raw capture has been preserved.";
-            _notifications.ShowError("Batch validation failed", StatusMessage);
+            StatusMessage = $"The batch could not be checked: {PreviewError} The captured text was kept.";
+            _notifications.ShowError("Batch could not be checked", StatusMessage);
         }
         finally
         {
@@ -369,7 +369,7 @@ public partial class BatchReceivingViewModel : ObservableObject
             StatusMessage = response.IsIdempotentReplay
                 ? "This batch was already received. The original successful result is shown below."
                 : "Batch received successfully into Bodega.";
-            _notifications.ShowSuccess("Batch received", StatusMessage);
+            _notifications.ShowSuccess("Batch received successfully", StatusMessage);
             PublishPriceChangeNotifications(response.PriceChanges ?? []);
         }
         catch (ApiClientException exception)
@@ -379,14 +379,14 @@ public partial class BatchReceivingViewModel : ObservableObject
             _validatedRequest = null;
             _validatedFingerprint = null;
             AddIssue("Error", null, "batch", "commitFailed", exception.Message);
-            StatusMessage = $"Receipt failed: {exception.Message} Review the batch again before retrying. The capture and draft key were preserved.";
-            _notifications.ShowError("Batch receipt failed", StatusMessage);
+            StatusMessage = $"The batch could not be received: {exception.Message} Review the batch before trying again. Your captured text was kept.";
+            _notifications.ShowError("Batch could not be received", StatusMessage);
             RefreshStateProperties();
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {
-            StatusMessage = $"Receipt failed: {FailureMessage(exception)} Retry uses the same draft key so stock cannot be received twice.";
-            _notifications.ShowError("Batch receipt failed", StatusMessage);
+            StatusMessage = $"The batch could not be received: {FailureMessage(exception)} You can safely try again.";
+            _notifications.ShowError("Batch could not be received", StatusMessage);
         }
         finally
         {

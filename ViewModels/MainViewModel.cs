@@ -59,11 +59,11 @@ public partial class MainViewModel : ObservableObject
         }
         catch (HttpRequestException)
         {
-            ShowError($"Cannot reach the server at {_authClient.BaseAddress}.");
+            ShowError("We could not connect to the store.");
         }
         catch (TaskCanceledException)
         {
-            ShowError("The server did not respond in time.");
+            ShowError("The store took too long to respond. Please try again.");
         }
     }
 
@@ -104,11 +104,11 @@ public partial class MainViewModel : ObservableObject
         }
         catch (HttpRequestException)
         {
-            ShowError($"Cannot reach the server at {_authClient.BaseAddress}.");
+            ShowError("We could not connect to the store.");
         }
         catch (TaskCanceledException)
         {
-            ShowError("The server did not respond in time.");
+            ShowError("The store took too long to respond. Please try again.");
         }
     }
 

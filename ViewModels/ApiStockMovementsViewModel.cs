@@ -94,7 +94,7 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         }
         catch (Exception exception) when (exception is ApiClientException or HttpRequestException or TaskCanceledException)
         {
-            ShowError("Products could not be loaded", exception.Message);
+            ShowError("Products could not be loaded", FailureMessage(exception));
         }
         finally { IsBusy = false; }
     }
@@ -102,8 +102,8 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     [RelayCommand]
     private async Task TransferAsync()
     {
-        if (SelectedProduct is null || Quantity <= 0) { ShowError("Stock not moved", "Select a product and enter a positive quantity."); return; }
-        if (Quantity > SelectedProduct.BodegaStock) { ShowError("Stock not moved", "Transfer quantity cannot exceed Bodega stock."); return; }
+        if (SelectedProduct is null || Quantity <= 0) { ShowError("Stock could not be moved", "Select a product and enter a quantity greater than zero."); return; }
+        if (Quantity > SelectedProduct.BodegaStock) { ShowError("Stock could not be moved", "The transfer quantity cannot be greater than the available Bodega stock."); return; }
         IsBusy = true;
         try
         {
@@ -112,10 +112,10 @@ public partial class ApiStockMovementsViewModel : ObservableObject
             await LoadAsync();
             await LoadHistoryAsync();
             StatusMessage = "Stock moved from Bodega to Display.";
-            _notifications.ShowSuccess("Stock moved", StatusMessage);
+            _notifications.ShowSuccess("Stock moved successfully", StatusMessage);
             Quantity = 1; Reference = ""; Notes = "";
         }
-        catch (Exception exception) when (exception is ApiClientException or HttpRequestException or TaskCanceledException) { ShowError("Stock not moved", exception.Message); }
+        catch (Exception exception) when (exception is ApiClientException or HttpRequestException or TaskCanceledException) { ShowError("Stock could not be moved", FailureMessage(exception)); }
         finally { IsBusy = false; }
     }
 
@@ -231,4 +231,10 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         StatusMessage = message;
         _notifications.ShowError(title, message);
     }
+    private static string FailureMessage(Exception exception) => exception switch
+    {
+        HttpRequestException => "We could not connect to the store.",
+        TaskCanceledException => "The store took too long to respond. Please try again.",
+        _ => exception.Message
+    };
 }

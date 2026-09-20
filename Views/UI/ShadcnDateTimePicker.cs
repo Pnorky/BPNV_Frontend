@@ -81,6 +81,8 @@ public sealed class ShadcnDateTimePicker : Grid
         _dateDisplay = new TextBlock
         {
             VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
 
@@ -105,6 +107,8 @@ public sealed class ShadcnDateTimePicker : Grid
             {
                 ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
                 ColumnSpacing = 9,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
                 Children = { calendarIcon, At(_dateDisplay, 1), At(chevron, 2) }
             }
         };
@@ -198,7 +202,7 @@ public sealed class ShadcnDateTimePicker : Grid
 
         _popupCard = new Border
         {
-            Width = 292,
+            Width = 270,
             Padding = new Thickness(12),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(10),
@@ -230,7 +234,11 @@ public sealed class ShadcnDateTimePicker : Grid
         Children.Add(_timeField);
         Children.Add(_popup);
 
-        SizeChanged += (_, e) => UpdateLayoutMode(e.NewSize.Width);
+        SizeChanged += (_, e) =>
+        {
+            UpdateLayoutMode(e.NewSize.Width);
+            UpdatePopupWidth();
+        };
         UpdateDateDisplay();
         UpdateTimeDisplay();
     }
@@ -556,6 +564,12 @@ public sealed class ShadcnDateTimePicker : Grid
             Grid.SetColumn(_timeField, 1);
             Grid.SetRow(_timeField, 0);
         }
+    }
+
+    private void UpdatePopupWidth()
+    {
+        if (_dateTrigger.Bounds.Width > 0)
+            _popupCard.Width = _dateTrigger.Bounds.Width;
     }
 
     private static TextBlock FieldLabel(string text)

@@ -227,14 +227,21 @@ public sealed class CashierShiftManagementView : UserControl
     {
         var cashierSearch = new TextBox { PlaceholderText = "Filter by name or username", Classes = { "search" } };
         cashierSearch.Bind(TextBox.TextProperty, new Binding("Schedules.CashierSearchText") { Mode = BindingMode.TwoWay });
-        var cashier = new ComboBox { Classes = { "form-select" } };
+        var cashier = new ComboBox { Classes = { "form-select" }, MinWidth = 280, HorizontalAlignment = HorizontalAlignment.Stretch };
         cashier.Bind(ItemsControl.ItemsSourceProperty, new Binding("Schedules.FilteredCashiers"));
         cashier.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("Schedules.Editor.SelectedCashier") { Mode = BindingMode.TwoWay });
-        var shift = new ComboBox { Classes = { "form-select" } };
+        var shift = new ComboBox { Classes = { "form-select" }, MinWidth = 280, HorizontalAlignment = HorizontalAlignment.Stretch };
         shift.Bind(ItemsControl.ItemsSourceProperty, new Binding("Schedules.ShiftDefinitions"));
         shift.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("Schedules.Editor.SelectedShift") { Mode = BindingMode.TwoWay });
-        var from = DateOnlyPicker("Schedules.Editor.EffectiveFrom");
-        var to = DateOnlyPicker("Schedules.Editor.EffectiveTo");
+        var effectiveDates = new DateRangePicker
+        {
+            PlaceholderText = "Select effective dates",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        effectiveDates.Bind(DateRangePicker.StartDateProperty,
+            new Binding("Schedules.Editor.EffectiveFrom") { Mode = BindingMode.TwoWay });
+        effectiveDates.Bind(DateRangePicker.EndDateProperty,
+            new Binding("Schedules.Editor.EffectiveTo") { Mode = BindingMode.TwoWay });
 
         var form = new StackPanel
         {
@@ -246,12 +253,7 @@ public sealed class CashierShiftManagementView : UserControl
                 Field("ASSIGNED CASHIER", cashier),
                 Field("SHIFT DEFINITION", shift),
                 Field("WEEKDAYS", WeekdayPicker()),
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,*"),
-                    ColumnSpacing = 10,
-                    Children = { Field("EFFECTIVE FROM", from), At(Field("EFFECTIVE TO (OPTIONAL)", to), column: 1) }
-                },
+                Field("EFFECTIVE DATES", effectiveDates),
                 Muted("Only active users currently carrying the Cashier role are listed.", 11),
                 FormActions("Schedules.Editor.ActionText", "Schedules.SaveCommand", "Schedules.CancelEditCommand")
             }
@@ -286,12 +288,14 @@ public sealed class CashierShiftManagementView : UserControl
         var next = Button("Next day", ActionButtonVariant.Secondary, "Replacements.NextDayCommand");
         var refresh = Button("Refresh", ActionButtonVariant.Primary, "Replacements.LoadCommand");
         var date = DateOnlyPicker("Replacements.SelectedBusinessDate");
+        date.Width = 300;
+        date.HorizontalAlignment = HorizontalAlignment.Left;
 
         var dateBar = Card(new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,Auto,*,Auto"),
             ColumnSpacing = 8,
-            Children = { previous, At(today, column: 1), At(next, column: 2), At(date, column: 3), At(refresh, column: 4) }
+            Children = { previous, At(today, column: 1), At(next, column: 2), At(date, column: 3), At(refresh, column: 5) }
         }, new Thickness(14));
         dateBar.Bind(InputElement.IsEnabledProperty, new Binding("Replacements.CanEdit"));
 
@@ -360,7 +364,7 @@ public sealed class CashierShiftManagementView : UserControl
 
     private static Control ReplacementEditor()
     {
-        var shift = new ComboBox { Classes = { "form-select" } };
+        var shift = new ComboBox { Classes = { "form-select" }, MinWidth = 280, HorizontalAlignment = HorizontalAlignment.Stretch };
         shift.Bind(ItemsControl.ItemsSourceProperty, new Binding("Replacements.DailyShifts"));
         shift.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("Replacements.Editor.SelectedShift") { Mode = BindingMode.TwoWay });
         shift.ItemTemplate = new FuncDataTemplate<ResolvedDailyShiftRow>((row, _) => new TextBlock
@@ -369,7 +373,7 @@ public sealed class CashierShiftManagementView : UserControl
         }, true);
         var search = new TextBox { PlaceholderText = "Filter by name or username", Classes = { "search" } };
         search.Bind(TextBox.TextProperty, new Binding("Replacements.CashierSearchText") { Mode = BindingMode.TwoWay });
-        var cashier = new ComboBox { Classes = { "form-select" } };
+        var cashier = new ComboBox { Classes = { "form-select" }, MinWidth = 280, HorizontalAlignment = HorizontalAlignment.Stretch };
         cashier.Bind(ItemsControl.ItemsSourceProperty, new Binding("Replacements.FilteredCashiers"));
         cashier.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("Replacements.Editor.SelectedCashier") { Mode = BindingMode.TwoWay });
         var reason = new TextBox
@@ -418,12 +422,17 @@ public sealed class CashierShiftManagementView : UserControl
         };
     }
 
-    private static Grid TwoColumn(Control list, Control editor) => new()
+    private static Grid TwoColumn(Control list, Control editor)
     {
-        ColumnDefinitions = new ColumnDefinitions("1.55*,0.85*"),
-        ColumnSpacing = 16,
-        Children = { list, At(editor, column: 1) }
-    };
+        list.VerticalAlignment = VerticalAlignment.Top;
+        editor.VerticalAlignment = VerticalAlignment.Top;
+        return new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("1.55*,0.85*"),
+            ColumnSpacing = 16,
+            Children = { list, At(editor, column: 1) }
+        };
+    }
 
     private static StackPanel FormActions(string actionTextPath, string saveCommandPath, string cancelCommandPath)
     {

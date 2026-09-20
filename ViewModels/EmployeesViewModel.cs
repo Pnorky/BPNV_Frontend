@@ -59,7 +59,7 @@ public partial class EmployeesViewModel : ObservableObject
             EmployeeName = "";
             ApplyFilter();
             StatusMessage = $"{employee.EmployeeNumber} · {employee.Name} created.";
-            _notifications.ShowSuccess("Employee created", StatusMessage);
+            _notifications.ShowSuccess("Employee added successfully", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Employee not created", FailureMessage(exception)); }
         finally { IsBusy = false; }
@@ -75,7 +75,7 @@ public partial class EmployeesViewModel : ObservableObject
             IsBusy = false;
             await LoadAsync();
             StatusMessage = $"{employee.EmployeeNumber} updated.";
-            _notifications.ShowSuccess("Employee updated", StatusMessage);
+            _notifications.ShowSuccess("Employee updated successfully", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Employee not updated", FailureMessage(exception)); }
         finally { IsBusy = false; }
@@ -92,7 +92,7 @@ public partial class EmployeesViewModel : ObservableObject
             IsBusy = false;
             await LoadAsync();
             StatusMessage = $"{employee.EmployeeNumber} deactivated; purchase history was preserved.";
-            _notifications.ShowSuccess("Employee deactivated", StatusMessage);
+            _notifications.ShowSuccess("Employee deactivated successfully", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Employee not deactivated", FailureMessage(exception)); }
         finally { IsBusy = false; }
@@ -109,7 +109,7 @@ public partial class EmployeesViewModel : ObservableObject
             IsBusy = false;
             await LoadAsync();
             StatusMessage = $"{employee.EmployeeNumber} reactivated.";
-            _notifications.ShowSuccess("Employee reactivated", StatusMessage);
+            _notifications.ShowSuccess("Employee reactivated successfully", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Employee not reactivated", FailureMessage(exception)); }
         finally { IsBusy = false; }

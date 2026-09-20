@@ -255,7 +255,7 @@ public partial class SalesViewModel : ObservableObject, IDisposable
         }
 
         _idempotencyKey ??= Guid.NewGuid();
-        StatusMessage = "Submitting the sale for server pricing and stock validation...";
+            StatusMessage = "Checking prices and stock, then completing the sale...";
         IsBusy = true;
         try
         {

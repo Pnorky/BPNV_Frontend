@@ -105,9 +105,9 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             if (!CanShowRemittanceForm) return null;
             if (!ActualRemittance.HasValue) return "Enter the actual sales cash remittance.";
             if (ActualRemittance.Value < 0) return "Actual remittance cannot be negative.";
-            if (Detail?.Session.ExpectedRemittance is null) return "The server has not provided an expected remittance.";
+            if (Detail?.Session.ExpectedRemittance is null) return "The expected remittance is not available yet.";
             if ((!CashFloatReturned || ProvisionalVariance != 0) && string.IsNullOrWhiteSpace(RemittanceNote))
-                return "A note is required for a non-zero variance or an unreturned opening float.";
+                return "A note is required for a non-zero variance or unreturned starting cash.";
             if (RemittanceNote.Length > 1000) return "The remittance note cannot exceed 1,000 characters.";
             return null;
         }
@@ -115,7 +115,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
     public string? AdministrativeClockOutValidationMessage =>
         !CanShowAdministrativeClockOut ? null
         : HasBlockingPendingAdjustments ? "Review pending Cash refund and payout requests before closing this shift."
-        : string.IsNullOrWhiteSpace(AdministrativeClockOutReason) ? "An administrative clock-out reason is required."
+         : string.IsNullOrWhiteSpace(AdministrativeClockOutReason) ? "A reason is required to close the shift for the cashier."
         : AdministrativeClockOutReason.Length > 1000 ? "The reason cannot exceed 1,000 characters." : null;
     public string? CorrectionValidationMessage
     {
@@ -124,7 +124,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             if (!CanShowCorrectionForm) return null;
             if (!CorrectedActualRemittance.HasValue) return "Enter the corrected actual remittance.";
             if (CorrectedActualRemittance.Value < 0) return "Corrected actual remittance cannot be negative.";
-            if (string.IsNullOrWhiteSpace(CorrectionReason)) return "An audited correction reason is required.";
+            if (string.IsNullOrWhiteSpace(CorrectionReason)) return "An approved cash correction reason is required.";
             if (CorrectionReason.Length > 1000) return "The correction reason cannot exceed 1,000 characters.";
             return null;
         }
@@ -231,7 +231,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         catch (Exception exception) when (IsApiFailure(exception))
         {
             DetailError = FailureMessage(exception);
-            _notifications.ShowError("Session details could not be loaded", DetailError);
+                _notifications.ShowError("Work period details could not be loaded", DetailError);
         }
         finally
         {
@@ -252,8 +252,8 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
                 ActualRemittance.Value,
                 CashFloatReturned,
                 NullIfWhiteSpace(RemittanceNote)));
-            _notifications.ShowSuccess("Remittance recorded", "The server reconciled the cashier shift.");
-            StatusMessage = "Remittance recorded and session details refreshed.";
+            _notifications.ShowSuccess("Remittance recorded", "The cashier work period cash was reviewed.");
+            StatusMessage = "Remittance recorded and work period details refreshed.";
             await ReloadAfterMutationAsync(sessionId, resetForms: true);
         }
         catch (Exception exception) when (IsApiFailure(exception))
@@ -278,15 +278,15 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             await _api.AdministrativeClockOutAsync(sessionId, request);
             _pendingAdministrativeClockOut = null;
             AdministrativeClockOutReason = "";
-            _notifications.ShowSuccess("Shift closed", "The cashier session was administratively clocked out.");
-            StatusMessage = "Administrative clock-out completed and session details refreshed.";
+            _notifications.ShowSuccess("Shift closed", "The cashier work period was closed by an administrator.");
+            StatusMessage = "Shift closed for cashier and work period details refreshed.";
             await ReloadAfterMutationAsync(sessionId, resetForms: true);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
             if (exception is ApiClientException) _pendingAdministrativeClockOut = null;
             else AdministrativeClockOutReason = request.Reason;
-            ShowError("Administrative clock-out failed", FailureMessage(exception));
+            ShowError("Shift could not be closed for the cashier", FailureMessage(exception));
         }
         finally
         {
@@ -313,12 +313,12 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             await _api.CorrectCashAdjustmentAsync(adjustment.Id, new CorrectCashAdjustmentRequest(
                 CorrectAdjustmentToApproved, AdjustmentCorrectionReason.Trim()));
             AdjustmentCorrectionReason = "";
-            _notifications.ShowSuccess("Adjustment corrected", "The audited adjustment decision was corrected.");
+            _notifications.ShowSuccess("Adjustment corrected", "The approved adjustment decision was updated.");
             await ReloadAfterMutationAsync(sessionId, resetForms: false);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            ShowError("Adjustment correction failed", FailureMessage(exception));
+            ShowError("Adjustment could not be updated", FailureMessage(exception));
         }
         finally
         {
@@ -339,13 +339,13 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
                 CorrectedCashFloatReturned,
                 CorrectionReason.Trim()));
             CorrectionReason = "";
-            _notifications.ShowSuccess("Remittance corrected", "The audited correction was recorded.");
-            StatusMessage = "Audited remittance correction recorded and history refreshed.";
+            _notifications.ShowSuccess("Remittance corrected", "The approved cash correction was recorded.");
+            StatusMessage = "Approved cash remittance correction recorded and history refreshed.";
             await ReloadAfterMutationAsync(sessionId, resetForms: true);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            ShowError("Remittance correction failed", FailureMessage(exception));
+            ShowError("Remittance correction could not be saved", FailureMessage(exception));
         }
         finally
         {
@@ -424,7 +424,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         var selectedId = SelectedSession?.Id;
         IsLoading = true;
         ListError = null;
-        StatusMessage = "Loading cashier shift history and server report snapshot...";
+        StatusMessage = "Loading cashier shift history and report summary...";
         try
         {
             var sessionsTask = _api.GetCashierShiftSessionsAsync(
@@ -478,7 +478,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             {
                 await LoadSessionDetailAsync(selected.Id, resetForms: false);
             }
-            StatusMessage = $"Loaded {Sessions.Count} session{(Sessions.Count == 1 ? "" : "s")} on this page. Report totals are server-calculated.";
+            StatusMessage = $"Loaded {Sessions.Count} work period{(Sessions.Count == 1 ? "" : "s")} on this page. Report totals are calculated from the system records.";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -525,15 +525,15 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             if (SelectedSession?.Id == sessionId)
             {
                 DetailError = FailureMessage(exception);
-                _notifications.ShowError("Session details could not be loaded", DetailError);
+                _notifications.ShowError("Work period details could not be loaded", DetailError);
             }
         }
         catch (Exception exception)
         {
             if (SelectedSession?.Id == sessionId)
             {
-                DetailError = $"Session details could not be loaded: {exception.Message}";
-                _notifications.ShowError("Session details could not be loaded", DetailError);
+                DetailError = $"Work period details could not be loaded: {exception.Message}";
+                _notifications.ShowError("Work period details could not be loaded", DetailError);
             }
         }
         finally
@@ -555,12 +555,12 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             AdjustmentReviewNote = "";
             var action = approve ? "approved" : "rejected";
             _notifications.ShowSuccess($"Adjustment {action}", $"The {adjustment.Type} request was {action}.");
-            StatusMessage = $"Cash adjustment {action} and session details refreshed.";
+            StatusMessage = $"Cash adjustment {action} and work period details refreshed.";
             await ReloadAfterMutationAsync(sessionId, resetForms: false);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            ShowError(approve ? "Adjustment approval failed" : "Adjustment rejection failed", FailureMessage(exception));
+            ShowError(approve ? "Adjustment could not be approved" : "Adjustment could not be rejected", FailureMessage(exception));
         }
         finally
         {

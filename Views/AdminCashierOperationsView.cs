@@ -23,8 +23,8 @@ public sealed class AdminCashierOperationsView : UserControl
         {
             Items =
             {
-                new TabItem { Header = "History and reconciliation", Content = Scroll(HistorySection()) },
-                new TabItem { Header = "Server report snapshot", Content = Scroll(ReportSection()) }
+                new TabItem { Header = "History and cash differences", Content = Scroll(HistorySection()) },
+                new TabItem { Header = "Report Summary", Content = Scroll(ReportSection()) }
             }
         };
 
@@ -41,7 +41,7 @@ public sealed class AdminCashierOperationsView : UserControl
                     Children =
                     {
                         Heading("Cashier operations", "h1"),
-                        Muted("Review shift sessions, reconcile remittances, resolve open sessions, and retain audited corrections.")
+                        Muted("Review cashier work periods, review cash differences, resolve open work periods, and retain approved cash corrections.")
                     }
                 },
                 At(tabs, row: 1)
@@ -75,8 +75,15 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control Filters()
     {
-        var from = DateOnlyPicker("FromDate");
-        var to = DateOnlyPicker("ToDate");
+        var dateRange = new DateRangePicker
+        {
+            PlaceholderText = "Select business dates",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        dateRange.Bind(DateRangePicker.StartDateProperty,
+            new Binding("FromDate") { Mode = BindingMode.TwoWay });
+        dateRange.Bind(DateRangePicker.EndDateProperty,
+            new Binding("ToDate") { Mode = BindingMode.TwoWay });
         var status = new ComboBox { Classes = { "form-select" }, MinWidth = 180 };
         status.Bind(ItemsControl.ItemsSourceProperty, new Binding("StatusFilters"));
         status.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedStatusFilter") { Mode = BindingMode.TwoWay });
@@ -103,16 +110,15 @@ public sealed class AdminCashierOperationsView : UserControl
 
         return Card(new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("1.45*,*,*,*,Auto"),
             ColumnSpacing = 12,
             Children =
             {
-                Field("FROM BUSINESS DATE", from),
-                At(Field("TO BUSINESS DATE", to), column: 1),
-                At(Field("SESSION STATUS", status), column: 2),
-                At(Field("CASHIER", cashier), column: 3),
-                At(Field("SHIFT", shift), column: 4),
-                At(actions, column: 5)
+                Field("BUSINESS DATE RANGE", dateRange),
+                At(Field("SESSION STATUS", status), column: 1),
+                At(Field("CASHIER", cashier), column: 2),
+                At(Field("SHIFT", shift), column: 3),
+                At(actions, column: 4)
             }
         }, new Thickness(16));
     }
@@ -220,7 +226,7 @@ public sealed class AdminCashierOperationsView : UserControl
             Children =
             {
                 new ProgressBar { Width = 80, Height = 4, IsIndeterminate = true },
-                Muted("Loading session detail...")
+                Muted("Loading work period details...")
             }
         };
         loading.Bind(Visual.IsVisibleProperty, new Binding("IsDetailLoading"));
@@ -274,7 +280,7 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control SessionSummary()
     {
-        return Section("Server-owned shift summary", "Financial values and timestamps come from the selected session detail.", new WrapPanel
+        return Section("Shift Summary", "Financial values and timestamps come from the selected work period details.", new WrapPanel
         {
             Orientation = Orientation.Horizontal,
             Children =
@@ -341,7 +347,7 @@ public sealed class AdminCashierOperationsView : UserControl
 
         var panel = Section(
             "Record remittance",
-            "Enter sales cash only. The opening float is confirmed separately and is excluded from variance.",
+            "Enter sales cash only. Starting cash is confirmed separately and is excluded from the difference.",
             new StackPanel
             {
                 Spacing = 9,
@@ -363,11 +369,11 @@ public sealed class AdminCashierOperationsView : UserControl
     {
         var amount = new AmountInput { PlaceholderText = "0.00" };
         amount.Bind(AmountInput.ValueProperty, new Binding("CorrectedActualRemittance") { Mode = BindingMode.TwoWay });
-        var returned = new CheckBox { Content = "Corrected state: opening float was returned or replaced" };
+        var returned = new CheckBox { Content = "Corrected state: starting cash was returned or replaced" };
         returned.Bind(ToggleButton.IsCheckedProperty, new Binding("CorrectedCashFloatReturned") { Mode = BindingMode.TwoWay });
-        var reason = MultilineInput("Required audited correction reason", "CorrectionReason", 70);
+        var reason = MultilineInput("Required approved cash correction reason", "CorrectionReason", 70);
         var panel = Section(
-            "Audited remittance correction",
+            "Approved cash remittance correction",
             "Only remittance amount and float-return state are corrected. Original values remain in correction history.",
             new StackPanel
             {
@@ -378,7 +384,7 @@ public sealed class AdminCashierOperationsView : UserControl
                     returned,
                     Field("REQUIRED REASON", reason),
                     Validation("CorrectionValidationMessage"),
-                    CommandButton("Record audited correction", ActionButtonVariant.Danger, "CorrectRemittanceCommand")
+                    CommandButton("Record approved cash correction", ActionButtonVariant.Danger, "CorrectRemittanceCommand")
                 }
             });
         panel.Bind(Visual.IsVisibleProperty, new Binding("CanShowCorrectionForm"));

@@ -227,15 +227,15 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
                 ? "Backend validation passed. Review the summary, then import."
                 : $"Backend validation found {result.Issues.Count} issue{Plural(result.Issues.Count)}.";
             if (result.IsValid)
-                _notifications.ShowSuccess("Validation passed", StatusMessage);
+                _notifications.ShowSuccess("Check complete", StatusMessage);
             else
-                _notifications.ShowWarning("Validation issues found", StatusMessage);
+                _notifications.ShowWarning("Please review the listed issues", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
             BackendValidated = false;
             StatusMessage = $"Validation failed: {exception.Message}";
-            _notifications.ShowError("Validation failed", StatusMessage);
+            _notifications.ShowError("Please fix the listed issues", StatusMessage);
         }
         finally
         {
@@ -285,20 +285,20 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
                 : "The import was not committed. Resolve the reported issues and validate again.";
             if (result.Committed)
             {
-                _notifications.ShowSuccess("Inventory imported", StatusMessage);
+                _notifications.ShowSuccess("Inventory imported successfully", StatusMessage);
                 _validatedRequest = null;
                 BackendValidated = false;
             }
             else
             {
-                _notifications.ShowWarning("Inventory not imported", StatusMessage);
+                _notifications.ShowWarning("Inventory was not imported", StatusMessage);
             }
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
             BackendValidated = false;
             StatusMessage = $"Import failed: {exception.Message}";
-            _notifications.ShowError("Inventory import failed", StatusMessage);
+            _notifications.ShowError("Inventory could not be imported", StatusMessage);
         }
         finally
         {

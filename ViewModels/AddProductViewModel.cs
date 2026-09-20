@@ -109,7 +109,7 @@ public partial class AddProductViewModel : ObservableObject
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            ShowError("Could not load suppliers", FailureMessage(exception));
+            ShowError("Suppliers could not be loaded", FailureMessage(exception));
         }
         finally
         {
@@ -178,7 +178,7 @@ public partial class AddProductViewModel : ObservableObject
         if (IsBusy) return;
         if (string.IsNullOrWhiteSpace(SupplierName))
         {
-            ShowError("Supplier not created", "Supplier name is required.");
+            ShowError("Supplier could not be added", "Enter a supplier name.");
             return;
         }
 
@@ -194,11 +194,11 @@ public partial class AddProductViewModel : ObservableObject
             SupplierContact = "";
             SupplierPhone = "";
             StatusMessage = $"Supplier {supplier.Name} created and selected.";
-            _notifications.ShowSuccess("Supplier created", StatusMessage);
+            _notifications.ShowSuccess("Supplier added successfully", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            ShowError("Supplier not created", FailureMessage(exception));
+            ShowError("Supplier could not be added", FailureMessage(exception));
         }
         finally
         {
@@ -212,7 +212,7 @@ public partial class AddProductViewModel : ObservableObject
         if (IsBusy) return;
         if (!TryBuildRequest(out var request, out var error))
         {
-            ShowError("Product not created", error);
+            ShowError("Product could not be added", error);
             return;
         }
 
@@ -223,11 +223,11 @@ public partial class AddProductViewModel : ObservableObject
             var product = await _api.CreateProductAsync(request!);
             ClearProduct();
             StatusMessage = $"{product.Name} was created with {product.Units.Count} unit option{(product.Units.Count == 1 ? "" : "s")} and zero stock.";
-            _notifications.ShowSuccess("Product created", StatusMessage);
+            _notifications.ShowSuccess("Product added successfully", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            ShowError("Product not created", FailureMessage(exception));
+            ShowError("Product could not be added", FailureMessage(exception));
         }
         finally
         {
