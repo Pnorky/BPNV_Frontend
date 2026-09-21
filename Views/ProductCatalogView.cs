@@ -105,12 +105,12 @@ public class ProductCatalogView : UserControl
             grid.Children.Add(At(label, column: index));
         }
 
-        var header = new Border { Padding = new Thickness(40, 10), Child = grid };
+        var header = new Border { Padding = new Thickness(16, 10), Child = grid };
         header.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Muted"));
         return header;
     }
 
-    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.95*,1*,96,0.8*,0.7*,0.85*,190");
+    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.95*,1*,96,0.8*,0.7*,0.85*,270");
 
     private static Button Action(string text, string commandPath)
     {
