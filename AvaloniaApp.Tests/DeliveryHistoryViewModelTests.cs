@@ -9,6 +9,17 @@ namespace AvaloniaApp.Tests;
 public sealed class DeliveryHistoryViewModelTests
 {
     [TestMethod]
+    public void DeliveryLineUsesSellingPriceWhenEmployeePriceIsZero()
+    {
+        var line = new DeliveryHistoryLineResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Product", "SKU", Guid.NewGuid(),
+            "Supplier", "Supplier", "123", [], 1, "piece", 1, 1,
+            10m, 12m, 18m, 18m, 0m, 18m, 12m, 0, 1, false);
+
+        Assert.AreEqual("Selling ₱18.00; Employee ₱18.00", line.RegularEmployeePriceDisplay);
+    }
+
+    [TestMethod]
     public async Task AppliesServerFiltersPagesAndCachesExpandedDetail()
     {
         var listRequests = new List<Uri>();

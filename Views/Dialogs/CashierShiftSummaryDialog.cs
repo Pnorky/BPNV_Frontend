@@ -18,7 +18,9 @@ public sealed class CashierShiftSummaryDialog : Window
         AdminCashierOperationsViewModel? viewModel = null)
     {
         DataContext = viewModel;
-        Title = $"{session.ShiftName} Completed - BPNV Convenience Store";
+        var isActive = session.Status == ApiCashierShiftSessionStatus.Open;
+        var statusText = isActive ? "Active" : "Completed";
+        Title = $"{session.ShiftName} {statusText} - BPNV Convenience Store";
         Width = 760;
         Height = 590;
         MinWidth = 680;
@@ -28,7 +30,7 @@ public sealed class CashierShiftSummaryDialog : Window
         this.BindResource(BackgroundProperty, "Card");
         this.BindResource(ForegroundProperty, "Foreground");
 
-        var title = new TextBlock { Text = $"{session.ShiftName} completed", FontSize = 32, FontWeight = FontWeight.SemiBold };
+        var title = new TextBlock { Text = $"{session.ShiftName} {statusText.ToLowerInvariant()}", FontSize = 32, FontWeight = FontWeight.SemiBold };
         var subtitle = new TextBlock { Text = $"{session.CashierName} | {session.BusinessDate:MMMM d, yyyy}", FontSize = 18 };
         subtitle.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
         var details = new Grid
