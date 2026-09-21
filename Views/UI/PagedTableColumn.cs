@@ -17,12 +17,15 @@ public sealed class PagedTableColumn : AvaloniaObject
         AvaloniaProperty.Register<PagedTableColumn, bool>(nameof(IsSortable), true);
     public static readonly StyledProperty<IDataTemplate?> CellTemplateProperty =
         AvaloniaProperty.Register<PagedTableColumn, IDataTemplate?>(nameof(CellTemplate));
+    public static readonly StyledProperty<bool> WrapTextProperty =
+        AvaloniaProperty.Register<PagedTableColumn, bool>(nameof(WrapText));
 
     public string Header { get => GetValue(HeaderProperty); set => SetValue(HeaderProperty, value); }
     public string PropertyName { get => GetValue(PropertyNameProperty); set => SetValue(PropertyNameProperty, value); }
     public GridLength Width { get => GetValue(WidthProperty); set => SetValue(WidthProperty, value); }
     public bool IsSortable { get => GetValue(IsSortableProperty); set => SetValue(IsSortableProperty, value); }
     public IDataTemplate? CellTemplate { get => GetValue(CellTemplateProperty); set => SetValue(CellTemplateProperty, value); }
+    public bool WrapText { get => GetValue(WrapTextProperty); set => SetValue(WrapTextProperty, value); }
     public HorizontalAlignment HorizontalAlignment { get; set; } = HorizontalAlignment.Stretch;
 
     // Prefer these delegates in trimmed/AOT applications. PropertyName remains available for concise XAML usage.

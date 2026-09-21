@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using AvaloniaApp.ViewModels;
 using AvaloniaApp.Services;
@@ -75,7 +76,7 @@ public sealed class ApiStockMovementsView : UserControl
         table.Columns.Add(Column("Quantity", item => item.QuantityDisplay, 0.7, HorizontalAlignment.Right));
             table.Columns.Add(Column("Stock update", item => item.ChangeDisplay, 1.2));
         table.Columns.Add(Column("Balances after", item => item.BalanceDisplay, 1.05));
-        table.Columns.Add(Column("Reference / notes", item => item.ReferenceNotesDisplay, 1.25));
+        table.Columns.Add(Column("Reference / notes", item => item.ReferenceNotesDisplay, 1.25, wrapText: true));
         table.Columns.Add(Column("User", item => item.CreatedByName, 1.25));
 
         var count = new TextBlock { FontSize = 12 };
@@ -115,10 +116,23 @@ public sealed class ApiStockMovementsView : UserControl
         string header,
         Func<StockMovementResponse, string> selector,
         double width,
-        HorizontalAlignment alignment = HorizontalAlignment.Stretch)
+        HorizontalAlignment alignment = HorizontalAlignment.Stretch,
+        bool wrapText = false)
     {
         var column = PagedTableColumn.Create(header, selector, new GridLength(width, GridUnitType.Star), false);
         column.HorizontalAlignment = alignment;
+        column.WrapText = wrapText;
+        if (wrapText)
+        {
+            column.CellTemplate = new FuncDataTemplate<StockMovementResponse>((item, _) => new TextBlock
+            {
+                Text = selector(item),
+                TextWrapping = TextWrapping.Wrap,
+                MaxLines = 2,
+                HorizontalAlignment = alignment,
+                TextAlignment = alignment == HorizontalAlignment.Right ? TextAlignment.Right : TextAlignment.Left
+            });
+        }
         return column;
     }
 }

@@ -524,7 +524,7 @@ public sealed record DeliveryHistoryLineResponse(
         : $"{BasePieceQuantity:N0} pieces";
     public string CostPriceDisplay => PriceChange(PreviousCostPrice, CostPrice);
     public string RegularPriceDisplay => PriceChange(PreviousRegularPrice, RegularPrice);
-    public string EmployeePriceDisplay => PriceChange(PreviousEmployeePrice, EmployeePrice);
+    public string EmployeePriceDisplay => PriceChange(EffectiveEmployeePrice(PreviousEmployeePrice, PreviousRegularPrice), EffectiveEmployeePrice(EmployeePrice, RegularPrice)!.Value);
     public string RegularEmployeePriceDisplay => $"Selling {RegularPriceDisplay}; Employee {EmployeePriceDisplay}";
     public string LineTotalDisplay => $"₱{LineTotal:N2}";
     public string BodegaChangeDisplay => BodegaBalanceBefore.HasValue && BodegaBalanceAfter.HasValue
@@ -536,6 +536,9 @@ public sealed record DeliveryHistoryLineResponse(
     private static string PriceChange(decimal? previous, decimal latest) => previous.HasValue
         ? previous.Value == latest ? $"₱{latest:N2}" : $"₱{previous:N2} -> ₱{latest:N2}"
         : $"Not available -> ₱{latest:N2}";
+
+    private static decimal? EffectiveEmployeePrice(decimal? employeePrice, decimal? regularPrice) =>
+        employeePrice is > 0 ? employeePrice : regularPrice;
 }
 
 public sealed record DeliveryHistoryDetailResponse(
@@ -836,7 +839,8 @@ public sealed record ApiReportSnapshot(
     SalesReportResponse Sales,
     InventoryReportResponse Inventory,
     OrderReportResponse Orders,
-    EmployeePurchaseReportResponse? EmployeePurchases = null);
+    EmployeePurchaseReportResponse? EmployeePurchases = null,
+    CashierShiftReportResponse? CashierShifts = null);
 
 public sealed record ShiftDefinitionResponse(Guid Id, string Name, TimeOnly StartLocalTime, TimeOnly EndLocalTime, bool IsActive)
 {

@@ -38,16 +38,22 @@ public class ReportsView : UserControl
         return panel;
     }
 
-    private static Control BuildTabs() => new TabControl
+    private static Control BuildTabs()
     {
-        Items =
+        var tabs = new TabControl
         {
-            new TabItem { Header = "Sales Summary", Content = Scroll(BuildSales()) },
-            new TabItem { Header = "Employee Purchases", Content = BuildEmployeePurchases() },
-            new TabItem { Header = "Inventory Summary", Content = BuildInventory() },
-            new TabItem { Header = "Order Summary", Content = Scroll(BuildOrders()) }
-        }
-    };
+            Items =
+            {
+                new TabItem { Header = "Sales Summary", Content = Scroll(BuildSales()) },
+                new TabItem { Header = "Employee Purchases", Content = BuildEmployeePurchases() },
+                new TabItem { Header = "Cashier Remittance", Content = BuildCashierRemittance() },
+                new TabItem { Header = "Inventory Summary", Content = BuildInventory() },
+                new TabItem { Header = "Order Summary", Content = Scroll(BuildOrders()) }
+            }
+        };
+        tabs.Bind(TabControl.SelectedIndexProperty, new Binding("SelectedReportTabIndex") { Mode = BindingMode.TwoWay });
+        return tabs;
+    }
 
     private static Control BuildEmployeePurchases()
     {
@@ -179,6 +185,29 @@ public class ReportsView : UserControl
             }
         };
         content.Children.Add(At(tableContent, row: 1));
+        return content;
+    }
+
+    private static Control BuildCashierRemittance()
+    {
+        var content = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 14, Margin = new Thickness(10, 28, 10, 12) };
+        content.Children.Add(Stats(4,
+            ("SESSIONS", "Snapshot.CashierShifts.Summary.Sessions"),
+            ("CASH SALES", "Snapshot.CashierShifts.Summary.CashSales"),
+            ("EXPECTED", "Snapshot.CashierShifts.Summary.ExpectedRemittance"),
+            ("VARIANCE", "Snapshot.CashierShifts.Summary.Variance")));
+
+        var table = new PagedTable { ItemName = "cashier session", ItemNamePlural = "cashier sessions", PageSize = 12, MinHeight = 0, MinTableWidth = 1250, IsSelectable = false };
+        Bind(table, PagedTable.ItemsSourceProperty, "Snapshot.CashierShifts.Sessions");
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("DATE", row => row.BusinessDate.ToString("yyyy-MM-dd"), new GridLength(0.8, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("CASHIER", row => row.CashierName, new GridLength(1.3, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("SHIFT", row => row.ShiftName, new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("STATUS", row => row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString(), new GridLength(1.2, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("SALES", row => CashierShiftFormatting.Money(row.TotalSales), new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("EXPECTED", row => CashierShiftFormatting.Money(row.ExpectedRemittance), new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("ACTUAL", row => CashierShiftFormatting.Money(row.ActualRemittance), new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("DIFFERENCE", row => CashierShiftFormatting.SignedMoney(row.Variance), new GridLength(1, GridUnitType.Star)));
+        content.Children.Add(At(table, row: 1));
         return content;
     }
 

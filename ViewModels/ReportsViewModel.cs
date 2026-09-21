@@ -19,6 +19,8 @@ public partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<EmployeePurchaseLineResponse> _employeePurchaseLines = [];
     [ObservableProperty] private IReadOnlyList<EmployeeResponse> _employees = [];
     [ObservableProperty] private EmployeeResponse? _selectedEmployee;
+    [ObservableProperty] private IReadOnlyList<UserResponse> _cashiers = [];
+    [ObservableProperty] private UserResponse? _selectedCashier;
     [ObservableProperty] private string _exportStatus = "";
     [ObservableProperty] private string _statusMessage = "Loading reports...";
     [ObservableProperty] private string? _errorMessage;
@@ -26,8 +28,16 @@ public partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private DateTimeOffset? _fromDate;
     [ObservableProperty] private DateTimeOffset? _toDate;
     [ObservableProperty] private string _selectedCustomerType = "All sales";
+    [ObservableProperty] private int _selectedReportTabIndex;
 
     public IReadOnlyList<string> CustomerTypeOptions { get; } = ["All sales", "Regular", "Employee"];
+    public bool IsSalesReportTab => SelectedReportTabIndex == 0;
+    public bool IsEmployeePurchasesTab => SelectedReportTabIndex == 1;
+    public bool IsCashierRemittanceTab => SelectedReportTabIndex == 2;
+    public bool IsInventoryReportTab => SelectedReportTabIndex == 3;
+    public bool IsOrderReportTab => SelectedReportTabIndex == 4;
+    public bool IsDateFilteredReportTab => IsSalesReportTab || IsEmployeePurchasesTab || IsCashierRemittanceTab;
+    public bool HasReportFilters => IsDateFilteredReportTab;
 
     public string GrossSalesDisplay => $"₱{Snapshot?.Sales.Summary.GrossSales ?? 0:N2}";
     public string TodaySalesDisplay => $"₱{Snapshot?.Sales.Summary.TodaySales ?? 0:N2}";
@@ -54,6 +64,19 @@ public partial class ReportsViewModel : ObservableObject
         _ = RefreshAsync();
     }
 
+    partial void OnSelectedCashierChanged(UserResponse? value) => _ = RefreshAsync();
+
+    partial void OnSelectedReportTabIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsSalesReportTab));
+        OnPropertyChanged(nameof(IsEmployeePurchasesTab));
+        OnPropertyChanged(nameof(IsCashierRemittanceTab));
+        OnPropertyChanged(nameof(IsInventoryReportTab));
+        OnPropertyChanged(nameof(IsOrderReportTab));
+        OnPropertyChanged(nameof(IsDateFilteredReportTab));
+        OnPropertyChanged(nameof(HasReportFilters));
+    }
+
     [RelayCommand]
     private void ClearEmployeeFilter() => SelectedEmployee = null;
 
@@ -78,19 +101,33 @@ public partial class ReportsViewModel : ObservableObject
             var ordersTask = _api.GetOrderReportAsync();
             var employeeReportTask = _api.GetEmployeePurchaseReportAsync(fromUtc, toUtcExclusive, SelectedEmployee?.Id);
             var employeesTask = _api.GetEmployeesAsync(includeInactive: true);
+            var cashierReportTask = _api.GetCashierShiftReportAsync(
+                DateOnly.FromDateTime(FromDate?.Date ?? StoreDateTime.StoreToday),
+                DateOnly.FromDateTime((ToDate?.Date ?? FromDate?.Date ?? StoreDateTime.StoreToday).AddDays(1)),
+                SelectedCashier?.Id);
+            var cashiersTask = _api.GetUsersAsync(includeInactive: true);
             await Task.WhenAll(salesTask, inventoryTask, ordersTask, employeeReportTask, employeesTask);
+            CashierShiftReportResponse? cashierReport = null;
+            try { cashierReport = await cashierReportTask; }
+            catch (Exception) { }
+            IReadOnlyList<UserResponse> cashierUsers = [];
+            try { cashierUsers = await cashiersTask; }
+            catch (Exception) { }
 
             Snapshot = new ApiReportSnapshot(
                 await salesTask,
                 await inventoryTask,
                 await ordersTask,
-                await employeeReportTask);
+                await employeeReportTask,
+                cashierReport);
             TopProducts = Snapshot.Sales.TopProducts;
             RecentSales = Snapshot.Sales.RecentSales;
             InventoryItems = Snapshot.Inventory.Products;
             OrderSummaries = Snapshot.Orders.Suppliers;
             EmployeePurchaseLines = Snapshot.EmployeePurchases!.Lines;
             Employees = (await employeesTask).OrderBy(employee => employee.Name).ToArray();
+            Cashiers = cashierUsers.Where(user => user.Roles.Contains("Cashier", StringComparer.OrdinalIgnoreCase))
+                .OrderBy(user => user.DisplayName).ToArray();
             StatusMessage = "Reports are up to date.";
             NotifySummaryChanged();
         }
@@ -121,14 +158,14 @@ public partial class ReportsViewModel : ObservableObject
             return;
         }
 
-        var file = await SelectExportFileAsync("Export PDF report", "BPNV-store-report.pdf", "PDF report", "*.pdf");
+        var file = await SelectExportFileAsync("Export PDF report", BuildExportFileName("pdf"), "PDF report", "*.pdf");
         if (file is null) return;
 
         try
         {
             await using var stream = await file.OpenWriteAsync();
             if (stream.CanSeek) stream.SetLength(0);
-            ReportExportService.ExportPdf(Snapshot, stream);
+            ReportExportService.ExportPdf(Snapshot, stream, (ReportExportArea)SelectedReportTabIndex);
             ExportStatus = "PDF report exported successfully.";
         }
         catch (Exception exception)
@@ -146,14 +183,14 @@ public partial class ReportsViewModel : ObservableObject
             return;
         }
 
-        var file = await SelectExportFileAsync("Export Excel report", "BPNV-store-report.xlsx", "Excel workbook", "*.xlsx");
+        var file = await SelectExportFileAsync("Export Excel report", BuildExportFileName("xlsx"), "Excel workbook", "*.xlsx");
         if (file is null) return;
 
         try
         {
             await using var stream = await file.OpenWriteAsync();
             if (stream.CanSeek) stream.SetLength(0);
-            ReportExportService.ExportExcel(Snapshot, stream);
+            ReportExportService.ExportExcel(Snapshot, stream, (ReportExportArea)SelectedReportTabIndex);
             ExportStatus = "Excel report exported successfully.";
         }
         catch (Exception exception)
@@ -182,6 +219,31 @@ public partial class ReportsViewModel : ObservableObject
         OnPropertyChanged(nameof(EmployeeDeductionsDisplay));
         OnPropertyChanged(nameof(EmployeeTransactions));
         OnPropertyChanged(nameof(EmployeesRepresented));
+    }
+
+    private string BuildExportFileName(string extension)
+    {
+        var reportName = SelectedReportTabIndex switch
+        {
+            1 => "employee-purchases",
+            2 => "cashier-remittance",
+            3 => "inventory-summary",
+            4 => "order-summary",
+            _ => "sales-summary"
+        };
+        var datePart = FromDate is null && ToDate is null
+            ? "all-dates"
+            : $"{FromDate?.ToString("yyyy-MM-dd") ?? "start"}-to-{ToDate?.ToString("yyyy-MM-dd") ?? "today"}";
+        var filterPart = SelectedReportTabIndex switch
+        {
+            0 => SelectedCustomerType == "All sales" ? "all-sales" : SelectedCustomerType.ToLowerInvariant(),
+            1 => SelectedEmployee?.Name is { Length: > 0 } name ? name : "all-employees",
+            2 => SelectedCashier?.DisplayName is { Length: > 0 } cashier ? cashier : "all-cashiers",
+            _ => "all"
+        };
+        var fileName = $"BPNV-{reportName}-{datePart}-{filterPart}";
+        foreach (var character in Path.GetInvalidFileNameChars()) fileName = fileName.Replace(character, '-');
+        return $"{fileName}.{extension}";
     }
 
     private static async Task<IStorageFile?> SelectExportFileAsync(

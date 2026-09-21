@@ -5,10 +5,26 @@ using QuestPDF.Infrastructure;
 
 namespace AvaloniaApp.Services;
 
+public enum ReportExportArea
+{
+    Sales = 0,
+    EmployeePurchases = 1,
+    CashierRemittance = 2,
+    Inventory = 3,
+    Orders = 4,
+    All = 5
+}
+
 public static class ReportExportService
 {
-    public static void ExportPdf(ApiReportSnapshot report, Stream output)
+    public static void ExportPdf(ApiReportSnapshot report, Stream output, ReportExportArea area = ReportExportArea.All)
     {
+        if (area != ReportExportArea.All)
+        {
+            ExportSingleAreaPdf(report, output, area);
+            return;
+        }
+
         Document.Create(document =>
         {
             document.Page(page =>
@@ -187,14 +203,124 @@ public static class ReportExportService
         }).GeneratePdf(output);
     }
 
-    public static void ExportExcel(ApiReportSnapshot report, Stream output)
+    private static void ExportSingleAreaPdf(ApiReportSnapshot report, Stream output, ReportExportArea area)
+    {
+        Document.Create(document => document.Page(page =>
+        {
+            page.Size(PageSizes.A4);
+            page.Margin(32);
+            page.DefaultTextStyle(style => style.FontSize(9));
+            page.Header().Column(header =>
+            {
+                header.Item().Text("BPNV CONVENIENCE STORE").Bold().FontSize(20).FontColor(Colors.Orange.Darken2);
+                header.Item().Text(area switch
+                {
+                    ReportExportArea.EmployeePurchases => "Employee Purchases Report",
+                    ReportExportArea.CashierRemittance => "Cashier Remittance Report",
+                    ReportExportArea.Inventory => "Inventory Report",
+                    _ => "Order Report"
+                }).SemiBold().FontSize(12);
+            });
+            page.Content().PaddingVertical(18).Column(content =>
+            {
+                content.Spacing(12);
+                switch (area)
+                {
+                    case ReportExportArea.Sales:
+                        content.Item().Text("Sales lines").Bold().FontSize(13);
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns => { columns.ConstantColumn(52); columns.ConstantColumn(76); columns.ConstantColumn(42); columns.ConstantColumn(48); columns.RelativeColumn(); columns.ConstantColumn(38); columns.ConstantColumn(58); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date and time"); PdfHeader(header.Cell(), "Payment"); PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product / unit"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Amount"); });
+                            foreach (var sale in report.Sales.Sales.OrderByDescending(sale => sale.SoldAtUtc))
+                            foreach (var line in sale.Lines)
+                            {
+                                PdfCell(table.Cell(), sale.SaleNumber); PdfCell(table.Cell(), StoreDateTime.FormatUtc(sale.SoldAtUtc)); PdfCell(table.Cell(), sale.PaymentMethodDisplay);
+                                PdfCell(table.Cell(), line.Sku); PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})"); PdfCell(table.Cell(), line.BasePieceQuantity.ToString()); PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                            }
+                        });
+                        break;
+                    case ReportExportArea.EmployeePurchases when report.EmployeePurchases is { } employee:
+                        content.Item().Text($"Employee purchases · Total deductions {employee.Summary.TotalDeductions:₱#,##0.00}").Bold().FontSize(13);
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns => { columns.ConstantColumn(55); columns.ConstantColumn(72); columns.RelativeColumn(); columns.ConstantColumn(48); columns.RelativeColumn(); columns.ConstantColumn(38); columns.ConstantColumn(58); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date & time"); PdfHeader(header.Cell(), "Employee"); PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Amount"); });
+                            foreach (var line in employee.Lines.OrderByDescending(line => line.SoldAtUtc))
+                            {
+                                PdfCell(table.Cell(), line.SaleNumber); PdfCell(table.Cell(), StoreDateTime.FormatUtc(line.SoldAtUtc)); PdfCell(table.Cell(), line.EmployeeDisplay);
+                                PdfCell(table.Cell(), line.Sku); PdfCell(table.Cell(), line.ProductName); PdfCell(table.Cell(), line.Count.ToString()); PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                            }
+                        });
+                        break;
+                    case ReportExportArea.CashierRemittance when report.CashierShifts is { } cashier:
+                        content.Item().Text("Cashier remittance summary").Bold().FontSize(13);
+                        content.Item().Text($"Sessions: {cashier.Summary.Sessions}   Cash sales: {cashier.Summary.CashSales:₱#,##0.00}   Expected: {cashier.Summary.ExpectedRemittance:₱#,##0.00}   Actual: {cashier.Summary.ActualRemittance:₱#,##0.00}   Difference: {cashier.Summary.Variance:₱#,##0.00}");
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns => { columns.ConstantColumn(58); columns.RelativeColumn(); columns.RelativeColumn(); columns.ConstantColumn(62); columns.ConstantColumn(62); columns.ConstantColumn(62); columns.ConstantColumn(62); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Date"); PdfHeader(header.Cell(), "Cashier"); PdfHeader(header.Cell(), "Shift"); PdfHeader(header.Cell(), "Sales"); PdfHeader(header.Cell(), "Expected"); PdfHeader(header.Cell(), "Actual"); PdfHeader(header.Cell(), "Difference"); });
+                            foreach (var session in cashier.Sessions.OrderByDescending(session => session.BusinessDate))
+                            {
+                                PdfCell(table.Cell(), session.BusinessDate.ToString("yyyy-MM-dd")); PdfCell(table.Cell(), session.CashierName); PdfCell(table.Cell(), session.ShiftName);
+                                PdfCell(table.Cell(), CashierShiftFormatting.Money(session.TotalSales)); PdfCell(table.Cell(), CashierShiftFormatting.Money(session.ExpectedRemittance));
+                                PdfCell(table.Cell(), CashierShiftFormatting.Money(session.ActualRemittance)); PdfCell(table.Cell(), CashierShiftFormatting.SignedMoney(session.Variance));
+                            }
+                        });
+                        break;
+                    case ReportExportArea.Inventory:
+                        content.Item().Text("Inventory by location").Bold().FontSize(13);
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns => { columns.ConstantColumn(50); columns.RelativeColumn(); columns.RelativeColumn(); columns.ConstantColumn(42); columns.ConstantColumn(42); columns.ConstantColumn(42); columns.ConstantColumn(62); });
+                            table.Header(header => { PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product"); PdfHeader(header.Cell(), "Supplier"); PdfHeader(header.Cell(), "Display"); PdfHeader(header.Cell(), "Bodega"); PdfHeader(header.Cell(), "Total"); PdfHeader(header.Cell(), "Status"); });
+                            foreach (var product in report.Inventory.Products.OrderBy(product => product.Name))
+                            {
+                                PdfCell(table.Cell(), product.Sku); PdfCell(table.Cell(), product.Name); PdfCell(table.Cell(), product.SupplierName); PdfCell(table.Cell(), product.DisplayStock.ToString());
+                                PdfCell(table.Cell(), product.BodegaStock.ToString()); PdfCell(table.Cell(), product.TotalStock.ToString()); PdfCell(table.Cell(), product.StockStatus);
+                            }
+                        });
+                        break;
+                    case ReportExportArea.Orders:
+                        content.Item().Text("Suggested orders").Bold().FontSize(13);
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns => { columns.RelativeColumn(); columns.ConstantColumn(52); columns.RelativeColumn(); columns.ConstantColumn(42); columns.ConstantColumn(48); columns.ConstantColumn(48); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Supplier"); PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product"); PdfHeader(header.Cell(), "On hand"); PdfHeader(header.Cell(), "Tier"); PdfHeader(header.Cell(), "Order"); });
+                            foreach (var supplier in report.Orders.Suppliers)
+                            foreach (var product in supplier.Products)
+                            {
+                                PdfCell(table.Cell(), supplier.SupplierName); PdfCell(table.Cell(), product.Sku); PdfCell(table.Cell(), product.ProductName);
+                                PdfCell(table.Cell(), product.TotalStock.ToString()); PdfCell(table.Cell(), product.ReorderTier); PdfCell(table.Cell(), product.SuggestedOrderQuantity.ToString());
+                            }
+                        });
+                        break;
+                }
+            });
+            page.Footer().AlignCenter().Text(text => { text.Span("Page "); text.CurrentPageNumber(); text.Span(" of "); text.TotalPages(); });
+        })).GeneratePdf(output);
+    }
+
+    public static void ExportExcel(ApiReportSnapshot report, Stream output, ReportExportArea area = ReportExportArea.All)
     {
         using var workbook = new XLWorkbook();
-        CreateSummarySheet(workbook, report);
-        CreateSalesSheet(workbook, report.Sales);
-        CreateInventorySheet(workbook, report.Inventory);
-        CreateOrdersSheet(workbook, report.Orders);
-        if (report.EmployeePurchases is not null) CreateEmployeePurchasesSheet(workbook, report.EmployeePurchases);
+        switch (area)
+        {
+            case ReportExportArea.All:
+                CreateSummarySheet(workbook, report);
+                CreateSalesSheet(workbook, report.Sales);
+                CreateInventorySheet(workbook, report.Inventory);
+                CreateOrdersSheet(workbook, report.Orders);
+                if (report.EmployeePurchases is not null) CreateEmployeePurchasesSheet(workbook, report.EmployeePurchases);
+                if (report.CashierShifts is not null) CreateCashierRemittanceSheet(workbook, report.CashierShifts);
+                break;
+            case ReportExportArea.Sales: CreateSalesSheet(workbook, report.Sales); break;
+            case ReportExportArea.EmployeePurchases when report.EmployeePurchases is not null: CreateEmployeePurchasesSheet(workbook, report.EmployeePurchases); break;
+            case ReportExportArea.CashierRemittance when report.CashierShifts is not null: CreateCashierRemittanceSheet(workbook, report.CashierShifts); break;
+            case ReportExportArea.Inventory: CreateInventorySheet(workbook, report.Inventory); break;
+            case ReportExportArea.Orders: CreateOrdersSheet(workbook, report.Orders); break;
+            default: CreateSummarySheet(workbook, report); break;
+        }
         workbook.SaveAs(output);
     }
 
@@ -361,6 +487,31 @@ public static class ReportExportService
         sheet.Cell(row + 1, 11).Value = "Total deductions";
         sheet.Cell(row + 1, 12).Value = report.Summary.TotalDeductions;
         sheet.Cell(row + 1, 12).Style.NumberFormat.Format = "₱#,##0.00";
+    }
+
+    private static void CreateCashierRemittanceSheet(XLWorkbook workbook, CashierShiftReportResponse report)
+    {
+        var sheet = workbook.Worksheets.Add("Cashier Remittance");
+        string[] headers = ["Business date", "Cashier", "Shift", "Status", "Sales", "Cash sales", "Expected remittance", "Actual remittance", "Difference", "Cash float returned"];
+        WriteHeaders(sheet, headers);
+        var row = 2;
+        foreach (var session in report.Sessions.OrderByDescending(session => session.BusinessDate).ThenBy(session => session.CashierName))
+        {
+            sheet.Cell(row, 1).Value = session.BusinessDate.ToDateTime(TimeOnly.MinValue);
+            sheet.Cell(row, 2).Value = session.CashierName;
+            sheet.Cell(row, 3).Value = session.ShiftName;
+            sheet.Cell(row, 4).Value = session.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : session.Status.ToString();
+            sheet.Cell(row, 5).Value = session.TotalSales ?? 0;
+            sheet.Cell(row, 6).Value = session.CashSales ?? 0;
+            sheet.Cell(row, 7).Value = session.ExpectedRemittance ?? 0;
+            sheet.Cell(row, 8).Value = session.ActualRemittance ?? 0;
+            sheet.Cell(row, 9).Value = session.Variance ?? 0;
+            sheet.Cell(row, 10).Value = session.CashFloatReturned == true ? "Yes" : "No";
+            row++;
+        }
+        sheet.Column(1).Style.DateFormat.Format = "yyyy-mm-dd";
+        sheet.Columns(5, 9).Style.NumberFormat.Format = "₱#,##0.00";
+        StyleDataSheet(sheet, headers.Length, row - 1);
     }
 
     private static void WriteHeaders(IXLWorksheet sheet, IReadOnlyList<string> headers)
