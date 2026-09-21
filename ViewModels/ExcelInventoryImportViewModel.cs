@@ -38,7 +38,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
     [ObservableProperty] private string _fileName = "No workbook loaded";
     [ObservableProperty] private string _formatDisplay = "-";
     [ObservableProperty] private string _sourceHash = "-";
-    [ObservableProperty] private string _statusMessage = "Open a legacy inventory workbook or the BPNV standard template to begin.";
+    [ObservableProperty] private string _statusMessage = "Open a fixed seven-column product workbook to begin.";
     [ObservableProperty] private string _validationSummary = "Not validated";
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _isLoaded;
@@ -438,7 +438,12 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         foreach (var section in draft.Sections) Sections.Add(new InventoryImportSectionMapping(section));
         ExcludedSections.Clear();
         foreach (var section in draft.ExcludedSections) ExcludedSections.Add(section);
-        FormatDisplay = draft.Format == ExcelInventoryWorkbookFormat.Legacy ? "Legacy workbook" : "Standard template";
+        FormatDisplay = draft.Format switch
+        {
+            ExcelInventoryWorkbookFormat.Legacy => "Legacy workbook",
+            ExcelInventoryWorkbookFormat.FixedProductFile => "Fixed seven-column product file",
+            _ => "Standard template"
+        };
         IsLoaded = true;
         BackendValidated = false;
         ValidationSummary = "Not validated";

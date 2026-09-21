@@ -65,7 +65,7 @@ public sealed class PageTopBar : UserControl
         {
             FontSize = 11,
             HorizontalAlignment = HorizontalAlignment.Right,
-            TextTrimming = TextTrimming.CharacterEllipsis
+            TextWrapping = TextWrapping.NoWrap
         };
         shiftStatus.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.ShiftStatusDisplay)));
         shiftStatus.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsCashier)));
@@ -92,7 +92,7 @@ public sealed class PageTopBar : UserControl
         notificationsButton.Click += (_, _) => NavigationRequested?.Invoke(this, "AdminNotifications");
         var clockText = new StackPanel
         {
-            Width = 260,
+            Width = 330,
             VerticalAlignment = VerticalAlignment.Center,
             Children = { storeClock, shiftStatus }
         };
@@ -100,7 +100,7 @@ public sealed class PageTopBar : UserControl
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8,
-            Width = 336,
+            Width = 406,
             VerticalAlignment = VerticalAlignment.Center,
             Children = { clockText, shiftButton }
         };
@@ -166,11 +166,22 @@ public sealed class PageTopBar : UserControl
                 Bind(pricing, SearchableSelect.ItemsSourceProperty, "CustomerTypes");
                 Bind(pricing, SearchableSelect.SelectedItemProperty, "SelectedCustomerType");
                 yield return pricing;
-                var employee = new SearchableSelect { PlaceholderText = "Select employee", Width = 240 };
+                var employee = new SearchableSelect { PlaceholderText = "Select employee", Width = 300 };
                 Bind(employee, SearchableSelect.ItemsSourceProperty, "Employees");
                 Bind(employee, SearchableSelect.SelectedItemProperty, "SelectedEmployee");
                 Bind(employee, Visual.IsVisibleProperty, "IsEmployeeSale");
                 yield return employee;
+                break;
+            case CashierSalesViewModel:
+                var salesRange = new SearchableSelect { PlaceholderText = "Sales range", Width = 150 };
+                Bind(salesRange, SearchableSelect.ItemsSourceProperty, "Ranges");
+                Bind(salesRange, SearchableSelect.SelectedItemProperty, "SelectedRange");
+                yield return salesRange;
+                var salesDates = new DateRangePicker { Width = 300, PlaceholderText = "Custom date range" };
+                Bind(salesDates, DateRangePicker.StartDateProperty, "FromDate");
+                Bind(salesDates, DateRangePicker.EndDateProperty, "ToDate");
+                yield return salesDates;
+                yield return Button("Refresh", "RefreshCommand", ActionButtonVariant.Secondary);
                 break;
             case ProductCatalogViewModel:
                 yield return Search("Search products...", "SearchText", 300);

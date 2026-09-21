@@ -5,7 +5,8 @@ namespace AvaloniaApp.Services;
 public enum ExcelInventoryWorkbookFormat
 {
     Legacy,
-    StandardTemplate
+    StandardTemplate,
+    FixedProductFile
 }
 
 public enum ExcelInventoryIssueSeverity
@@ -112,10 +113,16 @@ public sealed class ExcelInventoryImportService
     [
         "ProductSKU", "Barcode", "Label", "PiecesPerUnit", "RegularPrice", "EmployeePrice", "IsActive"
     ];
+    private static readonly string[] FixedProductHeaders =
+    ["Supplier", "Product", "Category", "Item type", "Purchase Price/Unit Price", "Selling Price", "Employee Price"];
 
     public ExcelInventoryImportResult Parse(Stream input)
     {
         using var workbook = new XLWorkbook(input);
+        foreach (var sheet in workbook.Worksheets)
+        {
+            if (HasHeaders(sheet, FixedProductHeaders)) return ParseFixedProductFile(sheet);
+        }
         if (FindSheet(workbook, "Suppliers") is not null && FindSheet(workbook, "Products") is not null)
             return ParseStandard(workbook);
 
@@ -126,6 +133,40 @@ public sealed class ExcelInventoryImportService
         }
 
         throw new InvalidDataException("The workbook is neither the BPNV standard template nor the supported legacy inventory layout.");
+    }
+
+    private static ExcelInventoryImportResult ParseFixedProductFile(IXLWorksheet sheet)
+    {
+        var result = new ExcelInventoryImportResult { Format = ExcelInventoryWorkbookFormat.FixedProductFile };
+        var columns = ReadColumns(sheet, FixedProductHeaders);
+        var lastRow = sheet.LastRowUsed()?.RowNumber() ?? 1;
+        for (var row = 2; row <= lastRow; row++)
+        {
+            if (RowIsEmpty(sheet, row, columns.Values)) continue;
+            var product = new ExcelInventoryProductDraft
+            {
+                SourceSheet = sheet.Name,
+                SourceRow = row,
+                SupplierName = Text(sheet, row, columns, "Supplier"),
+                Name = Text(sheet, row, columns, "Product"),
+                Category = Text(sheet, row, columns, "Category"),
+                Unit = "piece",
+                CostPrice = ReadDecimal(sheet, row, columns, "Purchase Price/Unit Price", result),
+                RegularPrice = ReadDecimal(sheet, row, columns, "Selling Price", result),
+                EmployeePrice = ReadDecimal(sheet, row, columns, "Employee Price", result)
+            };
+            var itemType = Text(sheet, row, columns, "Item type");
+            if (Enum.TryParse<ApiInventoryItemType>(itemType, true, out var parsedType)) product.ItemType = parsedType;
+            else AddError(product.Issues, "InvalidItemType", "Item type must be Merchandise, Consumable, or Supply.", sheet, row);
+
+            foreach (var (value, label) in new[]
+                     { (product.SupplierName, "Supplier"), (product.Name, "Product"), (product.Category, "Category") })
+                if (string.IsNullOrWhiteSpace(value)) AddError(product.Issues, "MissingField", $"{label} is required.", sheet, row);
+
+            AddProductIssues(result, product);
+            result.Products.Add(product);
+        }
+        return result;
     }
 
     public void WriteTemplate(Stream output)
@@ -139,31 +180,26 @@ public sealed class ExcelInventoryImportService
         var instructions = workbook.Worksheets.Add("Instructions");
         instructions.Cell("A1").Value = "BPNV Inventory Import Template";
         instructions.Cell("A1").Style.Font.SetBold().Font.SetFontSize(16);
-        instructions.Cell("A3").Value = "1. Add suppliers before referencing them from Products.";
-        instructions.Cell("A4").Value = "2. Keep SKU and barcode cells formatted as Text so leading zeroes are preserved.";
-        instructions.Cell("A5").Value = "3. ItemType must be Merchandise, Consumable, or Supply.";
-        instructions.Cell("A6").Value = "4. WarningReorderLevel must be greater than CriticalReorderLevel; order quantities must be positive.";
-        instructions.Cell("A7").Value = "5. Packages is optional. ProductSKU links each package to a Products row.";
-        instructions.Cell("A8").Value = "6. Opening stocks are base-piece quantities for Display and Bodega.";
+        instructions.Cell("A3").Value = "1. Use the Products sheet with one row per product.";
+        instructions.Cell("A4").Value = "2. Do not rename, remove, or reorder the seven required columns.";
+        instructions.Cell("A5").Value = "3. Item type must be Merchandise, Consumable, or Supply.";
+        instructions.Cell("A6").Value = "4. Purchase Price/Unit Price, Selling Price, and Employee Price must be numeric.";
         instructions.Column(1).Width = 110;
 
-        var suppliers = workbook.Worksheets.Add("Suppliers");
-        WriteHeaders(suppliers, SupplierHeaders);
         var products = workbook.Worksheets.Add("Products");
-        WriteHeaders(products, ProductHeaders);
-        var packages = workbook.Worksheets.Add("Packages");
-        WriteHeaders(packages, PackageHeaders);
+        WriteHeaders(products, FixedProductHeaders);
 
         if (source is not null)
         {
-            WriteDrafts(suppliers, products, packages, source);
+            for (var index = 0; index < source.Products.Count; index++)
+            {
+                var product = source.Products[index];
+                WriteRow(products, index + 2, product.SupplierName, product.Name, product.Category,
+                    product.ItemType?.ToString() ?? "", product.CostPrice, product.RegularPrice, product.EmployeePrice);
+            }
         }
 
-        products.Columns(3, 4).Style.NumberFormat.Format = "@";
-        packages.Column(2).Style.NumberFormat.Format = "@";
-        StyleTemplateSheet(suppliers, SupplierHeaders.Length);
-        StyleTemplateSheet(products, ProductHeaders.Length);
-        StyleTemplateSheet(packages, PackageHeaders.Length);
+        StyleTemplateSheet(products, FixedProductHeaders.Length);
         workbook.SaveAs(output);
     }
 
@@ -534,6 +570,12 @@ public sealed class ExcelInventoryImportService
         if (missing.Length > 0)
             throw new InvalidDataException($"Sheet '{sheet.Name}' is missing columns: {string.Join(", ", missing)}.");
         return columns;
+    }
+
+    private static bool HasHeaders(IXLWorksheet sheet, IReadOnlyList<string> headers)
+    {
+        var present = sheet.Row(1).CellsUsed().Select(cell => Normalize(CellText(cell))).ToHashSet();
+        return headers.All(header => present.Contains(Normalize(header)));
     }
 
     private static string Text(

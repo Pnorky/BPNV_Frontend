@@ -693,7 +693,7 @@ public sealed class StoreApiClientTests
             [new OrderProductResponse(Guid.NewGuid(), "SKU", "Product", 7, 8, 15, 5, 10, "Warning", 4)])]);
 
     private static EmployeePurchaseReportResponse EmployeePurchaseReport() =>
-        new(new EmployeePurchaseSummaryResponse(0, 0, 0), []);
+        new(new EmployeePurchaseSummaryResponse(0, 0, 0, 0), []);
 
     private static InventoryReportProductResponse InventoryProduct() => new(
         Guid.NewGuid(), Guid.NewGuid(), "Supplier", ApiInventoryItemType.Merchandise, "SKU", "Product", "Category", "piece",

@@ -319,7 +319,7 @@ public sealed class CashierShiftManagementView : UserControl
             if (view.DataContext is CashierShiftManagementViewModel viewModel)
                 viewModel.Replacements.SelectReplacement(row);
         };
-        ToolTip.SetTip(edit, row.CanReplace ? "Create or edit this date-specific replacement" : row.IsOccupied ? "Administratively clock out the occupied session first" : "A normally completed session cannot be replaced");
+        ToolTip.SetTip(edit, row.CanReplace ? "Create or edit this date-specific replacement" : row.IsOccupied ? "Administratively clock out the occupied session first" : row.IsWithinScheduledWindow ? "This shift is already ongoing" : "A normally completed session cannot be replaced");
         var delete = SmallButton("Delete", ActionButtonVariant.Danger);
         delete.IsVisible = row.HasOverride;
         delete.IsEnabled = row.CanReplace;

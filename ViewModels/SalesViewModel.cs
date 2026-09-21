@@ -243,9 +243,9 @@ public partial class SalesViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var payment = await new PaymentDialog
+        var payment = await new PaymentDialog(IsEmployeeSale)
         {
-            DataContext = new PaymentDialogViewModel(Cart.Sum(line => line.Amount))
+            DataContext = new PaymentDialogViewModel(Cart.Sum(line => line.Amount), IsEmployeeSale)
         }.ShowDialog<PaymentDialogResult?>(owner);
         if (payment is null)
         {
@@ -264,13 +264,22 @@ public partial class SalesViewModel : ObservableObject, IDisposable
                 SelectedCustomerType,
                 payment.PaymentMethod,
                 Cart.Select(line => new CreateSaleLineRequest(line.UnitId, line.Count)).ToArray(),
-                IsEmployeeSale ? SelectedEmployee?.Id : null));
+                IsEmployeeSale ? SelectedEmployee?.Id : null,
+                payment.Reference));
             _suppressCartMutation = true;
             Cart.Clear();
             _suppressCartMutation = false;
             _idempotencyKey = null;
             SelectedEmployee = null;
-            StatusMessage = $"{sale.SaleNumber} completed via {sale.PaymentMethod}. Server total: ₱{sale.Total:N2}{(sale.IsIdempotentReplay ? " (confirmed retry)" : "")}.";
+            var paymentDescription = sale.PaymentMethod switch
+            {
+                ApiPaymentMethod.Cash => "cash payment",
+                ApiPaymentMethod.GCash => "GCash payment",
+                _ => "employee purchase owed"
+            };
+            StatusMessage = sale.PaymentMethod == ApiPaymentMethod.EmployeeOwed
+                ? $"{sale.SaleNumber} recorded as an employee purchase owed by {SelectedEmployee?.Name ?? "the employee"}. Total: ₱{sale.Total:N2}{(sale.IsIdempotentReplay ? " (confirmed retry)" : "")}."
+                : $"{sale.SaleNumber} completed with {paymentDescription}. Total: ₱{sale.Total:N2}{(sale.IsIdempotentReplay ? " (confirmed retry)" : "")}.";
             _notifications.ShowSuccess("Sale completed", StatusMessage);
             await TryRefreshCatalogAsync();
         }

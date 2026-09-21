@@ -22,7 +22,8 @@ public enum ApiCustomerType
 public enum ApiPaymentMethod
 {
     Cash,
-    GCash
+    GCash,
+    EmployeeOwed
 }
 
 public enum ApiCashierShiftSessionStatus
@@ -634,7 +635,8 @@ public sealed record CreateSaleRequest(
     ApiCustomerType CustomerType,
     ApiPaymentMethod PaymentMethod,
     IReadOnlyList<CreateSaleLineRequest> Lines,
-    Guid? EmployeeId = null);
+    Guid? EmployeeId = null,
+    string? Reference = null);
 
 public sealed record SaleLineResponse(
     Guid Id,
@@ -705,12 +707,17 @@ public sealed record ReportSaleResponse(
     Guid? ShiftSessionId = null)
 {
     public int ItemCount => Lines.Sum(line => line.BasePieceQuantity);
-    public string PaymentMethodDisplay => PaymentMethod.ToString();
+    public string PaymentMethodDisplay => PaymentMethod switch
+    {
+        ApiPaymentMethod.EmployeeOwed => "Employee purchase (owed)",
+        ApiPaymentMethod.GCash => "GCash",
+        _ => "Cash"
+    };
     public string TotalDisplay => $"₱{Total:N2}";
     public string TimeDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
 }
 
-public sealed record EmployeePurchaseSummaryResponse(decimal TotalDeductions, int Transactions, int Employees);
+public sealed record EmployeePurchaseSummaryResponse(decimal TotalDeductions, decimal TotalOwed, int Transactions, int Employees);
 
 public sealed record EmployeePurchaseLineResponse(
     Guid SaleId,

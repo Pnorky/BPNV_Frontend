@@ -375,7 +375,15 @@ public sealed class StoreApiClient(AuthApiClient authClient)
                 ("fromUtc", fromUtc?.ToString("O")),
                 ("toUtcExclusive", toUtcExclusive?.ToString("O")),
                 ("customerType", customerType?.ToString()))),
-            cancellationToken);
+             cancellationToken);
+
+    public Task<SalesReportResponse> GetMySalesReportAsync(
+        DateTimeOffset? fromUtc = null, DateTimeOffset? toUtcExclusive = null,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<SalesReportResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery(
+            "api/reports/my-sales",
+            ("fromUtc", fromUtc?.ToString("O")),
+            ("toUtcExclusive", toUtcExclusive?.ToString("O")))), cancellationToken);
 
     public Task<InventoryReportResponse> GetInventoryReportAsync(CancellationToken cancellationToken = default) =>
         SendAsync<InventoryReportResponse>(() => new HttpRequestMessage(HttpMethod.Get, "api/reports/inventory"), cancellationToken);

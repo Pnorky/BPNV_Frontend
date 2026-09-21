@@ -58,8 +58,9 @@ public class ReportsView : UserControl
     private static Control BuildEmployeePurchases()
     {
         var content = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 18, Margin = new Thickness(10, 28, 10, 12) };
-        content.Children.Add(Stats(3,
+        content.Children.Add(Stats(4,
             ("TOTAL DEDUCTIONS", "EmployeeDeductionsDisplay"),
+            ("AMOUNT OWED", "EmployeeOwedDisplay"),
             ("EMPLOYEE SALES", "EmployeeTransactions"),
             ("EMPLOYEES", "EmployeesRepresented")));
         var table = new PagedTable { ItemName = "purchase line", ItemNamePlural = "purchase lines", PageSize = 12, MinHeight = 0, MinTableWidth = 1100, IsSelectable = false };

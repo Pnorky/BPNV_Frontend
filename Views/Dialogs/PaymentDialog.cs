@@ -12,7 +12,7 @@ namespace AvaloniaApp.Views.Dialogs;
 
 public sealed class PaymentDialog : Window
 {
-    public PaymentDialog()
+    public PaymentDialog(bool isEmployeeSale = false)
     {
         Title = "Checkout Payment - BPNV Convenience Store";
         Width = 500;
@@ -66,12 +66,12 @@ public sealed class PaymentDialog : Window
         totalCard.BorderThickness = new Thickness(1);
         totalCard.CornerRadius = new CornerRadius(0);
 
-        var paymentMethod = new SegmentSwitch(["Cash", "GCash"], 0, selectedIndex =>
+        var paymentMethod = new SegmentSwitch(isEmployeeSale ? ["Cash", "GCash", "Owed"] : ["Cash", "GCash"], 0, selectedIndex =>
         {
             if (DataContext is PaymentDialogViewModel viewModel)
                 viewModel.SelectedPaymentMethod = selectedIndex == 0
                     ? ApiPaymentMethod.Cash
-                    : ApiPaymentMethod.GCash;
+                    : selectedIndex == 1 ? ApiPaymentMethod.GCash : ApiPaymentMethod.EmployeeOwed;
         });
 
         var amountTendered = new AmountInput
@@ -113,13 +113,25 @@ public sealed class PaymentDialog : Window
         };
         cashPanel.Bind(Visual.IsVisibleProperty, new Binding(nameof(PaymentDialogViewModel.IsCash)));
 
+        var reference = new TextBox
+        {
+            PlaceholderText = "Enter GCash reference number",
+            MinHeight = 42,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        reference.Bind(TextBox.TextProperty,
+            new Binding(nameof(PaymentDialogViewModel.Reference)) { Mode = BindingMode.TwoWay });
         var gcashConfirmation = new SelectionCheckbox("I confirm the GCash payment was received");
         gcashConfirmation.Bind(ToggleButton.IsCheckedProperty,
             new Binding(nameof(PaymentDialogViewModel.IsGcashConfirmed)) { Mode = BindingMode.TwoWay });
         var gcashPanel = new Border
         {
             Padding = new Thickness(14),
-            Child = gcashConfirmation
+            Child = new StackPanel
+            {
+                Spacing = 8,
+                Children = { Label("Reference No."), reference, gcashConfirmation }
+            }
         };
         gcashPanel.BindResource(Border.BackgroundProperty, "Card");
         gcashPanel.CornerRadius = new CornerRadius(0);

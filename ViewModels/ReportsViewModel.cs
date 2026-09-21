@@ -55,6 +55,7 @@ public partial class ReportsViewModel : ObservableObject
     public int ProductsToOrder => Snapshot?.Orders.Summary.ProductsToOrder ?? 0;
     public int SuggestedOrderUnits => Snapshot?.Orders.Summary.SuggestedOrderUnits ?? 0;
     public string EmployeeDeductionsDisplay => $"₱{Snapshot?.EmployeePurchases?.Summary.TotalDeductions ?? 0:N2}";
+    public string EmployeeOwedDisplay => $"₱{Snapshot?.EmployeePurchases?.Summary.TotalOwed ?? 0:N2}";
     public int EmployeeTransactions => Snapshot?.EmployeePurchases?.Summary.Transactions ?? 0;
     public int EmployeesRepresented => Snapshot?.EmployeePurchases?.Summary.Employees ?? 0;
 
@@ -217,6 +218,7 @@ public partial class ReportsViewModel : ObservableObject
         OnPropertyChanged(nameof(ProductsToOrder));
         OnPropertyChanged(nameof(SuggestedOrderUnits));
         OnPropertyChanged(nameof(EmployeeDeductionsDisplay));
+        OnPropertyChanged(nameof(EmployeeOwedDisplay));
         OnPropertyChanged(nameof(EmployeeTransactions));
         OnPropertyChanged(nameof(EmployeesRepresented));
     }

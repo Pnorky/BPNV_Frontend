@@ -489,7 +489,20 @@ public sealed class ResolvedDailyShiftRow
     public string ReasonDisplay => AssignmentOverride?.Reason ?? "-";
     public bool HasOverride => AssignmentOverride is not null;
     public bool IsOccupied => ExistingSession?.Status == ApiCashierShiftSessionStatus.Open;
-    public bool CanReplace => ExistingSession is null || ExistingSession.CloseType == ApiCashierShiftCloseType.AdministrativeClockOut;
+    public bool IsWithinScheduledWindow
+    {
+        get
+        {
+            var start = StoreDateTime.CombineStoreDateAndTimeToUtc(
+                StoreDateTime.AtStoreMidnight(BusinessDate.ToDateTime(TimeOnly.MinValue)), Definition.StartLocalTime.ToTimeSpan());
+            var endDate = Definition.EndLocalTime <= Definition.StartLocalTime ? BusinessDate.AddDays(1) : BusinessDate;
+            var end = StoreDateTime.CombineStoreDateAndTimeToUtc(
+                StoreDateTime.AtStoreMidnight(endDate.ToDateTime(TimeOnly.MinValue)), Definition.EndLocalTime.ToTimeSpan());
+            return StoreDateTime.UtcNow >= start.UtcDateTime && StoreDateTime.UtcNow < end.UtcDateTime;
+        }
+    }
+    public bool CanReplace => !IsWithinScheduledWindow &&
+        (ExistingSession is null || ExistingSession.CloseType == ApiCashierShiftCloseType.AdministrativeClockOut);
     public override string ToString() => $"{Definition.Name} · {Definition.ScheduleDisplay}";
 }
 
@@ -612,6 +625,8 @@ public partial class ShiftReplacementsViewModel : ObservableObject
         {
             ShowError("Replacement not saved", Editor.SelectedShift.IsOccupied
                 ? "This shift is occupied. Administratively clock out the open session before replacing its cashier."
+                : Editor.SelectedShift.IsWithinScheduledWindow
+                    ? "This shift is already ongoing and cannot be replaced."
                 : "A replacement can only be saved before the scheduled session starts.");
             return;
         }

@@ -81,7 +81,7 @@ public sealed class ReportExportServiceTests
                 new OrderReportSummaryResponse(1, 1, 10),
                 [new SupplierOrderResponse(supplierId, "Supplier A", 1, 10, [orderProduct])]),
             new EmployeePurchaseReportResponse(
-                new EmployeePurchaseSummaryResponse(25m, 1, 1),
+                new EmployeePurchaseSummaryResponse(25m, 0m, 1, 1),
                 [new EmployeePurchaseLineResponse(
                     sale.Id, sale.SaleNumber, sale.SoldAtUtc, Guid.NewGuid(), "EMP-000001", "Employee One",
                     productId, "SKU-1", "Product", "piece", 2, 2, 12.5m, 25m, 25m)]));

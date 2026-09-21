@@ -119,6 +119,7 @@ public class App : Application
         DataTemplates.Add(new FuncDataTemplate<DashboardPageViewModel>((_, _) => new DashboardView(), true));
         DataTemplates.Add(new FuncDataTemplate<CashierShiftViewModel>((_, _) => new CashierShiftView(), true));
         DataTemplates.Add(new FuncDataTemplate<SalesViewModel>((_, _) => new SalesView(), true));
+        DataTemplates.Add(new FuncDataTemplate<CashierSalesViewModel>((_, _) => new CashierSalesView(), true));
         DataTemplates.Add(new FuncDataTemplate<CashierShiftManagementViewModel>((_, _) => new CashierShiftManagementView(), true));
         DataTemplates.Add(new FuncDataTemplate<AdminCashierOperationsViewModel>((_, _) => new AdminCashierOperationsView(), true));
         DataTemplates.Add(new FuncDataTemplate<AdminNotificationsViewModel>((_, _) => new AdminNotificationsView(), true));

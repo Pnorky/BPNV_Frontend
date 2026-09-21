@@ -148,6 +148,29 @@ public sealed class ExcelInventoryImportServiceTests
     }
 
     [TestMethod]
+    public void FixedProductFileParsesTheSevenRequiredColumns()
+    {
+        using var workbook = new XLWorkbook();
+        var sheet = workbook.Worksheets.Add("Products");
+        WriteRow(sheet, 1, "Supplier", "Product", "Category", "Item type", "Purchase Price/Unit Price", "Selling Price", "Employee Price");
+        WriteRow(sheet, 2, "Supplier", "Coffee", "Beverage", "Merchandise", 25m, 35m, 30m);
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+
+        var result = new ExcelInventoryImportService().Parse(stream);
+
+        Assert.AreEqual(ExcelInventoryWorkbookFormat.FixedProductFile, result.Format);
+        var product = result.Products.Single();
+        Assert.AreEqual("Coffee", product.Name);
+        Assert.AreEqual(ApiInventoryItemType.Merchandise, product.ItemType);
+        Assert.AreEqual(25m, product.CostPrice);
+        Assert.AreEqual(35m, product.RegularPrice);
+        Assert.AreEqual(30m, product.EmployeePrice);
+        Assert.IsEmpty(result.Issues);
+    }
+
+    [TestMethod]
     public void GeneratedTemplateHasInstructionsAndCanBeParsedWhenEmpty()
     {
         using var stream = new MemoryStream();
@@ -158,9 +181,7 @@ public sealed class ExcelInventoryImportServiceTests
         using (var workbook = new XLWorkbook(stream))
         {
             Assert.IsTrue(workbook.TryGetWorksheet("Instructions", out _));
-            Assert.IsTrue(workbook.TryGetWorksheet("Suppliers", out _));
             Assert.IsTrue(workbook.TryGetWorksheet("Products", out _));
-            Assert.IsTrue(workbook.TryGetWorksheet("Packages", out _));
         }
         stream.Position = 0;
 

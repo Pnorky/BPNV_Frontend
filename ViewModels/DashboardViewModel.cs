@@ -138,6 +138,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
         {
             "Dashboard" => "Overview",
             "CashierShift" => "Cashier Shift",
+            "CashierSales" => "My Sales",
             "Sales" => "Sale",
             "InventoryProducts" => "Products",
             "InventoryAddProduct" => "Add Product",
@@ -159,6 +160,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
         {
             "Dashboard" => new DashboardPageViewModel(_storeClient, _notifications, IsCashier),
             "CashierShift" => _cashierShiftPage ??= new CashierShiftViewModel(CashierShift, _storeClient, _notifications, () => _salesPage?.Cart.Count > 0),
+            "CashierSales" => new CashierSalesViewModel(_storeClient),
             "Sales" => _salesPage ??= new SalesViewModel(_storeClient, _notifications, CashierShift),
             "InventoryProducts" => new ProductCatalogViewModel(_storeClient, _notifications),
             "InventoryAddProduct" => new AddProductViewModel(_storeClient, _notifications),
@@ -306,7 +308,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
     private bool CanNavigateTo(string tag) => tag switch
     {
         "Dashboard" => _session.IsAuthenticated,
-        "CashierShift" or "Sales" => _session.HasRole("Cashier"),
+        "CashierShift" or "Sales" or "CashierSales" => _session.HasRole("Cashier"),
         "InventoryProducts" or "InventoryAddProduct" or "InventoryReceiveStock" or
         "InventoryBatchReceive" or "InventoryDeliveryHistory" or "InventoryImport" or "InventorySuppliers" or "InventoryMovements" or "Reports" =>
             _session.HasRole("Admin") || _session.HasRole("Inventory"),
