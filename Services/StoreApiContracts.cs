@@ -667,7 +667,7 @@ public sealed record SaleResponse(
     Guid? EmployeeId = null,
     string? EmployeeNumber = null,
     string? EmployeeName = null,
-    Guid? ShiftSessionId = null)
+     Guid? ShiftSessionId = null)
 {
     public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
 }
@@ -704,7 +704,9 @@ public sealed record ReportSaleResponse(
     Guid? EmployeeId = null,
     string? EmployeeNumber = null,
     string? EmployeeName = null,
-    Guid? ShiftSessionId = null)
+     Guid? ShiftSessionId = null,
+     Guid? ShiftDefinitionId = null,
+     string? ShiftName = null)
 {
     public int ItemCount => Lines.Sum(line => line.BasePieceQuantity);
     public string PaymentMethodDisplay => PaymentMethod switch
@@ -916,7 +918,9 @@ public sealed record CashierShiftSessionResponse(
     public string StatusDisplay => Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : Status.ToString();
     public string ScheduledDisplay => $"{StoreDateTime.FormatUtc(ScheduledStartAtUtc)} - {StoreDateTime.FormatUtc(ScheduledEndAtUtc)}";
     public string ActualDisplay => ClockedOutAtUtc is null ? $"{StoreDateTime.FormatUtc(ClockedInAtUtc)} - Active" : $"{StoreDateTime.FormatUtc(ClockedInAtUtc)} - {StoreDateTime.FormatUtc(ClockedOutAtUtc.Value)}";
-    public string WorkedDisplay => WorkedMinutes is null ? "Active" : $"{WorkedMinutes / 60}:{WorkedMinutes % 60:00}";
+    public string WorkedDisplay => WorkedMinutes is null
+        ? "Active"
+        : $"{WorkedMinutes / 60} hour{(WorkedMinutes / 60 == 1 ? "" : "s")} and {WorkedMinutes % 60} minute{(WorkedMinutes % 60 == 1 ? "" : "s")}";
     public string TotalSalesDisplay => CashierShiftFormatting.Money(TotalSales);
     public string ExpectedRemittanceDisplay => CashierShiftFormatting.Money(ExpectedRemittance);
     public string ActualRemittanceDisplay => CashierShiftFormatting.Money(ActualRemittance);

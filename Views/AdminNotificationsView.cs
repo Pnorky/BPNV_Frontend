@@ -113,10 +113,10 @@ public sealed class AdminNotificationsView : UserControl
         };
         Resource(status, Border.BackgroundProperty, notification.IsRead ? "Muted" : "Secondary");
 
-        var type = new TextBlock { Text = notification.Type, FontSize = 11, FontWeight = FontWeight.SemiBold };
+        var type = new TextBlock { Text = NotificationTypeLabel(notification.Type), FontSize = 11, FontWeight = FontWeight.SemiBold };
         Resource(type, TextBlock.ForegroundProperty, "MutedForeground");
 
-        var message = new TextBlock { Text = notification.Message, TextWrapping = TextWrapping.Wrap };
+        var message = new TextBlock { Text = NotificationMessage(notification), TextWrapping = TextWrapping.Wrap };
         var created = Muted(notification.CreatedAtDisplay, 11);
 
         var card = Card(new StackPanel
@@ -137,7 +137,7 @@ public sealed class AdminNotificationsView : UserControl
                             {
                                 new TextBlock
                                 {
-                                    Text = notification.Title,
+                                     Text = NotificationTitle(notification),
                                     FontSize = 16,
                                     FontWeight = notification.IsRead ? FontWeight.SemiBold : FontWeight.Bold,
                                     TextWrapping = TextWrapping.Wrap
@@ -175,6 +175,23 @@ public sealed class AdminNotificationsView : UserControl
 
     private static AdminNotificationsViewModel? GetViewModel(Control control) =>
         control.GetVisualAncestors().OfType<AdminNotificationsView>().FirstOrDefault()?.DataContext as AdminNotificationsViewModel;
+
+    private static string NotificationTypeLabel(string type) => type switch
+    {
+        "CashierRemittanceVariance" => "Cash remittance difference",
+        "CashierLateClockIn" => "Late clock-in",
+        "CashierLateClockOut" => "Late clock-out",
+        "CashierShiftClosed" => "Shift completed",
+        _ => type
+    };
+
+    private static string NotificationTitle(AdminNotificationResponse notification) =>
+        notification.Type == "CashierRemittanceVariance" ? "Cash remittance difference" : notification.Title;
+
+    private static string NotificationMessage(AdminNotificationResponse notification) =>
+        notification.Type == "CashierRemittanceVariance"
+            ? notification.Message.Replace("remittance variance", "cash remittance difference", StringComparison.OrdinalIgnoreCase)
+            : notification.Message;
 
     private static Border Card(Control child, Thickness padding)
     {

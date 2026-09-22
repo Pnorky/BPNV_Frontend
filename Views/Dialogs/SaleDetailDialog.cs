@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using AvaloniaApp.Services;
 using AvaloniaApp.Views.UI;
@@ -25,6 +26,14 @@ public sealed class SaleDetailDialog : Window
         lines.Columns.Add(PagedTableColumn.Create<ReportSaleLineResponse, int>("QTY", line => line.Count, new GridLength(0.5, GridUnitType.Star)));
         lines.Columns.Add(PagedTableColumn.Create<ReportSaleLineResponse, string>("UNIT PRICE", line => $"₱{line.UnitPrice:N2}", new GridLength(0.9, GridUnitType.Star)));
         lines.Columns.Add(PagedTableColumn.Create<ReportSaleLineResponse, string>("TOTAL", line => $"₱{line.LineTotal:N2}", new GridLength(0.9, GridUnitType.Star)));
+        var totalRule = new Border
+        {
+            Height = 1,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(12, 0),
+            RenderTransform = new Avalonia.Media.TranslateTransform(0, -5)
+        };
+        totalRule.BindResource(Border.BackgroundProperty, "Border");
 
         var content = new StackPanel { Margin = new Thickness(24), Spacing = 16, Children =
         {
@@ -32,11 +41,26 @@ public sealed class SaleDetailDialog : Window
             new TextBlock { Text = $"{sale.SaleNumber} · {sale.TimeDisplay}", FontSize = 12 },
             new TextBlock { Text = $"{sale.CustomerType} customer · {sale.PaymentMethodDisplay}", FontSize = 12 },
             lines,
-            new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { new TextBlock { Text = "TOTAL", FontWeight = Avalonia.Media.FontWeight.Bold }, At(new TextBlock { Text = sale.TotalDisplay, FontSize = 22, FontWeight = Avalonia.Media.FontWeight.Bold }, 1) } },
+             new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), Children =
+             {
+                 new TextBlock
+                 {
+                     Text = "TOTAL",
+                     FontWeight = Avalonia.Media.FontWeight.Bold,
+                     RenderTransform = new Avalonia.Media.TranslateTransform(0, 5)
+                 },
+                 At(totalRule, 1),
+                 At(new TextBlock { Text = sale.TotalDisplay, FontSize = 22, FontWeight = Avalonia.Media.FontWeight.Bold }, 2)
+             } },
             new Button { Content = "Close", HorizontalAlignment = HorizontalAlignment.Right }
         }};
         ((Button)content.Children[^1]).Click += (_, _) => Close();
-        Content = content;
+         Content = new ScrollViewer
+         {
+             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+             Content = content
+         };
     }
 
     private static Control At(Control control, int column) { Grid.SetColumn(control, column); return control; }

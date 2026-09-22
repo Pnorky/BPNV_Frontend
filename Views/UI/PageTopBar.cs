@@ -63,9 +63,12 @@ public sealed class PageTopBar : UserControl
         storeClock.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.StoreClockDisplay)));
         var shiftStatus = new TextBlock
         {
+            Width = 330,
             FontSize = 11,
+            TextWrapping = TextWrapping.NoWrap,
             HorizontalAlignment = HorizontalAlignment.Right,
-            TextWrapping = TextWrapping.NoWrap
+            TextAlignment = TextAlignment.Right,
+            TextTrimming = TextTrimming.CharacterEllipsis
         };
         shiftStatus.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.ShiftStatusDisplay)));
         shiftStatus.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsCashier)));
@@ -161,6 +164,9 @@ public sealed class PageTopBar : UserControl
                 yield return Button("Refresh", "RefreshCommand", ActionButtonVariant.Secondary);
                 yield return Button("Mark all read", "MarkAllReadCommand", ActionButtonVariant.Primary);
                 break;
+            case AdminCashierOperationsViewModel:
+                yield return Button("Refresh", "RefreshCommand", ActionButtonVariant.Secondary);
+                break;
             case SalesViewModel:
                 var pricing = new SearchableSelect { PlaceholderText = "Pricing type", Width = 160 };
                 Bind(pricing, SearchableSelect.ItemsSourceProperty, "CustomerTypes");
@@ -177,7 +183,7 @@ public sealed class PageTopBar : UserControl
                 Bind(salesRange, SearchableSelect.ItemsSourceProperty, "Ranges");
                 Bind(salesRange, SearchableSelect.SelectedItemProperty, "SelectedRange");
                 yield return salesRange;
-                var salesDates = new DateRangePicker { Width = 300, PlaceholderText = "Custom date range" };
+                 var salesDates = new DateRangePicker { Width = 380, PlaceholderText = "Custom date range" };
                 Bind(salesDates, DateRangePicker.StartDateProperty, "FromDate");
                 Bind(salesDates, DateRangePicker.EndDateProperty, "ToDate");
                 yield return salesDates;

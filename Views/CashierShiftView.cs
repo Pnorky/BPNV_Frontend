@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
@@ -99,6 +100,7 @@ public sealed class CashierShiftView : UserControl
         type.Classes.Add("form-select");
         type.Bind(ItemsControl.ItemsSourceProperty, new Binding("AdjustmentTypes"));
         type.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedAdjustmentType") { Mode = BindingMode.TwoWay });
+        type.ItemTemplate = new FuncDataTemplate<ApiCashAdjustmentType>((item, _) => new TextBlock { Text = AdjustmentTypeLabel(item) }, true);
         var amount = new AmountInput { PlaceholderText = "0.00" };
         amount.Bind(AmountInput.ValueProperty, new Binding("AdjustmentAmount") { Mode = BindingMode.TwoWay });
         var note = new TextBox { PlaceholderText = "Required business reason", AcceptsReturn = true, MinHeight = 70, TextWrapping = TextWrapping.Wrap };
@@ -128,7 +130,7 @@ public sealed class CashierShiftView : UserControl
                     ColumnDefinitions = new ColumnDefinitions("*,Auto"),
                     Children =
                     {
-                        new StackPanel { Children = { new TextBlock { Text = $"{item.Type} | {item.AmountDisplay}", FontWeight = FontWeight.SemiBold }, new TextBlock { Text = item.Note, TextWrapping = TextWrapping.Wrap } } },
+                         new StackPanel { Children = { new TextBlock { Text = $"{AdjustmentTypeLabel(item.Type)} | {item.AmountDisplay}", FontWeight = FontWeight.SemiBold }, new TextBlock { Text = item.Note, TextWrapping = TextWrapping.Wrap } } },
                         At(new TextBlock { Text = item.Status.ToString(), FontWeight = FontWeight.SemiBold }, 1)
                     }
                 }
@@ -176,6 +178,13 @@ public sealed class CashierShiftView : UserControl
     }
 
     private static TextBlock Heading(string value) { var text = new TextBlock { Text = value }; text.Classes.Add("h2"); return text; }
+    private static string AdjustmentTypeLabel(ApiCashAdjustmentType type) => type switch
+    {
+        ApiCashAdjustmentType.CashRefund => "Cash refund",
+        ApiCashAdjustmentType.CashPayout => "Cash payout",
+        ApiCashAdjustmentType.StoreExpense => "Store expense",
+        _ => type.ToString()
+    };
     private static TextBlock Muted(string value) { var text = new TextBlock { Text = value }; text.BindResource(TextBlock.ForegroundProperty, "MutedForeground"); return text; }
     private static TextBlock Text(string path, string? resource = null) { var text = new TextBlock(); text.Bind(TextBlock.TextProperty, new Binding(path)); if (resource is not null) text.BindResource(TextBlock.ForegroundProperty, resource); return text; }
     private static T At<T>(T value, int column = 0, int row = 0) where T : Control { Grid.SetColumn(value, column); Grid.SetRow(value, row); return value; }

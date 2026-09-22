@@ -174,7 +174,7 @@ public sealed class CashierShiftSummaryDialog : Window
         {
             Margin = new Thickness(28),
             Spacing = 16,
-            Children = { new StackPanel { Children = { title, subtitle } }, details, requests, remittance, floatCard, note, close }
+              Children = { new StackPanel { Children = { title, subtitle } }, details, requests, remittance, floatCard, note, close }
         };
         var scroll = new ScrollViewer
         {

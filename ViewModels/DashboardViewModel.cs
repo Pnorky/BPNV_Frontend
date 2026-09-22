@@ -60,12 +60,20 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
     {
         get
         {
+            if (CashierShift.OpenSession is null) return CashierShift.StatusDisplay;
+            return $"{ShiftContextDisplay}{ShiftElapsedDisplay}";
+        }
+    }
+    public string ShiftContextDisplay
+    {
+        get
+        {
             if (CashierShift.OpenSession is not { } session) return CashierShift.StatusDisplay;
             var start = StoreDateTime.ToStoreTimeFromUtc(session.ScheduledStartAtUtc);
             var end = StoreDateTime.ToStoreTimeFromUtc(session.ScheduledEndAtUtc);
             var clockedIn = StoreDateTime.ToStoreTimeFromUtc(session.ClockedInAtUtc);
             var lateState = DateTime.UtcNow > session.ScheduledEndAtUtc.ToUniversalTime() ? " | Past scheduled end" : "";
-            return $"{session.ShiftName} | {start:h:mm tt}-{end:h:mm tt} | In {clockedIn:h:mm tt} | {ShiftElapsedDisplay}{lateState}";
+            return $"{session.ShiftName} | {start:h:mm tt}-{end:h:mm tt} | In {clockedIn:h:mm tt}{lateState} | ";
         }
     }
     public string ShiftElapsedDisplay
@@ -368,6 +376,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
     {
         OnPropertyChanged(nameof(StoreClockDisplay));
         OnPropertyChanged(nameof(ShiftElapsedDisplay));
+        OnPropertyChanged(nameof(ShiftContextDisplay));
         OnPropertyChanged(nameof(ShiftStatusDisplay));
         if (++_refreshTicks >= 30)
         {
@@ -381,6 +390,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
     {
         OnPropertyChanged(nameof(ShiftStatusDisplay));
         OnPropertyChanged(nameof(ShiftElapsedDisplay));
+        OnPropertyChanged(nameof(ShiftContextDisplay));
     }
 
     private AdminNotificationsViewModel CreateAdminNotificationsPage()

@@ -26,8 +26,9 @@ public sealed class AdminCashierOperationsView : UserControl
         {
             Items =
             {
-                new TabItem { Header = "History and cash differences", Content = Scroll(HistorySection()) },
-                new TabItem { Header = "Report Summary", Content = Scroll(ReportSection()) }
+                new TabItem { Header = "Shift History & Cash Review", Content = Scroll(HistorySection()) },
+                new TabItem { Header = "Report Summary", Content = Scroll(ReportSection()) },
+                new TabItem { Header = "Transactions", Content = Scroll(TransactionsSection()) }
             }
         };
 
@@ -54,7 +55,7 @@ public sealed class AdminCashierOperationsView : UserControl
     private async void OnSessionDetailLoaded(CashierShiftSessionDetailResponse detail)
     {
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
-        var dialog = new CashierShiftSummaryDialog(detail.Session, detail.CashAdjustments, _subscribedViewModel);
+         var dialog = new CashierShiftSummaryDialog(detail.Session, detail.CashAdjustments, _subscribedViewModel);
         await dialog.ShowDialog(owner);
     }
 
@@ -75,26 +76,17 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control Filters()
     {
-        var dateRange = new DateRangePicker
-        {
-            PlaceholderText = "Select business dates",
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-        dateRange.Bind(DateRangePicker.StartDateProperty,
-            new Binding("FromDate") { Mode = BindingMode.TwoWay });
-        dateRange.Bind(DateRangePicker.EndDateProperty,
-            new Binding("ToDate") { Mode = BindingMode.TwoWay });
         var status = new ComboBox { Classes = { "form-select" }, MinWidth = 180 };
         status.Bind(ItemsControl.ItemsSourceProperty, new Binding("StatusFilters"));
         status.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedStatusFilter") { Mode = BindingMode.TwoWay });
         var cashier = new ComboBox { Classes = { "form-select" }, MinWidth = 190, PlaceholderText = "All cashiers" };
         cashier.Bind(ItemsControl.ItemsSourceProperty, new Binding("Cashiers"));
         cashier.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedCashier") { Mode = BindingMode.TwoWay });
-        cashier.ItemTemplate = new FuncDataTemplate<UserResponse>((user, _) => new TextBlock { Text = user?.DisplayName ?? "" }, true);
+        cashier.DisplayMemberBinding = new Binding(nameof(UserResponse.DisplayName));
         var shift = new ComboBox { Classes = { "form-select" }, MinWidth = 170, PlaceholderText = "All shifts" };
         shift.Bind(ItemsControl.ItemsSourceProperty, new Binding("ShiftDefinitions"));
         shift.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedShiftDefinition") { Mode = BindingMode.TwoWay });
-        shift.ItemTemplate = new FuncDataTemplate<ShiftDefinitionResponse>((item, _) => new TextBlock { Text = item?.Name ?? "" }, true);
+        shift.DisplayMemberBinding = new Binding(nameof(ShiftDefinitionResponse.Name));
 
         var actions = new StackPanel
         {
@@ -104,17 +96,18 @@ public sealed class AdminCashierOperationsView : UserControl
             Children =
             {
                 CommandButton("Apply filters", ActionButtonVariant.Primary, "ApplyFiltersCommand"),
-                CommandButton("Refresh", ActionButtonVariant.Secondary, "RefreshCommand")
+                CommandButton("Clear filters", ActionButtonVariant.Secondary, "ClearFiltersCommand"),
+
             }
         };
 
         return Card(new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("1.45*,*,*,*,Auto"),
-            ColumnSpacing = 12,
+            ColumnSpacing = 24,
             Children =
             {
-                Field("BUSINESS DATE RANGE", dateRange),
+                Field("DATE RANGE", DateRangeFilter("HistoryDateRanges", "SelectedHistoryDateRange", "FromDate", "ToDate", "IsHistoryCustomDateRange")),
                 At(Field("SESSION STATUS", status), column: 1),
                 At(Field("CASHIER", cashier), column: 2),
                 At(Field("SHIFT", shift), column: 3),
@@ -213,8 +206,9 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control SessionTableHeader() => new Grid
     {
-        ColumnDefinitions = new ColumnDefinitions("1.6*,1*,1.7*,1.7*,Auto,1*,1*"),
+        ColumnDefinitions = new ColumnDefinitions("1.6*,1*,1.7*,1.7*,1*,1*,1*"),
         ColumnSpacing = 12,
+        Margin = new Thickness(12, 0),
         Children =
         {
             Label("SHIFT / CASHIER"),
@@ -231,7 +225,7 @@ public sealed class AdminCashierOperationsView : UserControl
     {
         return RowCard(new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.6*,1*,1.7*,1.7*,Auto,1*,1*"),
+            ColumnDefinitions = new ColumnDefinitions("1.6*,1*,1.7*,1.7*,1*,1*,1*"),
             ColumnSpacing = 12,
             Children =
             {
@@ -582,8 +576,17 @@ public sealed class AdminCashierOperationsView : UserControl
             "DATE / SHIFT", row => $"{row.BusinessDate:MMM d, yyyy} | {row.ShiftName}", new GridLength(1.5, GridUnitType.Star)));
         rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
             "CASHIER", row => row.CashierName, new GridLength(1.15, GridUnitType.Star)));
-        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
-            "STATUS", row => row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString(), new GridLength(1.05, GridUnitType.Star)));
+        var statusColumn = PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "STATUS", row => row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString(), new GridLength(1.05, GridUnitType.Star));
+        statusColumn.CellTemplate = new FuncDataTemplate<CashierShiftReportRowResponse>((row, _) => new TextBlock
+        {
+            Text = row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending\nRemittance" : row.Status.ToString(),
+            TextWrapping = TextWrapping.Wrap,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = 13
+        }, true);
+        rows.Columns.Add(statusColumn);
         var actualColumn = PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
             "ACTUAL", row => row.ClockedOutAtUtc.HasValue
                 ? $"{StoreDateTime.FormatUtc(row.ClockedInAtUtc)} - {StoreDateTime.FormatUtc(row.ClockedOutAtUtc.Value)}"
@@ -608,7 +611,7 @@ public sealed class AdminCashierOperationsView : UserControl
         rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
             "ACTUAL REMIT.", row => CashierShiftFormatting.Money(row.ActualRemittance), new GridLength(1.25, GridUnitType.Star)));
         rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
-            "CASH DIFFERENCE", row => CashierShiftFormatting.SignedMoney(row.Variance), new GridLength(1, GridUnitType.Star)));
+            "CASH DIFF", row => CashierShiftFormatting.SignedMoney(row.Variance), new GridLength(1, GridUnitType.Star)));
         var report = new StackPanel
         {
             Spacing = 14,
@@ -628,7 +631,7 @@ public sealed class AdminCashierOperationsView : UserControl
                                 Muted("This snapshot uses the active date range and the server report endpoint. The history status filter does not alter report totals.")
                             }
                         },
-                        At(CommandButton("Refresh snapshot", ActionButtonVariant.Secondary, "RefreshCommand"), column: 1)
+
                     }
                 },
                 ReportSummary(),
@@ -636,6 +639,89 @@ public sealed class AdminCashierOperationsView : UserControl
             }
         };
         return report;
+    }
+
+    private static Control TransactionsSection()
+    {
+        var table = new PagedTable
+        {
+            ItemName = "transaction", ItemNamePlural = "transactions", PageSize = 10,
+            IsSelectable = true, MinHeight = 360, MinTableWidth = 1050
+        };
+        table.Bind(PagedTable.ItemsSourceProperty, new Binding("TransactionSales"));
+        table.Bind(PagedTable.SelectedItemProperty, new Binding("SelectedTransaction") { Mode = BindingMode.TwoWay });
+        table.PropertyChanged += async (_, change) =>
+        {
+            if (change.Property != PagedTable.SelectedItemProperty || table.SelectedItem is not ReportSaleResponse sale ||
+                TopLevel.GetTopLevel(table) is not Window owner) return;
+            await new SaleDetailDialog(sale).ShowDialog(owner);
+            table.SelectedItem = null;
+        };
+        table.Columns.Add(PagedTableColumn.Create<ReportSaleResponse, string>("TIMESTAMP", sale => sale.TimeDisplay, new GridLength(1.4, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<ReportSaleResponse, string>("SALE", sale => sale.SaleNumber, new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<ReportSaleResponse, string>("CASHIER", sale => sale.SoldByName, new GridLength(1.2, GridUnitType.Star)));
+         table.Columns.Add(PagedTableColumn.Create<ReportSaleResponse, string>("SHIFT", sale => sale.ShiftName ?? "-", new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<ReportSaleResponse, string>("CUSTOMER", sale => sale.CustomerType.ToString(), new GridLength(0.9, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<ReportSaleResponse, string>("PAYMENT", sale => sale.PaymentMethodDisplay, new GridLength(1.25, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<ReportSaleResponse, int>("ITEMS", sale => sale.ItemCount, new GridLength(0.6, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<ReportSaleResponse, string>("TOTAL", sale => sale.TotalDisplay, new GridLength(0.8, GridUnitType.Star)));
+
+        return new StackPanel
+        {
+            Spacing = 14,
+            Children =
+            {
+                 Card(new Grid
+                 {
+                     ColumnDefinitions = new ColumnDefinitions("1.45*,*,*,Auto,Auto,Auto"), ColumnSpacing = 12,
+                     Children =
+                     {
+                         At(Field("DATE RANGE", TransactionDateRangePicker()), 0, 0),
+                         At(Field("CASHIER", BoundCombo("Cashiers", "TransactionCashier", "All cashiers", nameof(UserResponse.DisplayName))), 0, 1),
+                         At(Field("SHIFT", BoundCombo("ShiftDefinitions", "TransactionShift", "All shifts", nameof(ShiftDefinitionResponse.Name))), 0, 2),
+                         At(CommandButton("Apply filters", ActionButtonVariant.Primary, "ApplyTransactionFiltersCommand"), 0, 3),
+                         At(CommandButton("Clear filters", ActionButtonVariant.Secondary, "ClearTransactionFiltersCommand"), 0, 4),
+
+                     }
+                 }, new Thickness(16)),
+                Bound("TransactionStatusMessage", wrap: true),
+                table
+            }
+        };
+    }
+
+    private static DateRangePicker DateRange(string from, string to)
+    {
+        var picker = new DateRangePicker { PlaceholderText = "Select business dates" };
+        picker.Bind(DateRangePicker.StartDateProperty, new Binding(from) { Mode = BindingMode.TwoWay });
+        picker.Bind(DateRangePicker.EndDateProperty, new Binding(to) { Mode = BindingMode.TwoWay });
+        return picker;
+    }
+
+    private static Control TransactionDateRangePicker()
+    {
+        return DateRangeFilter("TransactionDateRanges", "SelectedTransactionDateRange", "TransactionFromDate", "TransactionToDate", "IsTransactionCustomDateRange");
+    }
+
+    private static Control DateRangeFilter(string items, string selected, string from, string to, string customVisibility)
+    {
+        var range = new SearchableSelect { PlaceholderText = "Select date range", Width = 275, HorizontalAlignment = HorizontalAlignment.Left };
+        range.Bind(SearchableSelect.ItemsSourceProperty, new Binding(items));
+        range.Bind(SearchableSelect.SelectedItemProperty, new Binding(selected) { Mode = BindingMode.TwoWay });
+        var custom = DateRange(from, to);
+        custom.Width = 440;
+        custom.HorizontalAlignment = HorizontalAlignment.Left;
+        custom.Bind(Visual.IsVisibleProperty, new Binding(customVisibility));
+        return new StackPanel { Spacing = 8, Children = { range, custom } };
+    }
+
+    private static ComboBox BoundCombo(string items, string selected, string placeholder, string displayMember)
+    {
+        var combo = new ComboBox { Classes = { "form-select" }, MinWidth = 180, PlaceholderText = placeholder };
+        combo.Bind(ItemsControl.ItemsSourceProperty, new Binding(items));
+        combo.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(selected) { Mode = BindingMode.TwoWay });
+        combo.DisplayMemberBinding = new Binding(displayMember);
+        return combo;
     }
 
     private static Control ReportSummary()

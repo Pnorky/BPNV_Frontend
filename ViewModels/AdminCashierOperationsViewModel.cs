@@ -9,6 +9,11 @@ public sealed record CashierShiftStatusFilter(string Label, ApiCashierShiftSessi
     public override string ToString() => Label;
 }
 
+public sealed record TransactionDateRangeOption(string Label)
+{
+    public override string ToString() => Label;
+}
+
 public partial class AdminCashierOperationsViewModel : ObservableObject, IDisposable
 {
     public event Action<CashierShiftSessionDetailResponse>? SessionDetailLoaded;
@@ -26,8 +31,12 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         _api = api;
         _notifications = notifications;
         var today = StoreDateTime.StoreToday;
-        _fromDate = StoreDateTime.AtStoreMidnight(today.AddDays(-30));
+        _fromDate = StoreDateTime.AtStoreMidnight(today);
         _toDate = StoreDateTime.AtStoreMidnight(today);
+        _transactionFromDate = StoreDateTime.AtStoreMidnight(today);
+        _transactionToDate = StoreDateTime.AtStoreMidnight(today.AddDays(1));
+        _transactionFromDate = _fromDate;
+        _transactionToDate = _toDate;
         _selectedStatusFilter = AllStatuses;
         _appliedFilters = new(ToDateOnly(_fromDate.Value), ToDateOnly(_toDate.Value).AddDays(1), null, null, null);
         _ = LoadAsync();
@@ -42,9 +51,14 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
     ];
 
     public IReadOnlyList<int> PageSizeOptions { get; } = [10, 20, 50];
+    public IReadOnlyList<TransactionDateRangeOption> HistoryDateRanges { get; } =
+        [new("Today"), new("Yesterday"), new("This week"), new("This month"), new("All time"), new("Custom")];
+    public IReadOnlyList<TransactionDateRangeOption> TransactionDateRanges { get; } =
+        [new("Today"), new("Yesterday"), new("This week"), new("This month"), new("All time"), new("Custom")];
 
     [ObservableProperty] private DateTimeOffset? _fromDate;
     [ObservableProperty] private DateTimeOffset? _toDate;
+    [ObservableProperty] private TransactionDateRangeOption _selectedHistoryDateRange = new("Today");
     [ObservableProperty] private CashierShiftStatusFilter _selectedStatusFilter;
     [ObservableProperty] private IReadOnlyList<UserResponse> _cashiers = [];
     [ObservableProperty] private UserResponse? _selectedCashier;
@@ -63,6 +77,15 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
     [ObservableProperty] private string? _listError;
     [ObservableProperty] private string? _detailError;
     [ObservableProperty] private string _statusMessage = "Loading cashier shift history...";
+    [ObservableProperty] private DateTimeOffset? _transactionFromDate;
+    [ObservableProperty] private DateTimeOffset? _transactionToDate;
+    [ObservableProperty] private TransactionDateRangeOption _selectedTransactionDateRange = new("Today");
+    [ObservableProperty] private UserResponse? _transactionCashier;
+    [ObservableProperty] private ShiftDefinitionResponse? _transactionShift;
+    [ObservableProperty] private IReadOnlyList<ReportSaleResponse> _transactionSales = [];
+    [ObservableProperty] private ReportSaleResponse? _selectedTransaction;
+    [ObservableProperty] private string _transactionStatusMessage = "Loading transactions...";
+    private SalesReportResponse? _transactionReport;
 
     [ObservableProperty] private decimal? _actualRemittance;
     [ObservableProperty] private bool _cashFloatReturned;
@@ -82,6 +105,8 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
     public bool HasAdjustments => Detail?.CashAdjustments.Count > 0;
     public bool HasCorrections => Detail?.Corrections.Count > 0;
     public bool HasReport => Report is not null;
+    public bool IsHistoryCustomDateRange => SelectedHistoryDateRange.Label == "Custom";
+    public bool IsTransactionCustomDateRange => SelectedTransactionDateRange.Label == "Custom";
     public bool CanShowAdministrativeClockOut => Detail?.Session.Status == ApiCashierShiftSessionStatus.Open;
     public bool HasBlockingPendingAdjustments => Detail?.CashAdjustments.Any(item =>
         item.Status == ApiCashAdjustmentStatus.Pending && item.Type is ApiCashAdjustmentType.CashRefund or ApiCashAdjustmentType.CashPayout) == true;
@@ -197,6 +222,36 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
 
     [RelayCommand]
     public Task RefreshAsync() => IsLoading ? Task.CompletedTask : LoadPageAndReportAsync();
+
+    [RelayCommand]
+    public async Task ClearFiltersAsync()
+    {
+        SelectedCashier = null;
+        SelectedShiftDefinition = null;
+        SelectedStatusFilter = AllStatuses;
+        SelectedHistoryDateRange = HistoryDateRanges[0];
+        await ApplyFiltersAsync();
+    }
+
+    [RelayCommand]
+    public Task ApplyTransactionFiltersAsync() { ApplyTransactionFilter(); return Task.CompletedTask; }
+
+    [RelayCommand]
+    public Task ClearTransactionFiltersAsync()
+    {
+        TransactionCashier = null;
+        TransactionShift = null;
+        SelectedTransactionDateRange = TransactionDateRanges[0];
+        ApplyTransactionFilter();
+        return Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    public async Task RefreshTransactionsAsync()
+    {
+        if (_transactionReport is null) await LoadPageAndReportAsync();
+        else ApplyTransactionFilter();
+    }
 
     [RelayCommand(CanExecute = nameof(CanPreviousPage))]
     public async Task PreviousPageAsync()
@@ -446,7 +501,11 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
                 cancellationToken: cancellationToken);
             var usersTask = _api.GetUsersAsync(includeInactive: true, cancellationToken);
             var definitionsTask = _api.GetShiftDefinitionsAsync(includeInactive: true, cancellationToken);
-            await Task.WhenAll(sessionsTask, reportTask, usersTask, definitionsTask);
+            var salesTask = _api.GetSalesReportAsync(
+                StoreDateTime.AtStoreMidnight(_appliedFilters.FromDate.ToDateTime(TimeOnly.MinValue)).ToUniversalTime(),
+                StoreDateTime.AtStoreMidnight(_appliedFilters.ToDateExclusive.ToDateTime(TimeOnly.MinValue)).ToUniversalTime(),
+                cancellationToken: cancellationToken);
+            await Task.WhenAll(sessionsTask, reportTask, usersTask, definitionsTask, salesTask);
 
             var result = sessionsTask.Result;
             Sessions = result.Items;
@@ -462,6 +521,8 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             var selectedShiftId = SelectedShiftDefinition?.Id;
             ShiftDefinitions = definitionsTask.Result.OrderBy(item => item.StartLocalTime).ToArray();
             SelectedShiftDefinition = ShiftDefinitions.FirstOrDefault(item => item.Id == selectedShiftId);
+            _transactionReport = salesTask.Result;
+            ApplyTransactionFilter();
 
             var selected = selectedId.HasValue
                 ? Sessions.FirstOrDefault(item => item.Id == selectedId.Value) ??
@@ -542,6 +603,52 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         {
             if (SelectedSession?.Id == sessionId) IsDetailLoading = false;
         }
+    }
+
+    private void ApplyTransactionFilter()
+    {
+        if (_transactionReport is null) return;
+        var from = TransactionFromDate?.Date;
+        var to = TransactionToDate?.Date;
+        var sales = _transactionReport.Sales.Where(sale =>
+            (!from.HasValue || sale.SoldAtUtc.ToLocalTime().Date >= from.Value) &&
+            (!to.HasValue || sale.SoldAtUtc.ToLocalTime().Date <= to.Value) &&
+            (TransactionCashier is null || sale.SoldByUserId == TransactionCashier.Id));
+        if (TransactionShift is not null)
+            sales = sales.Where(sale => sale.ShiftDefinitionId == TransactionShift.Id);
+        TransactionSales = sales.OrderByDescending(sale => sale.SoldAtUtc).ToArray();
+        TransactionStatusMessage = $"Showing {TransactionSales.Count:N0} transaction{(TransactionSales.Count == 1 ? "" : "s")}. Select a sale for details.";
+    }
+
+    partial void OnSelectedTransactionDateRangeChanged(TransactionDateRangeOption value)
+    {
+        var today = StoreDateTime.StoreToday;
+        (TransactionFromDate, TransactionToDate) = value.Label switch
+        {
+            "Yesterday" => (StoreDateTime.AtStoreMidnight(today.AddDays(-1)), StoreDateTime.AtStoreMidnight(today)),
+            "This week" => (StoreDateTime.AtStoreMidnight(today.AddDays(-((int)today.DayOfWeek + 6) % 7)), StoreDateTime.AtStoreMidnight(today.AddDays(1))),
+            "This month" => (StoreDateTime.AtStoreMidnight(new DateTime(today.Year, today.Month, 1)), StoreDateTime.AtStoreMidnight(today.AddDays(1))),
+            "All time" => (null, null),
+            "Custom" => (TransactionFromDate, TransactionToDate),
+            _ => (StoreDateTime.AtStoreMidnight(today), StoreDateTime.AtStoreMidnight(today.AddDays(1)))
+        };
+        OnPropertyChanged(nameof(IsTransactionCustomDateRange));
+        if (value.Label != "Custom") ApplyTransactionFilter();
+    }
+
+    partial void OnSelectedHistoryDateRangeChanged(TransactionDateRangeOption value)
+    {
+        var today = StoreDateTime.StoreToday;
+        (FromDate, ToDate) = value.Label switch
+        {
+            "Yesterday" => (StoreDateTime.AtStoreMidnight(today.AddDays(-1)), StoreDateTime.AtStoreMidnight(today.AddDays(-1))),
+            "This week" => (StoreDateTime.AtStoreMidnight(today.AddDays(-((int)today.DayOfWeek + 6) % 7)), StoreDateTime.AtStoreMidnight(today)),
+            "This month" => (StoreDateTime.AtStoreMidnight(new DateTime(today.Year, today.Month, 1)), StoreDateTime.AtStoreMidnight(today)),
+            "All time" => (StoreDateTime.AtStoreMidnight(today.AddDays(-365)), StoreDateTime.AtStoreMidnight(today)),
+            "Custom" => (FromDate, ToDate),
+            _ => (StoreDateTime.AtStoreMidnight(today), StoreDateTime.AtStoreMidnight(today))
+        };
+        OnPropertyChanged(nameof(IsHistoryCustomDateRange));
     }
 
     private async Task ReviewAdjustmentAsync(CashierCashAdjustmentResponse? adjustment, bool approve)
