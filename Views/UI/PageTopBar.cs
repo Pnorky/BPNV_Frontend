@@ -88,9 +88,36 @@ public sealed class PageTopBar : UserControl
         shiftButton.Classes.Add("secondary");
         shiftButton.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsCashier)));
         shiftButton.Click += (_, _) => NavigationRequested?.Invoke(this, "CashierShift");
-        var notificationsButton = new Button { FontSize = 11, Padding = new Thickness(8, 4), Margin = new Thickness(4, 0, 0, 0) };
+        var notificationBadge = new Border
+        {
+            Width = 16,
+            Height = 16,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        notificationBadge.Bind(Border.BackgroundProperty, new DynamicResourceExtension("DestructiveRed"));
+        var notificationCount = new TextBlock
+        {
+            FontSize = 9,
+            FontWeight = FontWeight.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        notificationCount.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.AdminNotificationBadgeDisplay)));
+        notificationCount.BindResource(TextBlock.ForegroundProperty, "DestructiveForeground");
+        notificationBadge.Child = notificationCount;
+        notificationBadge.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.HasAdminUnreadNotifications)));
+        var notificationContent = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { new TextBlock { Text = "Notifications", VerticalAlignment = VerticalAlignment.Center }, notificationBadge }
+        };
+        var notificationsButton = new Button { FontSize = 11, Padding = new Thickness(8, 4), Margin = new Thickness(4, 0, 0, 0), Content = notificationContent };
         notificationsButton.Classes.Add("secondary");
-        notificationsButton.Bind(ContentControl.ContentProperty, new Binding(nameof(DashboardViewModel.AdminNotificationDisplay)));
         notificationsButton.Bind(Visual.IsVisibleProperty, new Binding(nameof(DashboardViewModel.IsAdmin)));
         notificationsButton.Click += (_, _) => NavigationRequested?.Invoke(this, "AdminNotifications");
         var clockText = new StackPanel

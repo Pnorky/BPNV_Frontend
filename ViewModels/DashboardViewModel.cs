@@ -54,7 +54,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
     public bool IsAdmin => _session.HasRole("Admin");
     public AdminNotificationState? AdminNotifications { get; }
     public int AdminUnreadCount => AdminNotifications?.UnreadCount ?? 0;
-    public string AdminNotificationDisplay => AdminUnreadCount > 99 ? "Notifications 99+" : $"Notifications {AdminUnreadCount}";
+    public bool HasAdminUnreadNotifications => AdminUnreadCount > 0;
+    public string AdminNotificationBadgeDisplay => AdminUnreadCount > 99 ? "99+" : AdminUnreadCount.ToString();
     public string StoreClockDisplay => StoreDateTime.StoreNow.ToString("ddd, MMM d  h:mm:ss tt");
     public string ShiftStatusDisplay
     {
@@ -414,7 +415,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
     {
         if (e.PropertyName != nameof(AdminNotificationState.UnreadCount)) return;
         OnPropertyChanged(nameof(AdminUnreadCount));
-        OnPropertyChanged(nameof(AdminNotificationDisplay));
+        OnPropertyChanged(nameof(HasAdminUnreadNotifications));
+        OnPropertyChanged(nameof(AdminNotificationBadgeDisplay));
     }
 
     public void Dispose()
