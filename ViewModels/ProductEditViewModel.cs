@@ -40,6 +40,8 @@ public partial class ProductEditViewModel : ObservableObject
 {
     [ObservableProperty] private SupplierResponse? _selectedSupplier;
     [ObservableProperty] private ApiInventoryItemType _itemType;
+    [ObservableProperty] private bool _isSellable;
+    [ObservableProperty] private bool _isPerishable;
     [ObservableProperty] private string _sku;
     [ObservableProperty] private string _pieceBarcode;
     [ObservableProperty] private string _name;
@@ -59,12 +61,15 @@ public partial class ProductEditViewModel : ObservableObject
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
     public IReadOnlyList<string> Categories { get; }
     public ObservableCollection<ProductEditPackageDraft> Packages { get; } = [];
+    public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
     public ProductEditViewModel(ProductResponse product, IReadOnlyList<SupplierResponse> suppliers)
     {
         Suppliers = suppliers.Where(supplier => supplier.IsActive).OrderBy(supplier => supplier.Name).ToArray();
         SelectedSupplier = Suppliers.FirstOrDefault(supplier => supplier.Id == product.SupplierId);
         ItemType = product.ItemType;
+        IsSellable = product.IsSellable;
+        IsPerishable = product.IsPerishable;
         Sku = product.Sku;
         PieceBarcode = product.Barcode ?? product.Units.FirstOrDefault(unit => unit.IsBasePiece)?.Barcode ?? "";
         Name = product.Name;
@@ -92,6 +97,12 @@ public partial class ProductEditViewModel : ObservableObject
             "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
         };
         Categories = categories.Append(product.Category).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    partial void OnItemTypeChanged(ApiInventoryItemType value)
+    {
+        if (value == ApiInventoryItemType.Supply) IsSellable = false;
+        OnPropertyChanged(nameof(CanChooseSellable));
     }
 
     [RelayCommand]
@@ -148,7 +159,8 @@ public partial class ProductEditViewModel : ObservableObject
             SelectedSupplier.Id, ItemType, Sku.Trim(), NullIfWhiteSpace(PieceBarcode), Name.Trim(), Category.Trim(), Unit.Trim(),
             CostPrice, RegularPrice, EmployeePrice,
             (int)CriticalReorderLevel, (int)CriticalOrderQuantity,
-            (int)WarningReorderLevel, (int)WarningOrderQuantity, Version, packages);
+            (int)WarningReorderLevel, (int)WarningOrderQuantity, Version, packages,
+            ItemType == ApiInventoryItemType.Supply ? false : IsSellable, IsPerishable);
         return true;
     }
 

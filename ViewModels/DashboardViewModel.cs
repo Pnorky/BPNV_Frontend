@@ -207,7 +207,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             var child = NavItems.FirstOrDefault(item => item.IsChild && item.Tag == tag);
             if (child is not null)
             {
-                SelectNavItem(child);
+                _suppressNavigation = true;
+                SelectedNavItem = child;
+                _suppressNavigation = false;
+                NavigateTo(tag);
                 return;
             }
         }

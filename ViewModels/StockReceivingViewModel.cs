@@ -20,6 +20,13 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
     [ObservableProperty] private decimal _employeePrice;
     [ObservableProperty] private string _reference = "";
     [ObservableProperty] private string _notes = "";
+    [ObservableProperty] private string _lotCode = "";
+    [ObservableProperty] private DateTimeOffset? _receivedDate;
+    [ObservableProperty] private TimeSpan? _receivedTime;
+    [ObservableProperty] private DateTimeOffset? _productionDate;
+    [ObservableProperty] private TimeSpan? _productionTime;
+    [ObservableProperty] private DateTimeOffset? _expiryDate;
+    [ObservableProperty] private TimeSpan? _expiryTime;
     [ObservableProperty] private string _statusMessage = "Scan a piece or package barcode and press Enter.";
     [ObservableProperty] private bool _isBusy;
 
@@ -34,6 +41,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
     public string ConversionPreview => SelectedUnit is null || !WholeNumber(Count) || Count <= 0 || Count > int.MaxValue
         ? ""
         : $"Will receive {(long)Count * SelectedUnit.PiecesPerUnit:N0} base pieces into bodega.";
+    public bool IsPerishable => SelectedProduct?.IsPerishable ?? SelectedCatalogProduct?.IsPerishable ?? false;
 
     partial void OnSelectedProductChanged(PosProductResponse? value) => NotifySelection();
     partial void OnSelectedUnitChanged(ProductUnitResponse? value) => NotifySelection();
@@ -128,6 +136,29 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             ShowError("Stock could not be received", "Enter a whole number greater than zero.");
             return;
         }
+        if (!TryUtc(ReceivedDate, ReceivedTime, required: true, out var receivedAtUtc) ||
+            !TryUtc(ProductionDate, ProductionTime, required: false, out var productionAtUtc))
+        {
+            ShowError("Stock could not be received", "Enter both date and time for each supplied receipt or production timestamp.");
+            return;
+        }
+        DateTimeOffset? expiresAtUtc = null;
+        if (IsPerishable && !TryUtc(ExpiryDate, ExpiryTime, required: true, out expiresAtUtc))
+        {
+            ShowError("Stock could not be received", "Expiry/discard date and time are required for perishable products.");
+            return;
+        }
+        if (!IsPerishable) expiresAtUtc = null;
+        if (productionAtUtc.HasValue && receivedAtUtc.HasValue && productionAtUtc > receivedAtUtc)
+        {
+            ShowError("Stock could not be received", "Production time cannot be after received time.");
+            return;
+        }
+        if (expiresAtUtc.HasValue && receivedAtUtc.HasValue && expiresAtUtc <= receivedAtUtc)
+        {
+            ShowError("Stock could not be received", "Expiry/discard time must be after received time.");
+            return;
+        }
 
         StatusMessage = "Receiving stock into bodega...";
         IsBusy = true;
@@ -136,7 +167,8 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             var result = await api.ReceiveStockAsync(new ReceiveStockRequest(
                 SelectedProduct.Id, SelectedUnit.Id, (int)Count,
                 UnitCost, SellingPrice, EmployeePrice,
-                NullIfWhiteSpace(Reference), NullIfWhiteSpace(Notes)));
+                NullIfWhiteSpace(Reference), NullIfWhiteSpace(Notes), NullIfWhiteSpace(LotCode),
+                receivedAtUtc, productionAtUtc, expiresAtUtc));
             StatusMessage = $"Received {result.Count} {result.UnitLabel} = {result.BasePieceQuantity} base pieces. Bodega balance: {result.BodegaStock}; display: {result.DisplayStock}.";
             notifications.ShowSuccess("Stock received", StatusMessage);
             SelectedProduct = null;
@@ -149,6 +181,13 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             EmployeePrice = 0;
             Reference = "";
             Notes = "";
+            LotCode = "";
+            ReceivedDate = null;
+            ReceivedTime = null;
+            ProductionDate = null;
+            ProductionTime = null;
+            ExpiryDate = null;
+            ExpiryTime = null;
             ScannerText = "";
         }
         catch (Exception exception) when (IsApiFailure(exception))
@@ -168,11 +207,15 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         OnPropertyChanged(nameof(UnitDetails));
         OnPropertyChanged(nameof(ConversionPreview));
         OnPropertyChanged(nameof(TotalCostDisplay));
+        OnPropertyChanged(nameof(IsPerishable));
     }
 
     private void InitializePrices()
     {
         if (SelectedUnit is null) return;
+        var now = StoreDateTime.StoreNow;
+        ReceivedDate ??= StoreDateTime.AtStoreMidnight(now);
+        ReceivedTime ??= now.TimeOfDay;
         UnitCost = (SelectedCatalogProduct?.CostPrice ?? 0) * SelectedUnit.PiecesPerUnit;
         SellingPrice = SelectedUnit.RegularPrice;
         // A zero employee price means employees use the regular selling price.
@@ -204,7 +247,8 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             product.DisplayStock,
             product.Version,
             product.Units,
-            baseUnit);
+            baseUnit,
+            product.IsPerishable);
         ScannerText = "";
         InitializePrices();
         StatusMessage = $"Selected {product.Name}, {baseUnit.Label}, by catalog search.";
@@ -217,6 +261,14 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
         notifications.ShowError(title, message);
     }
     private static bool WholeNumber(decimal value) => value == decimal.Truncate(value);
+    private static bool TryUtc(DateTimeOffset? date, TimeSpan? time, bool required, out DateTimeOffset? value)
+    {
+        value = null;
+        if (!date.HasValue && !time.HasValue) return !required;
+        if (!date.HasValue || !time.HasValue) return false;
+        value = StoreDateTime.CombineStoreDateAndTimeToUtc(date.Value, time.Value);
+        return true;
+    }
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;
     private static string FailureMessage(Exception exception) => exception is HttpRequestException

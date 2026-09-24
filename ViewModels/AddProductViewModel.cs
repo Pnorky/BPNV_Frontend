@@ -55,6 +55,8 @@ public partial class AddProductViewModel : ObservableObject
 
     [ObservableProperty] private SupplierResponse? _selectedSupplier;
     [ObservableProperty] private ApiInventoryItemType _itemType = ApiInventoryItemType.Merchandise;
+    [ObservableProperty] private bool _isSellable = true;
+    [ObservableProperty] private bool _isPerishable;
     [ObservableProperty] private string _sku = "";
     [ObservableProperty] private string _pieceBarcode = "";
     [ObservableProperty] private string _name = "";
@@ -81,6 +83,7 @@ public partial class AddProductViewModel : ObservableObject
         "Beverages", "Snacks", "Grocery", "Personal Care", "Household",
         "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
     ];
+    public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
     public AddProductViewModel(StoreApiClient api, INotificationService notifications)
     {
@@ -132,6 +135,8 @@ public partial class AddProductViewModel : ObservableObject
 
     partial void OnItemTypeChanged(ApiInventoryItemType value)
     {
+        IsSellable = value == ApiInventoryItemType.Merchandise;
+        OnPropertyChanged(nameof(CanChooseSellable));
         if (!_skuWasEdited) GenerateSku();
     }
 
@@ -241,8 +246,6 @@ public partial class AddProductViewModel : ObservableObject
         error = "";
         if (SelectedSupplier is null) return Fail("Select or create a supplier.", out error);
         if (string.IsNullOrWhiteSpace(Sku)) return Fail("SKU is required.", out error);
-        if (ItemType == ApiInventoryItemType.Merchandise && string.IsNullOrWhiteSpace(PieceBarcode))
-            return Fail("Piece barcode is required for Merchandise.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
         if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
@@ -277,7 +280,8 @@ public partial class AddProductViewModel : ObservableObject
             SelectedSupplier.Id, ItemType, Sku.Trim(), NullIfWhiteSpace(PieceBarcode), Name.Trim(), Category.Trim(), Unit.Trim(),
             CostPrice, RegularPrice, EmployeePrice,
             (int)CriticalReorderLevel, (int)CriticalOrderQuantity,
-            (int)WarningReorderLevel, (int)WarningOrderQuantity, packages);
+            (int)WarningReorderLevel, (int)WarningOrderQuantity, packages,
+            ItemType == ApiInventoryItemType.Supply ? false : IsSellable, IsPerishable);
         return true;
     }
 
@@ -295,6 +299,9 @@ public partial class AddProductViewModel : ObservableObject
         WarningReorderLevel = 1;
         WarningOrderQuantity = 1;
         Packages.Clear();
+        ItemType = ApiInventoryItemType.Merchandise;
+        IsSellable = true;
+        IsPerishable = false;
     }
 
     private void UpdatePackageSuggestions()

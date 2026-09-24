@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
@@ -118,7 +119,7 @@ public sealed class BatchNewProductDialog : Window
         return new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,*,*"),
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
             ColumnSpacing = 12,
             RowSpacing = 12,
             Children =
@@ -132,9 +133,22 @@ public sealed class BatchNewProductDialog : Window
                 At(Field("SCANNED PIECE BARCODE", barcode), row: 2),
                 At(Field("PURCHASE PRICE / PIECE", Amount(nameof(BatchNewProductViewModel.CostPrice))), row: 2, column: 1),
                 At(Field("SELLING PRICE", Amount(nameof(BatchNewProductViewModel.RegularPrice))), row: 2, column: 2),
-                At(Field("EMPLOYEE PRICE (0 = SELLING)", Amount(nameof(BatchNewProductViewModel.EmployeePrice))), row: 3)
+                At(Field("EMPLOYEE PRICE (0 = SELLING)", Amount(nameof(BatchNewProductViewModel.EmployeePrice))), row: 3),
+                At(ProductFlags(), row: 4)
             }
         };
+    }
+
+    private static Control ProductFlags()
+    {
+        var sellable = new SelectionCheckbox("Available for sale");
+        sellable.Bind(Avalonia.Controls.Primitives.ToggleButton.IsCheckedProperty, new Binding(nameof(BatchNewProductViewModel.IsSellable)) { Mode = BindingMode.TwoWay });
+        sellable.Bind(InputElement.IsEnabledProperty, new Binding(nameof(BatchNewProductViewModel.CanChooseSellable)));
+        var perishable = new SelectionCheckbox("Track expiry dates");
+        perishable.Bind(Avalonia.Controls.Primitives.ToggleButton.IsCheckedProperty, new Binding(nameof(BatchNewProductViewModel.IsPerishable)) { Mode = BindingMode.TwoWay });
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20, Children = { sellable, perishable } };
+        Grid.SetColumnSpan(panel, 3);
+        return panel;
     }
 
     private static Control ReorderFields() => new Grid

@@ -13,6 +13,15 @@ public enum ApiInventoryStockLocation
     Bodega
 }
 
+public enum ApiSpoilageReason
+{
+    Expired,
+    Damaged,
+    UnsoldPreparedFood,
+    PreparationError,
+    Other
+}
+
 public enum ApiCustomerType
 {
     Regular,
@@ -88,7 +97,9 @@ public sealed record ProductResponse(
     int SuggestedOrderQuantity,
     ulong Version,
     bool IsActive,
-    IReadOnlyList<ProductUnitResponse> Units)
+    IReadOnlyList<ProductUnitResponse> Units,
+    bool IsSellable = true,
+    bool IsPerishable = false)
 {
     public string ActivityStatus => IsActive ? "Active" : "Inactive";
     public bool IsInactive => !IsActive;
@@ -102,7 +113,12 @@ public sealed record ProductResponse(
     public string EmployeePriceDisplay => $"₱{(EmployeePrice > 0 ? EmployeePrice : RegularPrice):N2}";
     public string StockDisplay => $"{DisplayStock} display / {BodegaStock} bodega";
     public string BarcodeDisplay => string.IsNullOrWhiteSpace(Barcode) ? "No barcode (optional)" : Barcode;
-    public bool CanRecordStockCount => IsActive && ItemType != ApiInventoryItemType.Merchandise;
+    public bool CanRecordStockCount => IsActive && !IsPerishable && ItemType != ApiInventoryItemType.Merchandise;
+    public string HandlingDisplay => string.Join(" · ", new[]
+    {
+        IsSellable ? "Sellable" : "Internal",
+        IsPerishable ? "Perishable" : null
+    }.Where(value => value is not null));
 }
 
 public sealed record SupplierResponse(
@@ -154,7 +170,8 @@ public sealed record PosProductResponse(
     int DisplayStock,
     ulong Version,
     IReadOnlyList<ProductUnitResponse> Units,
-    ProductUnitResponse? SelectedUnit)
+    ProductUnitResponse? SelectedUnit,
+    bool IsPerishable = false)
 {
     public string CatalogDetails => $"{Sku} · {SupplierName} · Display: {DisplayStock} {Unit}";
 }
@@ -185,7 +202,9 @@ public sealed record CreateProductRequest(
     int CriticalOrderQuantity,
     int WarningReorderLevel,
     int WarningOrderQuantity,
-    IReadOnlyList<CreateProductUnitRequest>? Packages);
+    IReadOnlyList<CreateProductUnitRequest>? Packages,
+    bool? IsSellable = null,
+    bool IsPerishable = false);
 
 public sealed record UpdateProductUnitRequest(
     Guid? Id,
@@ -212,7 +231,20 @@ public sealed record UpdateProductRequest(
     int WarningReorderLevel,
     int WarningOrderQuantity,
     ulong Version,
-    IReadOnlyList<UpdateProductUnitRequest>? Packages);
+    IReadOnlyList<UpdateProductUnitRequest>? Packages,
+    bool? IsSellable = null,
+    bool? IsPerishable = null);
+
+public sealed record ReplaceBarcodeRequest(bool Confirmed);
+
+public sealed record BarcodeLabelDataResponse(
+    Guid ProductId,
+    Guid UnitId,
+    string ProductName,
+    string UnitLabel,
+    string Sku,
+    string Barcode,
+    decimal RegularPrice);
 
 public sealed record InventoryImportSupplierRequest(
     string Key,
@@ -279,7 +311,19 @@ public sealed record InventoryImportCommitResult(
 
 public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
 
-public sealed record ReceiveStockRequest(Guid ProductId, Guid UnitId, int Count, decimal UnitCost, decimal RegularPrice, decimal EmployeePrice, string? Reference, string? Notes);
+public sealed record ReceiveStockRequest(
+    Guid ProductId,
+    Guid UnitId,
+    int Count,
+    decimal UnitCost,
+    decimal RegularPrice,
+    decimal EmployeePrice,
+    string? Reference,
+    string? Notes,
+    string? LotCode = null,
+    DateTimeOffset? ReceivedAtUtc = null,
+    DateTimeOffset? ProductionAtUtc = null,
+    DateTimeOffset? ExpiresAtUtc = null);
 public sealed record TransferStockRequest(Guid ProductId, int Quantity, string? Reference, string? Notes);
 public sealed record RecordStockCountRequest(
     Guid ProductId,
@@ -299,16 +343,23 @@ public sealed record StockReceiptResponse(
     int DisplayStock,
     int BodegaStock,
     ulong ProductVersion,
-    DateTime OccurredAtUtc)
+    DateTime OccurredAtUtc,
+    Guid? LotId = null,
+    string? LotCode = null,
+    DateTimeOffset? ExpiresAtUtc = null)
 {
     public string OccurredAtDisplay => StoreDateTime.FormatUtc(OccurredAtUtc);
 }
 
 public sealed record BatchReceiptRecordRequest(
     int SourceRecord,
-    string SupplierLibrary,
-    string Barcode,
-    int UnitQuantity);
+    string? SupplierLibrary,
+    string? Barcode,
+    int UnitQuantity,
+    string? LotCode = null,
+    DateTimeOffset? ReceivedAtUtc = null,
+    DateTimeOffset? ProductionAtUtc = null,
+    DateTimeOffset? ExpiresAtUtc = null);
 
 public sealed record BatchReceiptPriceUpdateRequest(
     Guid ProductId,
@@ -334,7 +385,9 @@ public sealed record BatchReceiptNewProductRequest(
     int CriticalOrderQuantity,
     int WarningReorderLevel,
     int WarningOrderQuantity,
-    IReadOnlyList<CreateProductUnitRequest>? Packages);
+    IReadOnlyList<CreateProductUnitRequest>? Packages,
+    bool? IsSellable = null,
+    bool IsPerishable = false);
 
 public sealed record BatchReceiptRequest(
     Guid IdempotencyKey,
@@ -592,7 +645,10 @@ public sealed record StockMovementResponse(
     string? Notes,
     DateTime OccurredAtUtc,
     Guid CreatedByUserId,
-    string CreatedByName)
+    string CreatedByName,
+    Guid? LotId = null,
+    string? LotCode = null,
+    ApiSpoilageReason? SpoilageReason = null)
 {
     public string OccurredAtDisplay => StoreDateTime.FormatUtc(OccurredAtUtc);
     public string ProductDisplay => $"{ProductName} | {Sku} | {SupplierName}";
@@ -625,7 +681,50 @@ public sealed record StockMovementResponse(
     public string ReferenceNotesDisplay => string.IsNullOrWhiteSpace(Notes)
         ? ReferenceDisplay
         : $"{ReferenceDisplay} | {Notes}";
+    public string LotReasonDisplay => string.Join(" · ", new[]
+    {
+        string.IsNullOrWhiteSpace(LotCode) ? null : $"Lot {LotCode}",
+        SpoilageReason?.ToString()
+    }.Where(value => value is not null));
     private static string Signed(int value) => value > 0 ? $"+{value:N0}" : value.ToString("N0");
+}
+
+public sealed record RecordSpoilageRequest(
+    Guid ProductId,
+    Guid UnitId,
+    ApiInventoryStockLocation Location,
+    Guid? LotId,
+    int Count,
+    ApiSpoilageReason Reason,
+    string? Notes);
+
+public sealed record SpoilageResponse(
+    Guid MovementId,
+    Guid ProductId,
+    Guid UnitId,
+    Guid? LotId,
+    ApiInventoryStockLocation Location,
+    int BasePieceQuantity,
+    ApiSpoilageReason Reason,
+    int DisplayStock,
+    int BodegaStock,
+    DateTimeOffset OccurredAtUtc);
+
+public sealed record InventoryLotBalanceResponse(
+    Guid LotId,
+    Guid ProductId,
+    Guid UnitId,
+    string? LotCode,
+    ApiInventoryStockLocation Location,
+    int Quantity,
+    DateTimeOffset ReceivedAtUtc,
+    DateTimeOffset? ProductionAtUtc,
+    DateTimeOffset ExpiresAtUtc,
+    bool IsExpired,
+    bool IsClosed)
+{
+    public string Display => $"{(string.IsNullOrWhiteSpace(LotCode) ? "Uncoded lot" : LotCode)} · {Quantity:N0} pcs · expires {StoreDateTime.FormatUtc(ExpiresAtUtc.UtcDateTime)}";
+    public override string ToString() => Display;
 }
 
 public sealed record CreateSaleLineRequest(Guid UnitId, int Count);

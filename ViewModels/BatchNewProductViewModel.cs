@@ -12,6 +12,8 @@ public partial class BatchNewProductViewModel : ObservableObject
 
     [ObservableProperty] private SupplierResponse? _selectedSupplier;
     [ObservableProperty] private ApiInventoryItemType _itemType = ApiInventoryItemType.Merchandise;
+    [ObservableProperty] private bool _isSellable = true;
+    [ObservableProperty] private bool _isPerishable;
     [ObservableProperty] private string _sku = "";
     [ObservableProperty] private string _name = "";
     [ObservableProperty] private string _category = "";
@@ -36,6 +38,7 @@ public partial class BatchNewProductViewModel : ObservableObject
         "Beverages", "Snacks", "Grocery", "Personal Care", "Household",
         "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
     ];
+    public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
     public BatchNewProductViewModel(
         IReadOnlyList<SupplierResponse> suppliers,
@@ -56,6 +59,8 @@ public partial class BatchNewProductViewModel : ObservableObject
 
         SelectedSupplier = Suppliers.FirstOrDefault(supplier => supplier.Id == existing.SupplierId);
         ItemType = existing.ItemType;
+        IsSellable = existing.IsSellable ?? existing.ItemType == ApiInventoryItemType.Merchandise;
+        IsPerishable = existing.IsPerishable;
         SetSku(existing.Sku);
         Name = existing.Name;
         Category = existing.Category;
@@ -83,7 +88,12 @@ public partial class BatchNewProductViewModel : ObservableObject
     partial void OnRegularPriceChanged(decimal value) => UpdatePackageSuggestions();
     partial void OnEmployeePriceChanged(decimal value) => UpdatePackageSuggestions();
     partial void OnNameChanged(string value) { if (!_skuWasEdited) GenerateSku(); }
-    partial void OnItemTypeChanged(ApiInventoryItemType value) { if (!_skuWasEdited) GenerateSku(); }
+    partial void OnItemTypeChanged(ApiInventoryItemType value)
+    {
+        IsSellable = value == ApiInventoryItemType.Merchandise;
+        OnPropertyChanged(nameof(CanChooseSellable));
+        if (!_skuWasEdited) GenerateSku();
+    }
     partial void OnSkuChanged(string value)
     {
         if (!_updatingSku && !string.IsNullOrWhiteSpace(value)) _skuWasEdited = true;
@@ -161,7 +171,9 @@ public partial class BatchNewProductViewModel : ObservableObject
             (int)CriticalOrderQuantity,
             (int)WarningReorderLevel,
             (int)WarningOrderQuantity,
-            packages);
+            packages,
+            ItemType == ApiInventoryItemType.Supply ? false : IsSellable,
+            IsPerishable);
         return true;
     }
 

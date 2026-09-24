@@ -80,13 +80,31 @@ public class StockReceivingView : UserControl
             }
         };
 
+        var lotCode = Input("LotCode", "Supplier batch code (optional)");
+        var received = DateTimePicker("RECEIVED / PREPARED", "TIME", "ReceivedDate", "ReceivedTime");
+        var production = DateTimePicker("MADE ON (OPTIONAL)", "TIME", "ProductionDate", "ProductionTime");
+        var expiry = DateTimePicker("USE BY / DISCARD", "TIME", "ExpiryDate", "ExpiryTime");
+        expiry.Bind(Visual.IsVisibleProperty, new Binding("IsPerishable"));
+        var lot = new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                Heading("Batch details"),
+                Field("BATCH / LOT CODE", lotCode),
+                received,
+                production,
+                expiry
+            }
+        };
+
         var root = new StackPanel
         {
             Margin = new Thickness(8),
             Spacing = 16,
             Children =
             {
-                lookup, selection, Card(form), Status()
+                lookup, selection, Card(form), Card(lot), Status()
             }
         };
         Content = new ScrollViewer
@@ -155,6 +173,13 @@ public class StockReceivingView : UserControl
         Children = { StaticLabel(label), Amount(path) }
     };
     private static AmountInput Amount(string path) { var value = new AmountInput(); value.Bind(AmountInput.ValueProperty, new Binding(path)); return value; }
+    private static ShadcnDateTimePicker DateTimePicker(string dateLabel, string timeLabel, string datePath, string timePath)
+    {
+        var value = new ShadcnDateTimePicker { DateLabel = dateLabel, TimeLabel = timeLabel };
+        value.Bind(ShadcnDateTimePicker.SelectedDateProperty, new Binding(datePath) { Mode = BindingMode.TwoWay });
+        value.Bind(ShadcnDateTimePicker.SelectedTimeProperty, new Binding(timePath) { Mode = BindingMode.TwoWay });
+        return value;
+    }
     private static TextBlock StaticLabel(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("form-label"); return value; }
     private static Border Card(Control child) { var value = new Border { Padding = new Thickness(20), Child = child }; value.Classes.Add("theme-card"); value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return value; }
     private static Border Status() { var value = new Border { Padding = new Thickness(14, 10), CornerRadius = new CornerRadius(7), Child = Bound("StatusMessage", 12, FontWeight.Normal) }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }

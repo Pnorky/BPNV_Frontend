@@ -86,26 +86,16 @@ public sealed class DeliveryHistoryView : UserControl
     {
         var status = new StatusBadge();
         status.Bind(StatusBadge.StatusProperty, new Binding("Delivery.Status"));
-        var action = Bound("DetailsActionLabel");
-        action.FontSize = 11;
-        action.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("Primary"));
-        var actionArea = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 6,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { status, action }
-        };
+        var actionArea = new StackPanel { Children = { status } };
         var actionField = new StackPanel
         {
             Margin = new Thickness(0, 0, 12, 10),
             Spacing = 5,
-            Children = { Label("STATUS / DETAILS"), actionArea }
+            Children = { Label("STATUS"), actionArea }
         };
         var summary = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.15*,1.45*,1*,1.1*,0.7*,1.15*,0.95*"),
+            ColumnDefinitions = new ColumnDefinitions("1.05*,1.25*,0.9*,1*,0.65*,1*,0.55*"),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Children =
             {
@@ -119,19 +109,13 @@ public sealed class DeliveryHistoryView : UserControl
             }
         };
         for (var index = 0; index < summary.Children.Count; index++) Grid.SetColumn(summary.Children[index], index);
-        var rowViewport = new ScrollViewer
-        {
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Content = summary
-        };
         var toggle = new Button
         {
             Padding = new Thickness(16, 12),
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
-            Content = rowViewport
+            Content = summary
         };
         toggle.Classes.Add("ghost");
         toggle.Bind(Button.CommandProperty, new Binding("DataContext.ToggleDetailsCommand")
@@ -151,7 +135,7 @@ public sealed class DeliveryHistoryView : UserControl
             BorderThickness = new Thickness(0, 1, 0, 0),
             Child = new StackPanel { Children = { toggle, detail } }
         }, Border.BorderBrushProperty, "Border");
-        row.SizeChanged += (_, args) => summary.Width = Math.Max(1400, args.NewSize.Width - 32);
+        row.SizeChanged += (_, args) => summary.Width = Math.Max(0, args.NewSize.Width - 32);
         return row;
     }
 

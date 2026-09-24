@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
@@ -109,7 +110,7 @@ public sealed class ProductEditDialog : Window
         return new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,*,*"),
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
             ColumnSpacing = 12,
             RowSpacing = 12,
             Children =
@@ -123,9 +124,22 @@ public sealed class ProductEditDialog : Window
                 At(Field("PIECE BARCODE", Input(nameof(ProductEditViewModel.PieceBarcode), "Required for Merchandise; optional otherwise")), row: 2),
                 At(Field("PURCHASE PRICE / PIECE", Amount(nameof(ProductEditViewModel.CostPrice))), row: 2, column: 1),
                 At(Field("SELLING PRICE", Amount(nameof(ProductEditViewModel.RegularPrice))), row: 2, column: 2),
-                At(Field("EMPLOYEE PRICE (0 = SELLING)", Amount(nameof(ProductEditViewModel.EmployeePrice))), row: 3)
+                At(Field("EMPLOYEE PRICE (0 = SELLING)", Amount(nameof(ProductEditViewModel.EmployeePrice))), row: 3),
+                At(ProductFlags(), row: 4)
             }
         };
+    }
+
+    private static Control ProductFlags()
+    {
+        var sellable = new SelectionCheckbox("Available for sale");
+        sellable.Bind(ToggleButton.IsCheckedProperty, new Binding(nameof(ProductEditViewModel.IsSellable)) { Mode = BindingMode.TwoWay });
+        sellable.Bind(InputElement.IsEnabledProperty, new Binding(nameof(ProductEditViewModel.CanChooseSellable)));
+        var perishable = new SelectionCheckbox("Track expiry dates");
+        perishable.Bind(ToggleButton.IsCheckedProperty, new Binding(nameof(ProductEditViewModel.IsPerishable)) { Mode = BindingMode.TwoWay });
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20, Children = { sellable, perishable } };
+        Grid.SetColumnSpan(panel, 3);
+        return panel;
     }
 
     private static Control ReorderFields() => new Grid

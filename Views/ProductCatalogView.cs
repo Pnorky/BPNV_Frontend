@@ -49,6 +49,8 @@ public class ProductCatalogView : UserControl
         var edit = Action("Edit", "DataContext.EditCommand");
         var stockCount = Action("Stock count", "DataContext.RecordStockCountCommand");
         stockCount.Bind(Visual.IsVisibleProperty, new Binding(nameof(ProductResponse.CanRecordStockCount)));
+        var labels = Action("Labels", "DataContext.LabelsCommand");
+        labels.Bind(Visual.IsVisibleProperty, new Binding(nameof(ProductResponse.IsActive)));
         var deactivate = DangerLink("Deactivate", "DataContext.DeactivateCommand");
         deactivate.Bind(Visual.IsVisibleProperty, new Binding(nameof(ProductResponse.IsActive)));
         var reactivate = Action("Reactivate", "DataContext.ReactivateCommand");
@@ -59,7 +61,7 @@ public class ProductCatalogView : UserControl
             Spacing = 6,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { edit, stockCount, deactivate, reactivate }
+            Children = { edit, labels, stockCount, deactivate, reactivate }
         };
         var row = new Grid
         {
@@ -69,7 +71,7 @@ public class ProductCatalogView : UserControl
             {
                 new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("Name", FontWeight.SemiBold), Text("Sku", resource: "MutedForeground"), Text("BarcodeDisplay", resource: "MutedForeground") } },
                 At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("SupplierName"), Text("Category", resource: "MutedForeground") } }, column: 1),
-                At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 4, Children = { Text("ItemType"), Badge("StockStatus") } }, column: 2),
+                At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 4, Children = { Text("ItemType"), Text("HandlingDisplay", resource: "MutedForeground"), Badge("StockStatus") } }, column: 2),
                 At(new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { Text("StockDisplay"), Text("ReorderActionDisplay", resource: "MutedForeground") } }, column: 3),
                 At(Badge(nameof(ProductResponse.ActivityStatus)), column: 4),
                 At(Text("PurchasePriceDisplay", FontWeight.SemiBold, vertical: true), column: 5),
@@ -110,7 +112,7 @@ public class ProductCatalogView : UserControl
         return header;
     }
 
-    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.95*,1*,96,0.8*,0.7*,0.85*,270");
+    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.95*,1*,96,0.8*,0.7*,0.85*,330");
 
     private static Button Action(string text, string commandPath)
     {

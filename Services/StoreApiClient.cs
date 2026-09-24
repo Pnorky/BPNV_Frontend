@@ -153,6 +153,21 @@ public sealed class StoreApiClient(AuthApiClient authClient)
             () => new HttpRequestMessage(HttpMethod.Get, $"api/products/receiving/by-barcode/{Uri.EscapeDataString(barcode.Trim())}"),
             cancellationToken);
 
+    public Task<BarcodeLabelDataResponse> GenerateProductBarcodeAsync(
+        Guid productId, Guid unitId, CancellationToken cancellationToken = default) =>
+        SendAsync<BarcodeLabelDataResponse>(
+            () => new HttpRequestMessage(HttpMethod.Post, $"api/products/{productId}/units/{unitId}/barcode/generate"), cancellationToken);
+
+    public Task<BarcodeLabelDataResponse> ReplaceProductBarcodeAsync(
+        Guid productId, Guid unitId, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<BarcodeLabelDataResponse, ReplaceBarcodeRequest>(
+            HttpMethod.Post, $"api/products/{productId}/units/{unitId}/barcode/replace", new ReplaceBarcodeRequest(true), cancellationToken);
+
+    public Task<BarcodeLabelDataResponse> GetProductLabelDataAsync(
+        Guid productId, Guid unitId, CancellationToken cancellationToken = default) =>
+        SendAsync<BarcodeLabelDataResponse>(
+            () => new HttpRequestMessage(HttpMethod.Get, $"api/products/{productId}/units/{unitId}/label-data"), cancellationToken);
+
     public Task<StockReceiptResponse> ReceiveStockAsync(
         ReceiveStockRequest request,
         CancellationToken cancellationToken = default) =>
@@ -234,6 +249,25 @@ public sealed class StoreApiClient(AuthApiClient authClient)
                 ("page", page.ToString()),
                 ("pageSize", pageSize.ToString()))),
             cancellationToken);
+
+    public Task<IReadOnlyList<InventoryLotBalanceResponse>> GetInventoryLotsAsync(
+        Guid productId,
+        ApiInventoryStockLocation? location = null,
+        bool includeExpired = false,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<InventoryLotBalanceResponse>>(
+            () => new HttpRequestMessage(HttpMethod.Get, WithQuery(
+                "api/stock-movements/lots",
+                ("productId", productId.ToString()),
+                ("location", location?.ToString()),
+                ("includeExpired", includeExpired ? "true" : "false"))),
+            cancellationToken);
+
+    public Task<SpoilageResponse> RecordSpoilageAsync(
+        RecordSpoilageRequest request,
+        CancellationToken cancellationToken = default) =>
+        SendJsonAsync<SpoilageResponse, RecordSpoilageRequest>(
+            HttpMethod.Post, "api/stock-movements/spoilage", request, cancellationToken);
 
     public Task<SaleResponse> CreateSaleAsync(
         CreateSaleRequest request,

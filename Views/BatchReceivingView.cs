@@ -62,7 +62,7 @@ public sealed class BatchReceivingView : UserControl
             MinHeight = 170,
             MaxHeight = 300,
             VerticalContentAlignment = VerticalAlignment.Top,
-            PlaceholderText = "Supplier library<Tab>Barcode<Tab>Quantity<Enter>"
+            PlaceholderText = "Supplier library<Tab>Barcode<Tab>Quantity<Tab>Lot (optional)<Tab>Expiry yyyy-MM-dd HH:mm (optional)<Enter>"
         };
         capture.Classes.Add("form-input");
         capture.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Disabled);
@@ -102,7 +102,7 @@ public sealed class BatchReceivingView : UserControl
                     }
                 },
                 capture,
-                Muted("Expected columns: supplier library, exact barcode text, and positive whole-number quantity. Scientific notation is rejected."),
+                Muted("Expected columns: supplier library, exact barcode text, quantity, optional lot, and optional Philippine expiry date/time. Rows with different lots or expiry remain distinct."),
                 details,
                 DeliveryTimeSection()
             }

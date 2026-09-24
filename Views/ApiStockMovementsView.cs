@@ -43,10 +43,68 @@ public sealed class ApiStockMovementsView : UserControl
                 Field("SEARCH PRODUCTS", search),
                 Card(form),
                 new TextBlock { Text = "Select a product above to view its current Bodega balance before transferring stock." },
+                SpoilageSection(),
                 history
             }
         };
         Content = new ScrollViewer { Content = root };
+    }
+
+    private static Control SpoilageSection()
+    {
+        var product = new SearchableSelect
+        {
+            PlaceholderText = "Select product",
+            SearchTextSelector = item => item is ProductResponse value ? $"{value.Name} {value.Sku} {value.SupplierName}" : ""
+        };
+        product.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Products"));
+        product.Bind(SearchableSelect.SelectedItemProperty, new Binding("SpoilageProduct"));
+        var unit = new SearchableSelect { PlaceholderText = "Select unit" };
+        unit.Bind(SearchableSelect.ItemsSourceProperty, new Binding("SpoilageUnits"));
+        unit.Bind(SearchableSelect.SelectedItemProperty, new Binding("SpoilageUnit"));
+        var location = new SearchableSelect { PlaceholderText = "Select location" };
+        location.Bind(SearchableSelect.ItemsSourceProperty, new Binding("StockLocations"));
+        location.Bind(SearchableSelect.SelectedItemProperty, new Binding("SpoilageLocation"));
+        var lot = new SearchableSelect { PlaceholderText = "Select eligible lot" };
+        lot.Bind(SearchableSelect.ItemsSourceProperty, new Binding("SpoilageLots"));
+        lot.Bind(SearchableSelect.SelectedItemProperty, new Binding("SpoilageLot"));
+        lot.Bind(Visual.IsVisibleProperty, new Binding("SpoilageProductIsPerishable"));
+        var reason = new SearchableSelect { PlaceholderText = "Select reason" };
+        reason.Bind(SearchableSelect.ItemsSourceProperty, new Binding("SpoilageReasons"));
+        reason.Bind(SearchableSelect.SelectedItemProperty, new Binding("SpoilageReason"));
+        var count = new NumberField { Minimum = 1, Maximum = int.MaxValue, Increment = 1, FormatString = "0" };
+        count.Bind(NumberField.ValueProperty, new Binding("SpoilageCount"));
+        var notes = Input("SpoilageNotes", "Required when reason is Other");
+        var submit = new ActionButton("Record spoilage", ActionButtonVariant.Primary);
+        submit.Bind(Button.CommandProperty, new Binding("RecordSpoilageCommand"));
+        submit.VerticalAlignment = VerticalAlignment.Bottom;
+
+        var fields = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("1.4*,1*,0.8*,1.5*,0.65*,1*,1.5*,Auto"),
+            ColumnSpacing = 10,
+            Children =
+            {
+                Field("PRODUCT", product),
+                At(Field("UNIT", unit), 1),
+                At(Field("LOCATION", location), 2),
+                At(Field("ELIGIBLE LOT (PERISHABLE)", lot), 3),
+                At(Field("COUNT", count), 4),
+                At(Field("REASON", reason), 5),
+                At(Field("NOTES", notes), 6),
+                At(submit, 7)
+            }
+        };
+        return Card(new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                Heading("Record spoilage / breakage"),
+                Muted("Perishable products require an eligible unexpired lot. The server remains authoritative for stock and lot allocation."),
+                fields
+            }
+        });
     }
 
     private static Control HistorySection()
@@ -74,8 +132,9 @@ public sealed class ApiStockMovementsView : UserControl
         table.Columns.Add(Column("Product", item => item.ProductName, 1.35));
         table.Columns.Add(Column("Movement", item => item.MovementTypeDisplay, 1.15));
         table.Columns.Add(Column("Quantity", item => item.QuantityDisplay, 0.7, HorizontalAlignment.Right));
-            table.Columns.Add(Column("Stock update", item => item.ChangeDisplay, 1.2));
+        table.Columns.Add(Column("Stock update", item => item.ChangeDisplay, 1.2));
         table.Columns.Add(Column("Balances after", item => item.BalanceDisplay, 1.05));
+        table.Columns.Add(Column("Lot / reason", item => item.LotReasonDisplay, 1.05, wrapText: true));
         table.Columns.Add(Column("Reference / notes", item => item.ReferenceNotesDisplay, 1.25, wrapText: true));
         table.Columns.Add(Column("User", item => item.CreatedByName, 1.25));
 

@@ -101,4 +101,31 @@ public sealed class EyoyoBatchReceiveParserTests
         Assert.AreEqual(3, result.Records.Count);
         Assert.IsFalse(result.Issues.Any(issue => issue.Code == "conflictingSupplierLibraries"));
     }
+
+    [TestMethod]
+    public void ParsesOptionalLotAndStoreExpiryAndKeepsLotsDistinct()
+    {
+        var result = _parser.Parse(
+            "Supplier A\t0001\t2\tLOT-A\t2026-10-01 18:30\n" +
+            "Supplier A\t0001\t3\tLOT-B\t2026-10-01");
+
+        Assert.IsTrue(result.IsValid);
+        Assert.AreEqual(2, result.Aggregates.Count);
+        Assert.AreEqual("LOT-A", result.Records[0].LotCode);
+        Assert.AreEqual(new DateTimeOffset(2026, 10, 1, 10, 30, 0, TimeSpan.Zero), result.Records[0].ExpiresAtUtc);
+        Assert.AreEqual(new DateTimeOffset(2026, 10, 1, 15, 59, 59, TimeSpan.Zero).Date,
+            result.Records[1].ExpiresAtUtc!.Value.Date);
+    }
+
+    [TestMethod]
+    public void ParsesContinuousFiveColumnLotRecords()
+    {
+        var result = _parser.Parse(
+            "Supplier A\t0001\t2\tLOT-A\t2026-10-01 18:30\t" +
+            "Supplier A\t0001\t3\tLOT-B\t2026-10-02");
+
+        Assert.IsTrue(result.IsValid);
+        Assert.AreEqual(2, result.Records.Count);
+        CollectionAssert.AreEqual(new[] { "LOT-A", "LOT-B" }, result.Records.Select(record => record.LotCode).ToArray());
+    }
 }

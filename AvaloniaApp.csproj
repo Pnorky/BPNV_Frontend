@@ -26,6 +26,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
     <PackageReference Include="Lucide.Avalonia" Version="0.2.13" />
     <PackageReference Include="QuestPDF" Version="2026.7.2" />
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
   </ItemGroup>
 
   <ItemGroup>

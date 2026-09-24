@@ -25,6 +25,23 @@ public sealed class ProductEditViewModelTests
         Assert.AreEqual(packageId, package.Id);
         Assert.AreEqual("0024", package.Barcode);
         Assert.IsFalse(package.IsActive);
+        Assert.IsTrue(request.IsSellable);
+        Assert.IsFalse(request.IsPerishable);
+    }
+
+    [TestMethod]
+    public void SupplyRemainsNonSellableAndPerishableFlagIsPreserved()
+    {
+        var (viewModel, _) = CreateViewModel();
+        viewModel.IsSellable = true;
+        viewModel.IsPerishable = true;
+        viewModel.ItemType = ApiInventoryItemType.Supply;
+
+        Assert.IsFalse(viewModel.IsSellable);
+        Assert.IsFalse(viewModel.CanChooseSellable);
+        Assert.IsTrue(viewModel.TryBuildRequest(out var request, out var error), error);
+        Assert.IsFalse(request!.IsSellable);
+        Assert.IsTrue(request.IsPerishable);
     }
 
     [TestMethod]

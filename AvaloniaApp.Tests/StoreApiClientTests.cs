@@ -84,7 +84,7 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
-    public async Task ReceiveStockSerializesRegularPriceAndReceiptNumber()
+    public async Task ReceiveStockSerializesRegularPriceReceiptAndLotFields()
     {
         string? body = null;
         var (auth, _) = Client(request =>
@@ -96,13 +96,17 @@ public sealed class StoreApiClientTests
         });
         await auth.LoginAsync("inventory", "password");
 
+        var received = new DateTimeOffset(2026, 9, 24, 1, 30, 0, TimeSpan.Zero);
         await new StoreApiClient(auth).ReceiveStockAsync(new ReceiveStockRequest(
-            Guid.NewGuid(), Guid.NewGuid(), 2, 10m, 12m, 11m, "INV-001", "Delivery"));
+            Guid.NewGuid(), Guid.NewGuid(), 2, 10m, 12m, 11m, "INV-001", "Delivery",
+            "LOT-7", received, null, received.AddDays(2)));
 
         Assert.IsNotNull(body);
         StringAssert.Contains(body, "\"regularPrice\":12");
         Assert.IsFalse(body.Contains("\"sellingPrice\"", StringComparison.Ordinal));
         StringAssert.Contains(body, "\"reference\":\"INV-001\"");
+        StringAssert.Contains(body, "\"lotCode\":\"LOT-7\"");
+        StringAssert.Contains(body, "\"expiresAtUtc\":\"2026-09-26T01:30:00+00:00\"");
     }
 
     [TestMethod]
@@ -130,7 +134,7 @@ public sealed class StoreApiClientTests
         var update = new UpdateProductRequest(
             product.SupplierId, ApiInventoryItemType.Supply, "SKU-2", "0002", "Updated", "Supplies", "piece",
             12.5m, 15, 14, 2, 3, 5, 4, product.Version,
-            [new UpdateProductUnitRequest(packageId, "0012", "Case", 12, 170, 160, false)]);
+            [new UpdateProductUnitRequest(packageId, "0012", "Case", 12, 170, 160, false)], false, false);
 
         var updated = await client.UpdateProductAsync(product.Id, update);
         await client.DeactivateProductAsync(product.Id);
@@ -155,7 +159,53 @@ public sealed class StoreApiClientTests
         StringAssert.Contains(requests[0].Body!, "\"pieceBarcode\":\"0002\"");
         StringAssert.Contains(requests[0].Body!, "\"isActive\":false");
         StringAssert.Contains(requests[0].Body!, $"\"version\":{product.Version}");
+        StringAssert.Contains(requests[0].Body!, "\"isSellable\":false");
         StringAssert.Contains(requests[3].Query, "includeInactive=true");
+    }
+
+    [TestMethod]
+    public async Task BarcodeAndSpoilageEndpointsUseExactContracts()
+    {
+        var productId = Guid.NewGuid();
+        var unitId = Guid.NewGuid();
+        var lotId = Guid.NewGuid();
+        var requests = new List<(HttpMethod Method, Uri Uri, string? Body)>();
+        var label = new BarcodeLabelDataResponse(productId, unitId, "Milk", "piece", "SKU-1", "200000000001", 25m);
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            requests.Add((request.Method, request.RequestUri, request.Content?.ReadAsStringAsync().GetAwaiter().GetResult()));
+            if (request.RequestUri.AbsolutePath.EndsWith("/lots"))
+                return Json<IReadOnlyList<InventoryLotBalanceResponse>>([new(
+                    lotId, productId, unitId, "LOT-1", ApiInventoryStockLocation.Bodega, 5,
+                    DateTimeOffset.UtcNow, null, DateTimeOffset.UtcNow.AddDays(1), false, false)]);
+            if (request.RequestUri.AbsolutePath.EndsWith("/spoilage"))
+                return Json(new SpoilageResponse(Guid.NewGuid(), productId, unitId, lotId,
+                    ApiInventoryStockLocation.Bodega, 2, ApiSpoilageReason.Damaged, 0, 3, DateTimeOffset.UtcNow));
+            return Json(label);
+        });
+        await auth.LoginAsync("inventory", "password");
+        var client = new StoreApiClient(auth);
+
+        await client.GenerateProductBarcodeAsync(productId, unitId);
+        await client.ReplaceProductBarcodeAsync(productId, unitId);
+        await client.GetProductLabelDataAsync(productId, unitId);
+        await client.GetInventoryLotsAsync(productId, ApiInventoryStockLocation.Bodega);
+        await client.RecordSpoilageAsync(new RecordSpoilageRequest(
+            productId, unitId, ApiInventoryStockLocation.Bodega, lotId, 2, ApiSpoilageReason.Damaged, "Crushed"));
+
+        CollectionAssert.AreEqual(new[]
+        {
+            $"/api/products/{productId}/units/{unitId}/barcode/generate",
+            $"/api/products/{productId}/units/{unitId}/barcode/replace",
+            $"/api/products/{productId}/units/{unitId}/label-data",
+            "/api/stock-movements/lots",
+            "/api/stock-movements/spoilage"
+        }, requests.Select(item => item.Uri.AbsolutePath).ToArray());
+        StringAssert.Contains(requests[1].Body!, "\"confirmed\":true");
+        StringAssert.Contains(requests[3].Uri.Query, "includeExpired=false");
+        StringAssert.Contains(requests[4].Body!, "\"reason\":\"Damaged\"");
+        StringAssert.Contains(requests[4].Body!, $"\"lotId\":\"{lotId}\"");
     }
 
     [TestMethod]
@@ -306,7 +356,7 @@ public sealed class StoreApiClientTests
         Assert.IsTrue(bodies.All(body => body.Contains("\"idempotencyKey\":\"22222222-2222-2222-2222-222222222222\"")));
         Assert.IsTrue(bodies.All(body => body.Contains("\"reference\":\"DR-1\"")));
         Assert.IsTrue(bodies.All(body => body.Contains("\"notes\":\"Delivery\"")));
-        Assert.IsTrue(bodies.All(body => body.Contains("\"records\":[{\"sourceRecord\":1,\"supplierLibrary\":\"Supplier A\",\"barcode\":\"0000123\",\"unitQuantity\":2}")));
+        Assert.IsTrue(bodies.All(body => body.Contains("\"records\":[{\"sourceRecord\":1,\"supplierLibrary\":\"Supplier A\",\"barcode\":\"0000123\",\"unitQuantity\":2")));
     }
 
     [TestMethod]

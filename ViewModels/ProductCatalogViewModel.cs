@@ -88,6 +88,19 @@ public partial class ProductCatalogViewModel : ObservableObject
             var request = await dialog.ShowDialog<UpdateProductRequest?>(owner);
             if (request is null) return;
 
+            if (request.IsSellable.HasValue && request.IsSellable.Value != product.IsSellable)
+            {
+                var confirmation = new ConfirmDialog();
+                confirmation.SetConfirmation(
+                    "Change POS availability?",
+                    request.IsSellable.Value
+                        ? $"Make {product.Name} sellable and visible in POS?"
+                        : $"Make {product.Name} internal-only and remove it from POS? Existing stock and history are preserved.",
+                    "Change availability");
+                await confirmation.ShowDialog(owner);
+                if (!confirmation.Confirmed) return;
+            }
+
             IsBusy = true;
             StatusMessage = $"Updating {product.Name}...";
             var updated = await _api.UpdateProductAsync(product.Id, request);
@@ -104,6 +117,15 @@ public partial class ProductCatalogViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task LabelsAsync(ProductResponse? product)
+    {
+        if (product is null || !product.IsActive || IsBusy) return;
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner }) return;
+        await new ProductLabelDialog(new ProductLabelViewModel(product, _api, _notifications)).ShowDialog(owner);
+        await LoadAsync();
     }
 
     [RelayCommand]

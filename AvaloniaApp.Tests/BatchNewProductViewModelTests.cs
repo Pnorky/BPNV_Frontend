@@ -23,6 +23,8 @@ public sealed class BatchNewProductViewModelTests
         Assert.AreEqual("000123", request.PieceBarcode);
         Assert.AreEqual(supplier.Id, request.SupplierId);
         Assert.AreEqual("Peanuts", request.Name);
+        Assert.IsTrue(request.IsSellable);
+        Assert.IsFalse(request.IsPerishable);
     }
 
     [TestMethod]

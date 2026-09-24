@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
@@ -49,7 +50,7 @@ public class AddProductView : UserControl
         var primary = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("1.2*,1.2*,1.2*,1.2*"),
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
             ColumnSpacing = 12,
             RowSpacing = 12,
             Children =
@@ -62,11 +63,30 @@ public class AddProductView : UserControl
                 At(Field("BASE UNIT LABEL", InputBox("Unit", "piece")), column: 2, row: 1),
                 At(Field("PURCHASE PRICE / PIECE", Number("CostPrice", "0.00")), column: 3, row: 1),
                 At(Field("SELLING PRICE", Number("RegularPrice", "0.00")), row: 2),
-                At(Field("EMPLOYEE PRICE (0 = SELLING)", Number("EmployeePrice", "0.00")), column: 1, row: 2)
+                At(Field("EMPLOYEE PRICE (0 = SELLING)", Number("EmployeePrice", "0.00")), column: 1, row: 2),
+                At(ProductFlags(), row: 3)
             }
         };
+        Grid.SetColumnSpan(primary.Children[^1], 4);
 
         return new StackPanel { Spacing = 16, Children = { Heading("Required product details"), primary } };
+    }
+
+    private static Control ProductFlags()
+    {
+        var sellable = new SelectionCheckbox("Available for sale");
+        sellable.Bind(ToggleButton.IsCheckedProperty, new Binding("IsSellable") { Mode = BindingMode.TwoWay });
+        sellable.Bind(InputElement.IsEnabledProperty, new Binding("CanChooseSellable"));
+        var perishable = new SelectionCheckbox("Track expiry dates");
+        perishable.Bind(ToggleButton.IsCheckedProperty, new Binding("IsPerishable") { Mode = BindingMode.TwoWay });
+        var hint = Muted("Choose this for products customers can buy. Track expiry dates for food and drinks that can spoil.");
+        hint.VerticalAlignment = VerticalAlignment.Center;
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 20,
+            Children = { sellable, perishable, hint }
+        };
     }
 
     private static Control ReorderSection()

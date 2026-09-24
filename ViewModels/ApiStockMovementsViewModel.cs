@@ -1,4 +1,7 @@
 using AvaloniaApp.Services;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using AvaloniaApp.Views.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -10,6 +13,11 @@ public sealed record MovementTypeFilter(string Label, string? Value)
 }
 
 public sealed record MovementSortOption(string Label, string SortBy, bool Descending)
+{
+    public override string ToString() => Label;
+}
+
+public sealed record StockLocationOption(string Label, ApiInventoryStockLocation Value)
 {
     public override string ToString() => Label;
 }
@@ -41,6 +49,16 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     [ObservableProperty] private bool _isHistoryLoading;
     [ObservableProperty] private bool _isHistoryFiltered;
     [ObservableProperty] private string? _historyError;
+    [ObservableProperty] private ProductResponse? _spoilageProduct;
+    [ObservableProperty] private ProductUnitResponse? _spoilageUnit;
+    [ObservableProperty] private StockLocationOption? _spoilageLocation;
+    [ObservableProperty] private InventoryLotBalanceResponse? _spoilageLot;
+    [ObservableProperty] private int _spoilageCount = 1;
+    [ObservableProperty] private ApiSpoilageReason _spoilageReason = ApiSpoilageReason.Expired;
+    [ObservableProperty] private string _spoilageNotes = "";
+    [ObservableProperty] private IReadOnlyList<ProductUnitResponse> _spoilageUnits = [];
+    [ObservableProperty] private IReadOnlyList<InventoryLotBalanceResponse> _spoilageLots = [];
+    [ObservableProperty] private bool _isLoadingLots;
 
     public IReadOnlyList<MovementTypeFilter> MovementTypes { get; } =
     [
@@ -69,6 +87,14 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         new("Movement A-Z", "movementType", false),
         new("Movement Z-A", "movementType", true)
     ];
+    public IReadOnlyList<StockLocationOption> StockLocations { get; } =
+    [
+        new("Display", ApiInventoryStockLocation.Display),
+        new("Bodega", ApiInventoryStockLocation.Bodega)
+    ];
+    public IReadOnlyList<ApiSpoilageReason> SpoilageReasons { get; } = Enum.GetValues<ApiSpoilageReason>();
+    public bool SpoilageProductIsPerishable => SpoilageProduct?.IsPerishable == true;
+    public bool RequiresSpoilageNotes => SpoilageReason == ApiSpoilageReason.Other;
 
     public ApiStockMovementsViewModel(StoreApiClient api, INotificationService notifications)
     {
@@ -76,6 +102,7 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         _notifications = notifications;
         _selectedMovementType = MovementTypes[0];
         _selectedMovementSort = MovementSortOptions[0];
+        _spoilageLocation = StockLocations[0];
         _ = LoadAsync();
         _ = LoadHistoryAsync();
     }
@@ -90,6 +117,8 @@ public partial class ApiStockMovementsViewModel : ObservableObject
             var page = await _api.GetProductsAsync(page: 1, pageSize: 200);
             _allProducts = page.Items;
             ApplyFilter();
+            if (SpoilageProduct is not null)
+                SpoilageProduct = _allProducts.FirstOrDefault(product => product.Id == SpoilageProduct.Id);
             StatusMessage = $"Loaded {_allProducts.Count} products from the database.";
         }
         catch (Exception exception) when (exception is ApiClientException or HttpRequestException or TaskCanceledException)
@@ -120,6 +149,93 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     }
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
+    partial void OnSpoilageProductChanged(ProductResponse? value)
+    {
+        SpoilageUnits = value?.Units.Where(unit => unit.IsActive).ToArray() ?? [];
+        SpoilageUnit = SpoilageUnits.FirstOrDefault(unit => unit.IsBasePiece) ?? SpoilageUnits.FirstOrDefault();
+        SpoilageLot = null;
+        SpoilageLots = [];
+        OnPropertyChanged(nameof(SpoilageProductIsPerishable));
+        _ = LoadSpoilageLotsAsync();
+    }
+    partial void OnSpoilageLocationChanged(StockLocationOption? value) => _ = LoadSpoilageLotsAsync();
+    partial void OnSpoilageReasonChanged(ApiSpoilageReason value) => OnPropertyChanged(nameof(RequiresSpoilageNotes));
+
+    [RelayCommand]
+    private async Task LoadSpoilageLotsAsync()
+    {
+        if (SpoilageProduct?.IsPerishable != true || SpoilageLocation is null)
+        {
+            SpoilageLots = [];
+            SpoilageLot = null;
+            return;
+        }
+
+        IsLoadingLots = true;
+        try
+        {
+            SpoilageLots = await _api.GetInventoryLotsAsync(
+                SpoilageProduct.Id, SpoilageLocation.Value, includeExpired: false);
+            SpoilageLot = SpoilageLots.FirstOrDefault();
+        }
+        catch (Exception exception) when (exception is ApiClientException or HttpRequestException or TaskCanceledException)
+        {
+            SpoilageLots = [];
+            SpoilageLot = null;
+            ShowError("Lots could not be loaded", FailureMessage(exception));
+        }
+        finally { IsLoadingLots = false; }
+    }
+
+    [RelayCommand]
+    private async Task RecordSpoilageAsync()
+    {
+        if (IsBusy) return;
+        if (SpoilageProduct is null || SpoilageUnit is null || SpoilageLocation is null || SpoilageCount <= 0)
+        {
+            ShowError("Spoilage could not be recorded", "Select a product, unit, location, and quantity greater than zero.");
+            return;
+        }
+        if (SpoilageProduct.IsPerishable && SpoilageLot is null)
+        {
+            ShowError("Spoilage could not be recorded", "Select an eligible unexpired lot for this perishable product.");
+            return;
+        }
+        if (RequiresSpoilageNotes && string.IsNullOrWhiteSpace(SpoilageNotes))
+        {
+            ShowError("Spoilage could not be recorded", "Notes are required when the reason is Other.");
+            return;
+        }
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner }) return;
+        var confirmation = new ConfirmDialog();
+        confirmation.SetConfirmation(
+            "Record spoilage?",
+            $"Remove {SpoilageCount:N0} {SpoilageUnit.Label} of {SpoilageProduct.Name} from {SpoilageLocation.Label} as {SpoilageReason}? This cannot be undone.",
+            "Record spoilage");
+        await confirmation.ShowDialog(owner);
+        if (!confirmation.Confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            var result = await _api.RecordSpoilageAsync(new RecordSpoilageRequest(
+                SpoilageProduct.Id, SpoilageUnit.Id, SpoilageLocation.Value, SpoilageLot?.LotId,
+                SpoilageCount, SpoilageReason, NullIfWhiteSpace(SpoilageNotes)));
+            IsBusy = false;
+            await LoadAsync();
+            await LoadHistoryAsync();
+            await LoadSpoilageLotsAsync();
+            SpoilageCount = 1;
+            SpoilageNotes = "";
+            StatusMessage = $"Recorded {result.BasePieceQuantity:N0} spoiled base pieces from {result.Location}.";
+            _notifications.ShowSuccess("Spoilage recorded", StatusMessage);
+        }
+        catch (Exception exception) when (exception is ApiClientException or HttpRequestException or TaskCanceledException)
+        {
+            ShowError("Spoilage could not be recorded", FailureMessage(exception));
+        }
+        finally { IsBusy = false; }
+    }
 
     [RelayCommand]
     public async Task LoadHistoryAsync()

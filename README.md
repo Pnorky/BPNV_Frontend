@@ -36,9 +36,11 @@ The system deliberately keeps two inventory locations:
 
 The Products page separates inventory into three tabs:
 
-- **Merchandise**: sellable and visible in POS.
-- **Consumables**: internally consumed items such as cups, lids, and filters; excluded from POS.
-- **Supplies**: operational supplies; excluded from POS.
+- **Merchandise**: sellable by default and visible in POS.
+- **Consumables**: internal by default, but an operator may mark individual products sellable.
+- **Supplies**: operational supplies and always excluded from POS.
+
+Products may also be marked perishable. Perishable receipts require an expiry/discard time and are tracked by backend inventory lots. POS continues to submit only product units and counts; the backend selects eligible unexpired lots and remains authoritative for conflicts.
 
 Excel terminology is generalized into stock movements rather than duplicated as daily worksheet columns.
 
@@ -76,7 +78,11 @@ Product catalog, registration, stock receiving, and New Sale use the authenticat
 
 New products start with zero stock. Use **Receive Stock** to scan a piece or package barcode and receive the converted piece quantity into Bodega. Package prices are suggested from the piece price and remain editable.
 
+The product catalog can generate or replace unit barcodes and export printable Code 128 PDF labels. Barcode replacement requires confirmation. Labels include the product, unit, SKU, human-readable barcode, and selling price.
+
 SKU, category, and unit are required. Merchandise requires a piece barcode; Consumables and Supplies may leave it blank. Barcode values are stored as text so leading zeroes are preserved.
+
+Single receiving captures lot code, Philippine received/prepared and optional production timestamps, plus required expiry/discard date and time for perishable products. Batch receiving accepts optional fourth and fifth tab-separated columns for lot code and Philippine expiry (`yyyy-MM-dd` or `yyyy-MM-dd HH:mm`); different lot/expiry combinations remain distinct backend records.
 
 ## Persistence
 
