@@ -199,6 +199,8 @@ public sealed class SearchableSelect : Grid
     {
         if (_updatingSelection || _list.SelectedItem is null) return;
         SetCurrentValue(SelectedItemProperty, _list.SelectedItem);
+        UpdateSelectedContent();
+        _search.Text = string.Empty;
         _popup.IsOpen = false;
     }
 

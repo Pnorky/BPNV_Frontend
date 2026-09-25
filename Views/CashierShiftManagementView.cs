@@ -28,6 +28,7 @@ public sealed class CashierShiftManagementView : UserControl
                 new TabItem { Header = "Daily replacements", Content = Scroll(ReplacementsSection()) }
             }
         };
+        foreach (var tab in tabs.Items.OfType<TabItem>()) tab.FontSize = 18;
         tabs.Bind(TabControl.SelectedIndexProperty, new Binding("SelectedTabIndex") { Mode = BindingMode.TwoWay });
 
         Content = new Grid
@@ -51,15 +52,15 @@ public sealed class CashierShiftManagementView : UserControl
 
         var refresh = Button("Refresh", ActionButtonVariant.Secondary, "Definitions.LoadCommand");
         var create = Button("New shift", ActionButtonVariant.Primary, "Definitions.NewDefinitionCommand");
-        var header = SectionHeader("Shift definitions", "Store-local operating windows. An end time at or before the start ends on the next day.", refresh, create);
+        var header = Actions(refresh, create);
 
         return new StackPanel
         {
             Spacing = 14,
             Children =
             {
-                header,
                 Status("Definitions.StatusMessage"),
+                header,
                 TwoColumn(
                     Card(new StackPanel
                     {
@@ -149,9 +150,7 @@ public sealed class CashierShiftManagementView : UserControl
             ItemTemplate = new FuncDataTemplate<CashierShiftScheduleResponse>((schedule, _) => ScheduleRow(schedule), true)
         };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding("Schedules.Items"));
-        var header = SectionHeader(
-            "Recurring schedules",
-            "Assign active Cashier-role users by weekday and effective date. The API remains authoritative for overlap conflicts.",
+        var header = Actions(
             Button("Refresh", ActionButtonVariant.Secondary, "Schedules.LoadCommand"),
             Button("New schedule", ActionButtonVariant.Primary, "Schedules.NewScheduleCommand"));
         return new StackPanel
@@ -159,8 +158,8 @@ public sealed class CashierShiftManagementView : UserControl
             Spacing = 14,
             Children =
             {
-                header,
                 Status("Schedules.StatusMessage"),
+                header,
                 TwoColumn(
                     Card(new StackPanel { Spacing = 12, Children = { Heading("Weekly assignments", "h2"), list } }),
                     ScheduleEditor())
@@ -300,9 +299,8 @@ public sealed class CashierShiftManagementView : UserControl
             Spacing = 14,
             Children =
             {
-                SectionHeader("Date-specific replacements", "Review the server-resolved daily schedule and replace an assignment before its session starts."),
-                dateBar,
                 Status("Replacements.StatusMessage"),
+                dateBar,
                 TwoColumn(
                     Card(new StackPanel { Spacing = 12, Children = { BoundHeading("Replacements.SelectedDateDisplay"), list } }),
                     ReplacementEditor())
@@ -446,6 +444,18 @@ public sealed class CashierShiftManagementView : UserControl
         return new StackPanel { Spacing = 8, Children = { save, cancel } };
     }
 
+    private static StackPanel Actions(params Control[] controls)
+    {
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 8
+        };
+        foreach (var control in controls) panel.Children.Add(control);
+        return panel;
+    }
+
     private static Border Status(string path)
     {
         var text = BoundText(path);
@@ -550,7 +560,7 @@ public sealed class CashierShiftManagementView : UserControl
     private static ScrollViewer Scroll(Control content) => new()
     {
         HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-        Content = new Border { Padding = new Thickness(0, 16, 0, 0), Child = content }
+        Content = new Border { Padding = new Thickness(0, 16, 20, 16), Child = content }
     };
 
     private static CashierShiftManagementViewModel? FindViewModel(Control control) =>

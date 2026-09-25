@@ -48,7 +48,7 @@ public class ReportsView : UserControl
         var orders = new TabItem { Header = "Order Summary", Content = Scroll(BuildOrders()) };
         var accountability = new TabItem { Header = "Sales Accountability", Content = BuildSalesAccountability() };
         foreach (var tab in new[] { sales, employee, remittance, inventory, orders, accountability })
-            tab.FontSize = 16;
+            tab.FontSize = 18;
         foreach (var tab in new[] { sales, employee, remittance, inventory, orders })
             tab.Bind(Visual.IsVisibleProperty, new Binding("CanViewStandardReports"));
 
@@ -372,21 +372,29 @@ public class ReportsView : UserControl
     {
         var content = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 14, Margin = new Thickness(10, 28, 10, 12) };
         content.Children.Add(Stats(4,
-            ("SESSIONS", "Snapshot.CashierShifts.Summary.Sessions"),
-            ("CASH SALES", "Snapshot.CashierShifts.Summary.CashSales"),
-            ("EXPECTED", "Snapshot.CashierShifts.Summary.ExpectedRemittance"),
-            ("VARIANCE", "Snapshot.CashierShifts.Summary.Variance")));
+            ("SHIFT SESSIONS", "Snapshot.CashierShifts.Summary.Sessions"),
+            ("CASH COLLECTED", "Snapshot.CashierShifts.Summary.CashSales"),
+            ("EXPECTED CASH", "Snapshot.CashierShifts.Summary.ExpectedRemittance"),
+            ("REMITTANCE DIFFERENCE", "Snapshot.CashierShifts.Summary.Variance")));
 
-        var table = new PagedTable { ItemName = "cashier session", ItemNamePlural = "cashier sessions", PageSize = 12, MinHeight = 0, MinTableWidth = 1250, IsSelectable = false };
+        var table = new PagedTable { ItemName = "cashier session", ItemNamePlural = "cashier sessions", PageSize = 12, MinHeight = 0, MinTableWidth = 2200, IsSelectable = false };
         Bind(table, PagedTable.ItemsSourceProperty, "Snapshot.CashierShifts.Sessions");
-        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("DATE", row => row.BusinessDate.ToString("yyyy-MM-dd"), new GridLength(0.8, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("DATE", row => row.BusinessDate.ToString("MMMM d, yyyy"), new GridLength(2.0, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("CASHIER", row => row.CashierName, new GridLength(1.3, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("SHIFT", row => row.ShiftName, new GridLength(1.1, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("STATUS", row => row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString(), new GridLength(1.2, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("SALES", row => CashierShiftFormatting.Money(row.TotalSales), new GridLength(1, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("EXPECTED", row => CashierShiftFormatting.Money(row.ExpectedRemittance), new GridLength(1, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("ACTUAL", row => CashierShiftFormatting.Money(row.ActualRemittance), new GridLength(1, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("DIFFERENCE", row => CashierShiftFormatting.SignedMoney(row.Variance), new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("REMITTANCE DIFFERENCE", row => CashierShiftFormatting.SignedMoney(row.Variance), new GridLength(1.3, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("STARTING CASH", row => CashierShiftFormatting.Money(row.OpeningCashFloat), new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("CASH REFUNDS", row => CashierShiftFormatting.Money(row.CashRefunds), new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("CASH PAYOUTS", row => CashierShiftFormatting.Money(row.CashPayouts), new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("SALES COUNT", row => (row.TransactionCount ?? 0).ToString(), new GridLength(0.9, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("CLOCK IN", row => StoreDateTime.ToStoreTimeFromUtc(row.ClockedInAtUtc).ToString("h:mm tt"), new GridLength(0.9, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("CLOCK OUT", row => row.ClockedOutAtUtc is { } value ? StoreDateTime.ToStoreTimeFromUtc(value).ToString("h:mm tt") : "-", new GridLength(0.9, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("SHIFT LENGTH", row => row.WorkedMinutes is { } minutes ? $"{minutes / 60}h {minutes % 60}m" : "-", new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("CASH RETURNED", row => row.CashFloatReturned == true ? "Yes" : "No", new GridLength(1.2, GridUnitType.Star)));
         content.Children.Add(At(table, row: 1));
         return content;
     }
@@ -413,7 +421,7 @@ public class ReportsView : UserControl
                     ColumnSpacing = 12,
                     Children =
                     {
-                        SemiBold("ProductName"), At(BoundText("Sku"), column: 1), At(BoundText("TotalStock"), column: 2),
+                        SemiBold("ProductName"), At(BoundText("Sku"), column: 1), At(BoundText("BodegaStock"), column: 2),
                         At(BoundText("ReorderTier"), column: 3), At(BoundText("CriticalReorderLevel"), column: 4),
                         At(BoundText("WarningReorderLevel"), column: 5), At(order, column: 6)
                     }

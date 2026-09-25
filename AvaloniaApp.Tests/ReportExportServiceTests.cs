@@ -80,6 +80,24 @@ public sealed class ReportExportServiceTests
         CollectionAssert.AreEqual("%PDF"u8.ToArray(), output.ToArray()[..4]);
     }
 
+    [TestMethod]
+    public void SalesAccountabilityExcelSupportsMultipleDates()
+    {
+        using var output = new MemoryStream();
+        var report = AccountabilityReport() with
+        {
+            ToDateExclusive = new DateOnly(2026, 8, 29),
+            Dates = [new DateOnly(2026, 8, 27), new DateOnly(2026, 8, 28)]
+        };
+
+        ReportExportService.ExportSalesAccountabilityExcel(report, output);
+
+        output.Position = 0;
+        using var workbook = new XLWorkbook(output);
+        Assert.IsNotNull(workbook.Worksheet("Aug 27-Aug 28"));
+        Assert.AreEqual("Aug 27, 2026", workbook.Worksheet("Aug 27-Aug 28").Cell("B4").GetDateTime().ToString("MMM d, yyyy"));
+    }
+
     private static SalesAccountabilityReportResponse AccountabilityReport()
     {
         var date = new DateOnly(2026, 8, 27);

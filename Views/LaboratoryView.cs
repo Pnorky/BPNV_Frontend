@@ -38,6 +38,7 @@ public class LaboratoryView : UserControl
         var tabs = new TabControl();
         tabs.Items.Add(new TabItem { Header = "Pending Orders", Content = pending });
         tabs.Items.Add(new TabItem { Header = "Completed Results", Content = completed });
+        foreach (var tab in tabs.Items.OfType<TabItem>()) tab.FontSize = 18;
         Grid.SetRow(tabs, 1);
         var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), Margin = new Thickness(30) };
         root.Children.Add(ViewCode.Heading("Laboratory"));

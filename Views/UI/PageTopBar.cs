@@ -320,33 +320,42 @@ public sealed class PageTopBar : UserControl
 
     private static Control ReportFilters()
     {
-        var dates = new DateRangePicker { PlaceholderText = "Report date range" };
-        Bind(dates, DateRangePicker.StartDateProperty, "FromDate");
-        Bind(dates, DateRangePicker.EndDateProperty, "ToDate");
-        Bind(dates, Visual.IsVisibleProperty, "IsDateFilteredReportTab");
+        var salesDates = new DateRangePicker { PlaceholderText = "Report date range" };
+        Bind(salesDates, DateRangePicker.StartDateProperty, "FromDate");
+        Bind(salesDates, DateRangePicker.EndDateProperty, "ToDate");
+        var cashierDates = new DateRangePicker { PlaceholderText = "Report date range" };
+        Bind(cashierDates, DateRangePicker.StartDateProperty, "FromDate");
+        Bind(cashierDates, DateRangePicker.EndDateProperty, "ToDate");
         var type = new SelectDropdown();
         Bind(type, SelectDropdown.ItemsSourceProperty, "CustomerTypeOptions");
         Bind(type, SelectDropdown.SelectedItemProperty, "SelectedCustomerType");
         Bind(type, Visual.IsVisibleProperty, "IsSalesReportTab");
         var employee = new SearchableSelect { PlaceholderText = "All employees" };
         Bind(employee, SearchableSelect.ItemsSourceProperty, "Employees");
-        Bind(employee, SearchableSelect.SelectedItemProperty, "SelectedEmployee");
+        employee.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedEmployee") { Mode = BindingMode.TwoWay });
         Bind(employee, Visual.IsVisibleProperty, "IsEmployeePurchasesTab");
         var cashier = new SearchableSelect { PlaceholderText = "All cashiers" };
         Bind(cashier, SearchableSelect.ItemsSourceProperty, "Cashiers");
-        Bind(cashier, SearchableSelect.SelectedItemProperty, "SelectedCashier");
+        cashier.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedCashier") { Mode = BindingMode.TwoWay });
         cashier.SearchTextSelector = item => item is UserResponse user ? user.DisplayName : item?.ToString() ?? "";
-        cashier.ItemTemplate = new FuncDataTemplate<UserResponse>((user, _) => new TextBlock { Text = user?.DisplayName ?? "" }, true);
+        cashier.ItemTemplate = new FuncDataTemplate<UserResponse>((_, _) => BoundText(nameof(UserResponse.DisplayName)), true);
         Bind(cashier, Visual.IsVisibleProperty, "ShowsCashierFilter");
-        var dateField = Field("DATE RANGE", dates);
-        Bind(dateField, Visual.IsVisibleProperty, "IsDateFilteredReportTab");
-        var typeField = Field("SALES TYPE", type); Grid.SetColumn(typeField, 1);
+        var salesDateField = Field("DATE RANGE", salesDates);
+        Grid.SetColumnSpan(salesDateField, 2);
+        Bind(salesDateField, Visual.IsVisibleProperty, "ShowsStandardDateFilter");
+        var cashierDateField = Field("DATE RANGE", cashierDates);
+        Grid.SetColumnSpan(cashierDateField, 2);
+        Bind(cashierDateField, Visual.IsVisibleProperty, "ShowsCashierFilter");
+        var typeField = Field("SALES TYPE", type); Grid.SetColumnSpan(typeField, 2); Grid.SetRow(typeField, 1);
         var employeeField = Field("EMPLOYEE", employee); Grid.SetColumnSpan(employeeField, 2); Grid.SetRow(employeeField, 1);
         var cashierField = Field("CASHIER", cashier); Grid.SetColumnSpan(cashierField, 2); Grid.SetRow(cashierField, 1);
         Bind(typeField, Visual.IsVisibleProperty, "IsSalesReportTab");
         Bind(employeeField, Visual.IsVisibleProperty, "IsEmployeePurchasesTab");
         Bind(cashierField, Visual.IsVisibleProperty, "ShowsCashierFilter");
-        var actions = Buttons(Button("Apply filters", "RefreshCommand", ActionButtonVariant.Primary), Button("Clear employee", "ClearEmployeeFilterCommand", ActionButtonVariant.Secondary));
+        // Employee and cashier filters occupy the full second row, matching the date-range layout.
+        employeeField.MinWidth = 0;
+        cashierField.MinWidth = 0;
+        var actions = Buttons(Button("Apply filters", "RefreshCommand", ActionButtonVariant.Primary), Button("Clear filters", "ClearReportFiltersCommand", ActionButtonVariant.Secondary));
         actions.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumnSpan(actions, 2); Grid.SetRow(actions, 2);
         return FilterPanel(new Grid
         {
@@ -354,7 +363,7 @@ public sealed class PageTopBar : UserControl
             RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
             ColumnSpacing = 12,
             RowSpacing = 12,
-            Children = { dateField, typeField, employeeField, cashierField, actions }
+            Children = { salesDateField, cashierDateField, typeField, employeeField, cashierField, actions }
         });
     }
 

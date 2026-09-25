@@ -36,8 +36,8 @@ public partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "Loading reports...";
     [ObservableProperty] private string? _errorMessage;
     [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private DateTimeOffset? _fromDate;
-    [ObservableProperty] private DateTimeOffset? _toDate;
+    [ObservableProperty] private DateTimeOffset? _fromDate = StoreDateTime.AtStoreMidnight(StoreDateTime.StoreToday);
+    [ObservableProperty] private DateTimeOffset? _toDate = StoreDateTime.AtStoreMidnight(StoreDateTime.StoreToday);
     [ObservableProperty] private string _selectedCustomerType = "All sales";
     [ObservableProperty] private int _selectedReportTabIndex;
     [ObservableProperty] private SalesAccountabilityReportResponse? _salesAccountability;
@@ -55,6 +55,7 @@ public partial class ReportsViewModel : ObservableObject
                                  _session.HasRole("Admin") == false && _session.HasRole("Inventory") == false;
     public bool CanSelectAccountabilityCashier => _session?.HasRole("Admin") == true;
     public bool ShowsCashierFilter => IsCashierRemittanceTab || IsSalesAccountabilityTab && CanSelectAccountabilityCashier;
+    public bool ShowsStandardDateFilter => IsDateFilteredReportTab && !IsCashierRemittanceTab && !IsSalesAccountabilityTab;
     public bool HasOtherReportCategories => SalesAccountability?.OtherAssignedProductCount > 0;
     public bool IsDateFilteredReportTab => IsSalesReportTab || IsEmployeePurchasesTab || IsCashierRemittanceTab || IsSalesAccountabilityTab;
     public bool HasReportFilters => IsDateFilteredReportTab;
@@ -87,8 +88,6 @@ public partial class ReportsViewModel : ObservableObject
         _ = RefreshAsync();
     }
 
-    partial void OnSelectedCashierChanged(UserResponse? value) => _ = RefreshAsync();
-
     partial void OnSelectedReportTabIndexChanged(int value)
     {
         OnPropertyChanged(nameof(IsSalesReportTab));
@@ -99,11 +98,23 @@ public partial class ReportsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSalesAccountabilityTab));
         OnPropertyChanged(nameof(ShowsCashierFilter));
         OnPropertyChanged(nameof(IsDateFilteredReportTab));
+        OnPropertyChanged(nameof(ShowsStandardDateFilter));
         OnPropertyChanged(nameof(HasReportFilters));
     }
 
     [RelayCommand]
     private void ClearEmployeeFilter() => SelectedEmployee = null;
+
+    [RelayCommand]
+    private async Task ClearReportFilters()
+    {
+        FromDate = StoreDateTime.AtStoreMidnight(StoreDateTime.StoreToday);
+        ToDate = StoreDateTime.AtStoreMidnight(StoreDateTime.StoreToday);
+        SelectedCustomerType = "All sales";
+        SelectedEmployee = null;
+        SelectedCashier = null;
+        await RefreshAsync();
+    }
 
     [RelayCommand]
     public async Task RefreshAsync()
@@ -167,6 +178,7 @@ public partial class ReportsViewModel : ObservableObject
             EmployeePurchaseLines = Snapshot.EmployeePurchases!.Lines;
             Employees = (await employeesTask).OrderBy(employee => employee.Name).ToArray();
             Cashiers = cashierUsers.Where(user => user.Roles.Contains("Cashier", StringComparer.OrdinalIgnoreCase))
+                .DistinctBy(user => user.Id)
                 .OrderBy(user => user.DisplayName).ToArray();
             StatusMessage = "Reports are up to date.";
             NotifySummaryChanged();
@@ -295,9 +307,11 @@ public partial class ReportsViewModel : ObservableObject
             5 => "sales-accountability",
             _ => "sales-summary"
         };
-        var datePart = FromDate is null && ToDate is null
-            ? "all-dates"
-            : $"{FromDate?.ToString("yyyy-MM-dd") ?? "start"}-to-{ToDate?.ToString("yyyy-MM-dd") ?? "today"}";
+        var datePart = SelectedReportTabIndex is 3 or 4
+            ? null
+            : FromDate is null && ToDate is null
+                ? "all-dates"
+                : $"{FromDate?.ToString("yyyy-MM-dd") ?? "start"}-to-{ToDate?.ToString("yyyy-MM-dd") ?? "today"}";
         var filterPart = SelectedReportTabIndex switch
         {
             0 => SelectedCustomerType == "All sales" ? "all-sales" : SelectedCustomerType.ToLowerInvariant(),
@@ -305,7 +319,9 @@ public partial class ReportsViewModel : ObservableObject
             2 => SelectedCashier?.DisplayName is { Length: > 0 } cashier ? cashier : "all-cashiers",
             _ => "all"
         };
-        var fileName = $"BPNV-{reportName}-{datePart}-{filterPart}";
+        var fileName = datePart is null
+            ? $"BPNV-{reportName}-{filterPart}"
+            : $"BPNV-{reportName}-{datePart}-{filterPart}";
         foreach (var character in Path.GetInvalidFileNameChars()) fileName = fileName.Replace(character, '-');
         return $"{fileName}.{extension}";
     }

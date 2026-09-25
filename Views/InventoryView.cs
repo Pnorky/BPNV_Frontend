@@ -121,6 +121,7 @@ public class InventoryView : UserControl
                 new TabItem { Header = "Stock movements", Content = BuildMovements() }
             }
         };
+        foreach (var tab in tabs.Items.OfType<TabItem>()) tab.FontSize = 18;
         Bind(tabs, TabControl.SelectedIndexProperty, "SelectedSectionIndex", BindingMode.OneWay);
         tabs.Styles.Add(new Style(x => x.OfType<TabControl>().Template().OfType<ItemsPresenter>().Name("PART_ItemsPresenter"))
         {
@@ -139,7 +140,7 @@ public class InventoryView : UserControl
         };
         grid.Children.Add(Card(BuildProductExpander(), new Thickness(18)));
 
-        var strip = new TabStrip { HorizontalAlignment = HorizontalAlignment.Left };
+        var strip = new TabStrip { HorizontalAlignment = HorizontalAlignment.Left, FontSize = 18 };
         Bind(strip, TabStrip.ItemsSourceProperty, "ProductTypes");
         Bind(strip, TabStrip.SelectedItemProperty, "SelectedProductType");
         grid.Children.Add(At(strip, row: 1));

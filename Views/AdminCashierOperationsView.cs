@@ -31,6 +31,7 @@ public sealed class AdminCashierOperationsView : UserControl
                 new TabItem { Header = "Transactions", Content = Scroll(TransactionsSection()) }
             }
         };
+        foreach (var tab in tabs.Items.OfType<TabItem>()) tab.FontSize = 18;
 
         Content = new Grid
         {
