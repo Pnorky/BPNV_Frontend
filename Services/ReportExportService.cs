@@ -314,14 +314,19 @@ public static class ReportExportService
                 CreateOrdersSheet(workbook, report.Orders);
                 if (report.EmployeePurchases is not null) CreateEmployeePurchasesSheet(workbook, report.EmployeePurchases);
                 if (report.CashierShifts is not null) CreateCashierRemittanceSheet(workbook, report.CashierShifts);
-                if (report.SalesAccountability is not null) CreateSalesAccountabilitySheet(workbook, report.SalesAccountability);
+                if (report.SalesAccountability is not null)
+                    foreach (var dates in report.SalesAccountability.Dates.Chunk(7))
+                        CreateSalesAccountabilitySheet(workbook, report.SalesAccountability, dates);
                 break;
             case ReportExportArea.Sales: CreateSalesSheet(workbook, report.Sales); break;
             case ReportExportArea.EmployeePurchases when report.EmployeePurchases is not null: CreateEmployeePurchasesSheet(workbook, report.EmployeePurchases); break;
             case ReportExportArea.CashierRemittance when report.CashierShifts is not null: CreateCashierRemittanceSheet(workbook, report.CashierShifts); break;
             case ReportExportArea.Inventory: CreateInventorySheet(workbook, report.Inventory); break;
             case ReportExportArea.Orders: CreateOrdersSheet(workbook, report.Orders); break;
-            case ReportExportArea.SalesAccountability when report.SalesAccountability is not null: CreateSalesAccountabilitySheet(workbook, report.SalesAccountability); break;
+            case ReportExportArea.SalesAccountability when report.SalesAccountability is not null:
+                foreach (var dates in report.SalesAccountability.Dates.Chunk(7))
+                    CreateSalesAccountabilitySheet(workbook, report.SalesAccountability, dates);
+                break;
             default: CreateSummarySheet(workbook, report); break;
         }
         workbook.SaveAs(output);
@@ -330,13 +335,14 @@ public static class ReportExportService
     public static void ExportSalesAccountabilityExcel(SalesAccountabilityReportResponse report, Stream output)
     {
         using var workbook = new XLWorkbook();
-        CreateSalesAccountabilitySheet(workbook, report);
+        foreach (var dates in report.Dates.Chunk(7))
+            CreateSalesAccountabilitySheet(workbook, report, dates);
         workbook.SaveAs(output);
     }
 
     public static void ExportSalesAccountabilityPdf(SalesAccountabilityReportResponse report, Stream output)
     {
-        var dateChunks = report.Dates.Chunk(5).ToArray();
+        var dateChunks = report.Dates.Chunk(7).ToArray();
         Document.Create(document =>
         {
             foreach (var dates in dateChunks)
@@ -388,7 +394,7 @@ public static class ReportExportService
                             }
                         });
 
-                        if (report.IncludesCashAccountability && dates.SequenceEqual(dateChunks[^1]))
+                        if (report.IncludesCashAccountability)
                         {
                             content.Item().Text("Daily cash accountability").Bold().FontSize(11);
                             content.Item().Table(table =>
@@ -404,7 +410,7 @@ public static class ReportExportService
                                     foreach (var label in new[] { "Business Date", "Total Sales", "Cash Sales", "GCash Payments", "Approved Expenses", "Cash Remitted", "Cash Difference", "Assigned Cashiers" })
                                         PdfHeader(header.Cell(), label);
                                 });
-                                foreach (var day in report.Days)
+                                foreach (var day in report.Days.Where(day => dates.Contains(day.BusinessDate)))
                                 {
                                     PdfCell(table.Cell(), day.DateDisplay); PdfCell(table.Cell(), day.TotalSales.ToString("₱#,##0.00"));
                                     PdfCell(table.Cell(), day.CashSales.ToString("₱#,##0.00")); PdfCell(table.Cell(), day.GCashPayments.ToString("₱#,##0.00"));
@@ -610,10 +616,18 @@ public static class ReportExportService
         StyleDataSheet(sheet, headers.Length, row - 1);
     }
 
-    private static void CreateSalesAccountabilitySheet(XLWorkbook workbook, SalesAccountabilityReportResponse report)
+    private static void CreateSalesAccountabilitySheet(
+        XLWorkbook workbook,
+        SalesAccountabilityReportResponse report,
+        IReadOnlyList<DateOnly> dates)
     {
-        var sheet = workbook.Worksheets.Add("Sales Accountability");
-        var lastColumn = 1 + report.Dates.Count * 2;
+        var firstDate = dates[0];
+        var lastDate = dates[^1];
+        var sheetName = dates.Count == 1
+            ? firstDate.ToString("MMM d")
+            : $"{firstDate:MMM d}-{lastDate:d}";
+        var sheet = workbook.Worksheets.Add(sheetName[..Math.Min(sheetName.Length, 31)]);
+        var lastColumn = 1 + dates.Count * 2;
         sheet.Range(1, 1, 1, lastColumn).Merge();
         sheet.Cell(1, 1).Value = "BPNV SALES ACCOUNTABILITY REPORT";
         sheet.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(16);
@@ -621,7 +635,7 @@ public static class ReportExportService
         sheet.Cell(2, 2).Value = $"{report.FromDate:MMM d, yyyy} to {report.ToDateExclusive.AddDays(-1):MMM d, yyyy}";
         sheet.Cell(4, 1).Value = "Category";
         var column = 2;
-        foreach (var date in report.Dates)
+        foreach (var date in dates)
         {
             sheet.Range(4, column, 4, column + 1).Merge();
             sheet.Cell(4, column).Value = date.ToDateTime(TimeOnly.MinValue);
@@ -636,7 +650,7 @@ public static class ReportExportService
         {
             sheet.Cell(row, 1).Value = category;
             column = 2;
-            foreach (var date in report.Dates)
+            foreach (var date in dates)
             {
                 var values = category == "TOTAL SALES"
                     ? report.Sales.Where(cell => cell.BusinessDate == date).ToArray()
@@ -649,7 +663,7 @@ public static class ReportExportService
         }
         sheet.Range(6, 2, row - 1, lastColumn).Style.NumberFormat.Format = "₱#,##0.00";
         column = 2;
-        foreach (var _ in report.Dates)
+        foreach (var _ in dates)
         {
             sheet.Range(4, column, 4, column + 1).Style.DateFormat.Format = "mmm d, yyyy";
             column += 2;
@@ -685,7 +699,7 @@ public static class ReportExportService
         sheet.Column(1).Style.DateFormat.Format = "yyyy-mm-dd";
         sheet.Columns(2, 10).Style.NumberFormat.Format = "₱#,##0.00";
         column = 2;
-        foreach (var date in report.Dates)
+        foreach (var date in dates)
         {
             sheet.Range(4, column, 4, column + 1).Style.NumberFormat.Format = "mmm d, yyyy";
             sheet.Range(4, column, 4, column + 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;

@@ -47,6 +47,8 @@ public class ReportsView : UserControl
         var inventory = new TabItem { Header = "Inventory Summary", Content = BuildInventory() };
         var orders = new TabItem { Header = "Order Summary", Content = Scroll(BuildOrders()) };
         var accountability = new TabItem { Header = "Sales Accountability", Content = BuildSalesAccountability() };
+        foreach (var tab in new[] { sales, employee, remittance, inventory, orders, accountability })
+            tab.FontSize = 16;
         foreach (var tab in new[] { sales, employee, remittance, inventory, orders })
             tab.Bind(Visual.IsVisibleProperty, new Binding("CanViewStandardReports"));
 
@@ -56,6 +58,7 @@ public class ReportsView : UserControl
             HorizontalAlignment = HorizontalAlignment.Left
         };
         strip.Bind(TabStrip.SelectedIndexProperty, new Binding("SelectedReportTabIndex") { Mode = BindingMode.TwoWay });
+        strip.Bind(Visual.IsVisibleProperty, new Binding("CanViewStandardReports"));
 
         var content = new Grid();
         AddReportContent(content, sales.Content, "IsSalesReportTab");
@@ -485,7 +488,7 @@ public class ReportsView : UserControl
 
     private static TextBlock BoundText(string path, string? format = null)
     {
-        var block = new TextBlock();
+        var block = new TextBlock { FontSize = 14 };
         block.Bind(TextBlock.TextProperty, new Binding(path) { StringFormat = format });
         return block;
     }

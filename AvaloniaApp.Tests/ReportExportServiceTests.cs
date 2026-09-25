@@ -52,7 +52,7 @@ public sealed class ReportExportServiceTests
 
         output.Position = 0;
         using var workbook = new XLWorkbook(output);
-        var sheet = workbook.Worksheet("Sales Accountability");
+        var sheet = workbook.Worksheet("Aug 27");
         Assert.AreEqual("Drinks", sheet.Cell("A6").GetString());
         Assert.AreEqual(120d, sheet.Cell("B6").Value.GetNumber());
         Assert.AreEqual(30d, sheet.Cell("C6").Value.GetNumber());
