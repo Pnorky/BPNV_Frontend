@@ -46,6 +46,7 @@ public partial class ProductEditViewModel : ObservableObject
     [ObservableProperty] private string _pieceBarcode;
     [ObservableProperty] private string _name;
     [ObservableProperty] private string _category;
+    [ObservableProperty] private string _salesReportCategory;
     [ObservableProperty] private string _unit;
     [ObservableProperty] private decimal _costPrice;
     [ObservableProperty] private decimal _regularPrice;
@@ -60,6 +61,7 @@ public partial class ProductEditViewModel : ObservableObject
     public IReadOnlyList<SupplierResponse> Suppliers { get; }
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
     public IReadOnlyList<string> Categories { get; }
+    public IReadOnlyList<string> SalesReportCategories { get; } = Services.SalesReportCategories.Values;
     public ObservableCollection<ProductEditPackageDraft> Packages { get; } = [];
     public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
@@ -74,6 +76,7 @@ public partial class ProductEditViewModel : ObservableObject
         PieceBarcode = product.Barcode ?? product.Units.FirstOrDefault(unit => unit.IsBasePiece)?.Barcode ?? "";
         Name = product.Name;
         Category = product.Category;
+        SalesReportCategory = Services.SalesReportCategories.NormalizeOrOther(product.SalesReportCategory);
         Unit = product.Unit;
         CostPrice = product.CostPrice;
         RegularPrice = product.RegularPrice;
@@ -127,6 +130,7 @@ public partial class ProductEditViewModel : ObservableObject
             return Fail("Piece barcode is required for Merchandise.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
         if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
+        if (!Services.SalesReportCategories.IsValid(SalesReportCategory)) return Fail("Select a valid sales report category.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
         if (CostPrice < 0 || RegularPrice < 0 || EmployeePrice < 0)
             return Fail("Purchase and selling prices cannot be negative.", out error);
@@ -160,7 +164,7 @@ public partial class ProductEditViewModel : ObservableObject
             CostPrice, RegularPrice, EmployeePrice,
             (int)CriticalReorderLevel, (int)CriticalOrderQuantity,
             (int)WarningReorderLevel, (int)WarningOrderQuantity, Version, packages,
-            ItemType == ApiInventoryItemType.Supply ? false : IsSellable, IsPerishable);
+            ItemType == ApiInventoryItemType.Supply ? false : IsSellable, IsPerishable, SalesReportCategory);
         return true;
     }
 

@@ -154,19 +154,21 @@ public sealed class ExcelInventoryImportView : UserControl
     private static Control BulkDefaults()
     {
         var type = Select("DefaultItemType", "ItemTypes");
+        var salesCategory = Select("DefaultSalesReportCategory", "SalesReportCategories", placeholder: "Sales category");
         var first = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.2*,1*,0.7*,0.9*,0.8*,0.8*,0.8*"),
+            ColumnDefinitions = new ColumnDefinitions("1.2*,1*,1*,0.7*,0.9*,0.8*,0.8*,0.8*"),
             ColumnSpacing = 10,
             Children =
             {
                 Field("DEFAULT SUPPLIER", Input("DefaultSupplierName", "Used only when blank")),
                 At(Field("CATEGORY", Input("DefaultCategory", "General")), column: 1),
-                At(Field("UNIT", Input("DefaultUnit", "piece")), column: 2),
-                At(Field("ITEM TYPE", type), column: 3),
-                At(Field("COST", Number("DefaultCostPrice", "0.00")), column: 4),
-                At(Field("SELLING", Number("DefaultRegularPrice", "0.00")), column: 5),
-                At(Field("EMPLOYEE", Number("DefaultEmployeePrice", "0.00")), column: 6)
+                At(Field("SALES CATEGORY", salesCategory), column: 2),
+                At(Field("UNIT", Input("DefaultUnit", "piece")), column: 3),
+                At(Field("ITEM TYPE", type), column: 4),
+                At(Field("COST", Number("DefaultCostPrice", "0.00")), column: 5),
+                At(Field("SELLING", Number("DefaultRegularPrice", "0.00")), column: 6),
+                At(Field("EMPLOYEE", Number("DefaultEmployeePrice", "0.00")), column: 7)
             }
         };
         var apply = Button("Fill missing fields", "ApplyDefaultsCommand", true);
@@ -275,7 +277,7 @@ public sealed class ExcelInventoryImportView : UserControl
     private static Control ProductHeader() => Resource(new Border
     {
         Padding = new Thickness(12, 9),
-        Child = HeaderGrid("ROW", "SUPPLIER", "SKU", "BARCODE", "PRODUCT", "CATEGORY", "UNIT", "TYPE", "COST", "SELLING", "EMPLOYEE", "DISPLAY", "BODEGA", "CRITICAL", "CRIT. QTY", "WARNING", "WARN. QTY")
+        Child = HeaderGrid("ROW", "SUPPLIER", "SKU", "BARCODE", "PRODUCT", "CATEGORY", "SALES CATEGORY", "UNIT", "TYPE", "COST", "SELLING", "EMPLOYEE", "DISPLAY", "BODEGA", "CRITICAL", "CRIT. QTY", "WARNING", "WARN. QTY")
     }, Border.BackgroundProperty, "Secondary");
 
     private static Control ProductRow()
@@ -284,9 +286,11 @@ public sealed class ExcelInventoryImportView : UserControl
         row.VerticalAlignment = VerticalAlignment.Center;
         var type = Select("ItemType", "DataContext.ItemTypes", typeof(ExcelInventoryImportView));
         type.MinWidth = 130;
+        var salesCategory = Select("SalesReportCategory", "DataContext.SalesReportCategories", typeof(ExcelInventoryImportView), "Sales category");
+        salesCategory.MinWidth = 150;
         return RowBorder(new Grid
         {
-            Width = 2200,
+            Width = 2360,
             ColumnDefinitions = PreviewColumns(),
             ColumnSpacing = 8,
             Children =
@@ -297,29 +301,30 @@ public sealed class ExcelInventoryImportView : UserControl
                 At(CompactInput("PieceBarcode"), column: 3),
                 At(CompactInput("Name"), column: 4),
                 At(CompactInput("Category"), column: 5),
-                At(CompactInput("Unit"), column: 6),
-                At(type, column: 7),
-                At(CompactNumber("CostPrice", "0.00"), column: 8),
-                At(CompactNumber("RegularPrice", "0.00"), column: 9),
-                At(CompactNumber("EmployeePrice", "0.00"), column: 10),
-                At(CompactNumber("OpeningDisplayStock", "0"), column: 11),
-                At(CompactNumber("OpeningBodegaStock", "0"), column: 12),
-                At(CompactNumber("CriticalReorderLevel", "0"), column: 13),
-                At(CompactNumber("CriticalOrderQuantity", "0", 1), column: 14),
-                At(CompactNumber("WarningReorderLevel", "0"), column: 15),
-                At(CompactNumber("WarningOrderQuantity", "0", 1), column: 16)
+                At(salesCategory, column: 6),
+                At(CompactInput("Unit"), column: 7),
+                At(type, column: 8),
+                At(CompactNumber("CostPrice", "0.00"), column: 9),
+                At(CompactNumber("RegularPrice", "0.00"), column: 10),
+                At(CompactNumber("EmployeePrice", "0.00"), column: 11),
+                At(CompactNumber("OpeningDisplayStock", "0"), column: 12),
+                At(CompactNumber("OpeningBodegaStock", "0"), column: 13),
+                At(CompactNumber("CriticalReorderLevel", "0"), column: 14),
+                At(CompactNumber("CriticalOrderQuantity", "0", 1), column: 15),
+                At(CompactNumber("WarningReorderLevel", "0"), column: 16),
+                At(CompactNumber("WarningOrderQuantity", "0", 1), column: 17)
             }
         }, new Thickness(12, 8));
     }
 
     private static Grid HeaderGrid(params string[] labels)
     {
-        var grid = new Grid { Width = 2200, ColumnDefinitions = PreviewColumns(), ColumnSpacing = 8 };
+        var grid = new Grid { Width = 2360, ColumnDefinitions = PreviewColumns(), ColumnSpacing = 8 };
         for (var index = 0; index < labels.Length; index++) grid.Children.Add(At(Label(labels[index]), column: index));
         return grid;
     }
 
-    private static ColumnDefinitions PreviewColumns() => new("52,170,140,160,220,150,90,140,100,100,100,85,85,95,95,95,95");
+    private static ColumnDefinitions PreviewColumns() => new("52,170,140,160,220,150,150,90,140,100,100,100,85,85,95,95,95,95");
     private static TextBox CompactInput(string path)
     {
         var input = Input(path, "");
@@ -333,9 +338,9 @@ public sealed class ExcelInventoryImportView : UserControl
         input.MinHeight = 34;
         return input;
     }
-    private static SearchableSelect Select(string path, string itemsPath, Type? ancestor = null)
+    private static SearchableSelect Select(string path, string itemsPath, Type? ancestor = null, string placeholder = "Select item type")
     {
-        var select = new SearchableSelect { PlaceholderText = "Select item type" };
+        var select = new SearchableSelect { PlaceholderText = placeholder };
         select.Bind(SearchableSelect.ItemsSourceProperty, ancestor is null
             ? new Binding(itemsPath)
             : new Binding(itemsPath) { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = ancestor } });

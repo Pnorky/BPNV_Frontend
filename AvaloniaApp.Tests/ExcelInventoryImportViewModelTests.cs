@@ -51,5 +51,6 @@ public sealed class ExcelInventoryImportViewModelTests
         Assert.IsNotNull(request);
         Assert.AreEqual("Updated cup", request.Products!.Single().Name);
         Assert.AreEqual("000123", request.Products!.Single().PieceBarcode);
+        Assert.AreEqual(SalesReportCategories.Other, request.Products!.Single().SalesReportCategory);
     }
 }

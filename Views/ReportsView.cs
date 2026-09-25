@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using AvaloniaApp.Services;
+using AvaloniaApp.ViewModels;
 using AvaloniaApp.Views.UI;
 
 namespace AvaloniaApp.Views;
@@ -40,20 +41,195 @@ public class ReportsView : UserControl
 
     private static Control BuildTabs()
     {
-        var tabs = new TabControl
+        var sales = new TabItem { Header = "Sales Summary", Content = Scroll(BuildSales()) };
+        var employee = new TabItem { Header = "Employee Purchases", Content = BuildEmployeePurchases() };
+        var remittance = new TabItem { Header = "Cashier Remittance", Content = BuildCashierRemittance() };
+        var inventory = new TabItem { Header = "Inventory Summary", Content = BuildInventory() };
+        var orders = new TabItem { Header = "Order Summary", Content = Scroll(BuildOrders()) };
+        var accountability = new TabItem { Header = "Sales Accountability", Content = BuildSalesAccountability() };
+        foreach (var tab in new[] { sales, employee, remittance, inventory, orders })
+            tab.Bind(Visual.IsVisibleProperty, new Binding("CanViewStandardReports"));
+
+        var strip = new TabStrip
         {
-            Items =
+            Items = { sales, employee, remittance, inventory, orders, accountability },
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        strip.Bind(TabStrip.SelectedIndexProperty, new Binding("SelectedReportTabIndex") { Mode = BindingMode.TwoWay });
+
+        var content = new Grid();
+        AddReportContent(content, sales.Content, "IsSalesReportTab");
+        AddReportContent(content, employee.Content, "IsEmployeePurchasesTab");
+        AddReportContent(content, remittance.Content, "IsCashierRemittanceTab");
+        AddReportContent(content, inventory.Content, "IsInventoryReportTab");
+        AddReportContent(content, orders.Content, "IsOrderReportTab");
+        AddReportContent(content, accountability.Content, "IsSalesAccountabilityTab");
+
+        return new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowSpacing = 8,
+            Children =
             {
-                new TabItem { Header = "Sales Summary", Content = Scroll(BuildSales()) },
-                new TabItem { Header = "Employee Purchases", Content = BuildEmployeePurchases() },
-                new TabItem { Header = "Cashier Remittance", Content = BuildCashierRemittance() },
-                new TabItem { Header = "Inventory Summary", Content = BuildInventory() },
-                new TabItem { Header = "Order Summary", Content = Scroll(BuildOrders()) }
+                new ScrollViewer
+                {
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Content = strip
+                },
+                At(content, row: 1)
             }
         };
-        tabs.Bind(TabControl.SelectedIndexProperty, new Binding("SelectedReportTabIndex") { Mode = BindingMode.TwoWay });
-        return tabs;
     }
+
+    private static void AddReportContent(Grid host, object? value, string visibilityPath)
+    {
+        if (value is not Control control) return;
+        Bind(control, Visual.IsVisibleProperty, visibilityPath);
+        host.Children.Add(control);
+    }
+
+    private static Control BuildSalesAccountability()
+    {
+        var dateHeaders = new ItemsControl();
+        Bind(dateHeaders, ItemsControl.ItemsSourceProperty, "SalesAccountability.Dates");
+        dateHeaders.ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel { Orientation = Orientation.Horizontal });
+        dateHeaders.ItemTemplate = new FuncDataTemplate<DateOnly>((_, _) =>
+        {
+            var date = new TextBlock { FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center };
+            date.Bind(TextBlock.TextProperty, new Binding(".") { StringFormat = "{0:MMM d}" });
+            return new StackPanel
+            {
+                Width = 240,
+                Spacing = 6,
+                Children =
+                {
+                    date,
+                    new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("*,*"),
+                        Children =
+                        {
+                            At(ColumnHeader("REGULAR SALES"), column: 0),
+                            At(ColumnHeader("EMPLOYEE SALES"), column: 1)
+                        }
+                    }
+                }
+            };
+        }, true);
+
+        var rows = new ItemsControl();
+        Bind(rows, ItemsControl.ItemsSourceProperty, "AccountabilityRows");
+        rows.ItemTemplate = new FuncDataTemplate<SalesAccountabilityCategoryRowViewModel>((_, _) =>
+        {
+            var values = new ItemsControl();
+            Bind(values, ItemsControl.ItemsSourceProperty, nameof(SalesAccountabilityCategoryRowViewModel.Values));
+            values.ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel { Orientation = Orientation.Horizontal });
+            values.ItemTemplate = new FuncDataTemplate<SalesAccountabilityValueViewModel>((_, _) => new Grid
+            {
+                Width = 240,
+                ColumnDefinitions = new ColumnDefinitions("*,*"),
+                Children =
+                {
+                    MoneyText(nameof(SalesAccountabilityValueViewModel.RegularDisplay)),
+                    At(MoneyText(nameof(SalesAccountabilityValueViewModel.EmployeeDisplay)), column: 1)
+                }
+            }, true);
+            return RowBorder(new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("140,Auto"),
+                Children = { SemiBold(nameof(SalesAccountabilityCategoryRowViewModel.Category)), At(values, column: 1) }
+            }, new Thickness(8, 10));
+        }, true);
+
+        var matrix = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = new StackPanel
+            {
+                Children =
+                {
+                    new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("140,Auto"),
+                         Children =
+                         {
+                             new TextBlock
+                             {
+                                 Text = "CATEGORY", FontWeight = FontWeight.SemiBold,
+                                 Margin = new Thickness(8, 0)
+                             },
+                             At(dateHeaders, column: 1)
+                         }
+                    },
+                    rows
+                }
+            }
+        };
+
+        var note = Muted("Products assigned to Other are included in the Other row. Edit those products to classify them.");
+        note.Bind(Visual.IsVisibleProperty, new Binding("HasOtherReportCategories"));
+
+        var daily = new PagedTable
+        {
+            ItemName = "business date", ItemNamePlural = "business dates", PageSize = 12,
+            MinHeight = 300, MinTableWidth = 1350, IsSelectable = false
+        };
+        Bind(daily, PagedTable.ItemsSourceProperty, "SalesAccountability.Days");
+        daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("DATE", item => item.DateDisplay, new GridLength(1, GridUnitType.Star)));
+        daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("TOTAL SALES", item => Money(item.TotalSales), new GridLength(0.9, GridUnitType.Star)));
+        daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("CASH", item => Money(item.CashSales), new GridLength(0.8, GridUnitType.Star)));
+         daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("GCASH PAYMENTS", item => Money(item.GCashPayments), new GridLength(0.8, GridUnitType.Star)));
+        daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("EXPENSES", item => Money(item.ApprovedExpenses), new GridLength(0.8, GridUnitType.Star)));
+         daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("CASH REMITTED", item => Money(item.CashRemitted), new GridLength(0.9, GridUnitType.Star)));
+        daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("EXPECTED", item => Money(item.ExpectedCash), new GridLength(0.9, GridUnitType.Star)));
+         daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("CASH DIFFERENCE", item => Money(item.Variance), new GridLength(0.9, GridUnitType.Star)));
+         daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("ASSIGNED CASHIERS", item => item.CashiersDisplay, new GridLength(1.4, GridUnitType.Star)));
+        var cashAccountability = Card(new StackPanel { Spacing = 12, Children = { Heading("Daily cash accountability", "h2"), daily } }, new Thickness(18));
+        Bind(cashAccountability, Visual.IsVisibleProperty, "SalesAccountability.IncludesCashAccountability");
+
+        return new ScrollViewer
+        {
+            Content = new StackPanel
+            {
+                Spacing = 18,
+                Margin = new Thickness(10, 28, 10, 12),
+                Children =
+                {
+                    Card(new StackPanel { Spacing = 12, Children = { Heading("Regular and employee sales by category", "h2"), note, matrix } }, new Thickness(18)),
+                    cashAccountability
+                }
+            }
+        };
+    }
+
+    private static TextBlock Centered(string text, double fontSize = 11) => new()
+    {
+        Text = text, FontSize = fontSize, FontWeight = FontWeight.SemiBold,
+        HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap,
+        TextAlignment = TextAlignment.Center
+    };
+
+    private static TextBlock ColumnHeader(string text) => new()
+    {
+        Text = text,
+        FontSize = 10,
+        FontWeight = FontWeight.SemiBold,
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        TextAlignment = TextAlignment.Right,
+        Margin = new Thickness(0, 0, 8, 0)
+    };
+
+    private static TextBlock MoneyText(string path)
+    {
+        var text = BoundText(path);
+        text.TextAlignment = TextAlignment.Right;
+        text.Margin = new Thickness(8, 0);
+        return text;
+    }
+
+    private static string Money(decimal? value) => value.HasValue ? $"₱{value:N2}" : "-";
 
     private static Control BuildEmployeePurchases()
     {
@@ -63,13 +239,13 @@ public class ReportsView : UserControl
             ("AMOUNT OWED", "EmployeeOwedDisplay"),
             ("EMPLOYEE SALES", "EmployeeTransactions"),
             ("EMPLOYEES", "EmployeesRepresented")));
-        var table = new PagedTable { ItemName = "purchase line", ItemNamePlural = "purchase lines", PageSize = 12, MinHeight = 0, MinTableWidth = 1100, IsSelectable = false };
+        var table = new PagedTable { ItemName = "purchase line", ItemNamePlural = "purchase lines", PageSize = 12, MinHeight = 0, MinTableWidth = 1450, IsSelectable = false };
         Bind(table, PagedTable.ItemsSourceProperty, "EmployeePurchaseLines");
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("DATE & TIME", item => item.SoldAtDisplay, new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("DATE & TIME", item => item.SoldAtDisplay, new GridLength(1.7, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SALE", item => item.SaleNumber, new GridLength(0.8, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("EMPLOYEE", item => item.EmployeeDisplay, new GridLength(1.5, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SKU", item => item.Sku, new GridLength(0.7, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("PRODUCT", item => item.ProductName, new GridLength(1.4, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("EMPLOYEE", item => item.EmployeeDisplay, new GridLength(2.0, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SKU", item => item.Sku, new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("PRODUCT", item => item.ProductName, new GridLength(1.6, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("QUANTITY", item => item.QuantityDisplay, new GridLength(1.1, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("UNIT PRICE", item => item.UnitPriceDisplay, new GridLength(0.8, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("LINE TOTAL", item => item.LineTotalDisplay, new GridLength(0.8, GridUnitType.Star)));

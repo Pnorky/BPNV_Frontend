@@ -64,6 +64,7 @@ public class AddProductView : UserControl
                 At(Field("PURCHASE PRICE / PIECE", Number("CostPrice", "0.00")), column: 3, row: 1),
                 At(Field("SELLING PRICE", Number("RegularPrice", "0.00")), row: 2),
                 At(Field("EMPLOYEE PRICE (0 = SELLING)", Number("EmployeePrice", "0.00")), column: 1, row: 2),
+                At(SalesReportCategoryField(), column: 2, row: 2),
                 At(ProductFlags(), row: 3)
             }
         };
@@ -134,6 +135,14 @@ public class AddProductView : UserControl
         Bind(category, SearchableSelect.ItemsSourceProperty, "Categories");
         Bind(category, SearchableSelect.SelectedItemProperty, "Category");
         return Field("CATEGORY", category);
+    }
+
+    private static Control SalesReportCategoryField()
+    {
+        var category = new SearchableSelect { PlaceholderText = "Select report category" };
+        Bind(category, SearchableSelect.ItemsSourceProperty, "SalesReportCategories");
+        Bind(category, SearchableSelect.SelectedItemProperty, "SalesReportCategory");
+        return Field("SALES REPORT CATEGORY", category);
     }
 
     private static Control PackageSection()

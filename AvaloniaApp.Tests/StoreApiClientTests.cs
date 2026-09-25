@@ -575,6 +575,9 @@ public sealed class StoreApiClientTests
                 "/api/reports/inventory" => Json(InventoryReport()),
                 "/api/reports/orders" => Json(OrderReport()),
                 "/api/reports/employee-purchases" => Json(EmployeePurchaseReport()),
+                "/api/reports/sales-accountability" => Json(new SalesAccountabilityReportResponse(
+                    new(2026, 8, 1), new(2026, 8, 2), [new(2026, 8, 1)], SalesReportCategories.Values,
+                    [], [], false, 0)),
                 "/api/employees" => Json(Array.Empty<EmployeeResponse>()),
                 _ => throw new InvalidOperationException(request.RequestUri.ToString())
             };

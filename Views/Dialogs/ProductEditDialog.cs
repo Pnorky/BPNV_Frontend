@@ -106,6 +106,9 @@ public sealed class ProductEditDialog : Window
         var category = new SearchableSelect { PlaceholderText = "Select or type a category", AllowCustomValue = true };
         Bind(category, SearchableSelect.ItemsSourceProperty, nameof(ProductEditViewModel.Categories));
         Bind(category, SearchableSelect.SelectedItemProperty, nameof(ProductEditViewModel.Category));
+        var reportCategory = new SearchableSelect { PlaceholderText = "Select report category" };
+        Bind(reportCategory, SearchableSelect.ItemsSourceProperty, nameof(ProductEditViewModel.SalesReportCategories));
+        Bind(reportCategory, SearchableSelect.SelectedItemProperty, nameof(ProductEditViewModel.SalesReportCategory));
 
         return new Grid
         {
@@ -125,6 +128,7 @@ public sealed class ProductEditDialog : Window
                 At(Field("PURCHASE PRICE / PIECE", Amount(nameof(ProductEditViewModel.CostPrice))), row: 2, column: 1),
                 At(Field("SELLING PRICE", Amount(nameof(ProductEditViewModel.RegularPrice))), row: 2, column: 2),
                 At(Field("EMPLOYEE PRICE (0 = SELLING)", Amount(nameof(ProductEditViewModel.EmployeePrice))), row: 3),
+                At(Field("SALES REPORT CATEGORY", reportCategory), row: 3, column: 1),
                 At(ProductFlags(), row: 4)
             }
         };

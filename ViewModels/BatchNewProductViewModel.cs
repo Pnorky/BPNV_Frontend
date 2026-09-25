@@ -17,6 +17,7 @@ public partial class BatchNewProductViewModel : ObservableObject
     [ObservableProperty] private string _sku = "";
     [ObservableProperty] private string _name = "";
     [ObservableProperty] private string _category = "";
+    [ObservableProperty] private string _salesReportCategory = Services.SalesReportCategories.Other;
     [ObservableProperty] private string _unit = "piece";
     [ObservableProperty] private decimal _costPrice;
     [ObservableProperty] private decimal _regularPrice;
@@ -38,6 +39,7 @@ public partial class BatchNewProductViewModel : ObservableObject
         "Beverages", "Snacks", "Grocery", "Personal Care", "Household",
         "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
     ];
+    public IReadOnlyList<string> SalesReportCategories { get; } = Services.SalesReportCategories.Values;
     public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
     public BatchNewProductViewModel(
@@ -64,6 +66,7 @@ public partial class BatchNewProductViewModel : ObservableObject
         SetSku(existing.Sku);
         Name = existing.Name;
         Category = existing.Category;
+        SalesReportCategory = Services.SalesReportCategories.NormalizeOrOther(existing.SalesReportCategory);
         Unit = existing.Unit;
         CostPrice = existing.CostPrice;
         RegularPrice = existing.RegularPrice;
@@ -124,6 +127,7 @@ public partial class BatchNewProductViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(Sku)) return Fail("SKU is required.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
         if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
+        if (!Services.SalesReportCategories.IsValid(SalesReportCategory)) return Fail("Select a valid sales report category.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
         if (!Money(CostPrice) || !Money(RegularPrice) || !Money(EmployeePrice))
             return Fail("Prices must be non-negative values with no more than two decimal places.", out error);
@@ -173,7 +177,8 @@ public partial class BatchNewProductViewModel : ObservableObject
             (int)WarningOrderQuantity,
             packages,
             ItemType == ApiInventoryItemType.Supply ? false : IsSellable,
-            IsPerishable);
+            IsPerishable,
+            SalesReportCategory);
         return true;
     }
 

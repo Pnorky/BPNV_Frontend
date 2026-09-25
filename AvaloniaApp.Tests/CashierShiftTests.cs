@@ -154,7 +154,7 @@ public sealed class CashierShiftTests
     {
         var definition = new ShiftDefinitionResponse(
             Guid.NewGuid(), "Shift 1", new TimeOnly(6, 0), new TimeOnly(14, 0), true);
-        var date = DateOnly.FromDateTime(StoreDateTime.StoreToday);
+        var date = DateOnly.FromDateTime(StoreDateTime.StoreToday).AddDays(1);
         var open = new ResolvedDailyShiftRow(date, definition, null, null, null, Session(ApiCashierShiftSessionStatus.Open));
         var normalClose = new ResolvedDailyShiftRow(date, definition, null, null, null,
             Session(ApiCashierShiftSessionStatus.ClosedPendingRemittance) with { CloseType = ApiCashierShiftCloseType.CashierClockOut });

@@ -46,6 +46,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
 
     [ObservableProperty] private string _defaultSupplierName = "";
     [ObservableProperty] private string _defaultCategory = "General";
+    [ObservableProperty] private string _defaultSalesReportCategory = Services.SalesReportCategories.Other;
     [ObservableProperty] private string _defaultUnit = "piece";
     [ObservableProperty] private ApiInventoryItemType _defaultItemType = ApiInventoryItemType.Merchandise;
     [ObservableProperty] private decimal _defaultCostPrice;
@@ -62,6 +63,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
     public ObservableCollection<ExcelInventoryExcludedSectionDraft> ExcludedSections { get; } = [];
     public ObservableCollection<InventoryImportDisplayIssue> Issues { get; } = [];
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
+    public IReadOnlyList<string> SalesReportCategories { get; } = Services.SalesReportCategories.Values;
     public Guid ImportKey { get; private set; }
     public int ProductCount => Products.Count;
     public int PackageCount => Packages.Count;
@@ -167,6 +169,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
             if (product.ItemType is null) product.ItemType = DefaultItemType;
             if (string.IsNullOrWhiteSpace(product.Sku)) product.Sku = SuggestedSku(product);
             if (string.IsNullOrWhiteSpace(product.Category)) product.Category = DefaultCategory.Trim();
+            if (string.IsNullOrWhiteSpace(product.SalesReportCategory)) product.SalesReportCategory = DefaultSalesReportCategory;
             if (string.IsNullOrWhiteSpace(product.Unit)) product.Unit = DefaultUnit.Trim();
             product.CostPrice ??= DefaultCostPrice;
             product.RegularPrice ??= DefaultRegularPrice;
@@ -334,6 +337,8 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
             Required(product, product.Sku, "sku", "SKU is required.");
             Required(product, product.Name, "name", "Product name is required.");
             Required(product, product.Category, "category", "Category is required.");
+            if (!Services.SalesReportCategories.IsValid(product.SalesReportCategory))
+                AddLocal(product.SourceRow, "salesReportCategory", "Select a valid sales report category.");
             Required(product, product.Unit, "unit", "Unit is required.");
             if (product.ItemType is null) AddLocal(product.SourceRow, "itemType", "Item type is required.");
             if (product.ItemType == ApiInventoryItemType.Merchandise && string.IsNullOrWhiteSpace(product.PieceBarcode))
@@ -402,7 +407,8 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
             Packages.Where(package => string.Equals(package.ProductSku.Trim(), product.Sku.Trim(), StringComparison.OrdinalIgnoreCase))
                 .Select(package => new InventoryImportPackageRequest(
                     NullIfWhiteSpace(package.Barcode), package.Label.Trim(), package.PiecesPerUnit!.Value,
-                    package.RegularPrice!.Value, package.EmployeePrice!.Value, package.IsActive)).ToArray())).ToArray();
+                    package.RegularPrice!.Value, package.EmployeePrice!.Value, package.IsActive)).ToArray(),
+                SalesReportCategory: Services.SalesReportCategories.NormalizeOrOther(product.SalesReportCategory))).ToArray();
         request = new InventoryImportRequest(ImportKey, FileName, SourceHash, suppliers, products);
         ValidationSummary = $"Local checks passed: {products.Length} products, {suppliers.Length} suppliers, {Packages.Count} packages";
         return true;

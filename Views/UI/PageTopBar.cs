@@ -41,6 +41,7 @@ public sealed class PageTopBar : UserControl
         _filters = new StackPanel
         {
             Orientation = Orientation.Horizontal,
+            Spacing = 8,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -49,6 +50,7 @@ public sealed class PageTopBar : UserControl
         _actions = new StackPanel
         {
             Orientation = Orientation.Horizontal,
+            Spacing = 8,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -134,7 +136,6 @@ public sealed class PageTopBar : UserControl
             VerticalAlignment = VerticalAlignment.Center,
             Children = { clockText, shiftButton }
         };
-        _actions.Margin = new Thickness(8, 0, 0, 0);
         Grid.SetColumn(_actions, 2);
 
         var layout = new Grid
@@ -174,7 +175,6 @@ public sealed class PageTopBar : UserControl
         foreach (var control in CreateActions(Page))
         {
             control.DataContext = Page;
-            control.Margin = new Thickness(4, 0);
             var host = Equals(control.Tag, "filter") ? _filters : _actions;
             host.Children.Add(control);
         }
@@ -337,7 +337,7 @@ public sealed class PageTopBar : UserControl
         Bind(cashier, SearchableSelect.SelectedItemProperty, "SelectedCashier");
         cashier.SearchTextSelector = item => item is UserResponse user ? user.DisplayName : item?.ToString() ?? "";
         cashier.ItemTemplate = new FuncDataTemplate<UserResponse>((user, _) => new TextBlock { Text = user?.DisplayName ?? "" }, true);
-        Bind(cashier, Visual.IsVisibleProperty, "IsCashierRemittanceTab");
+        Bind(cashier, Visual.IsVisibleProperty, "ShowsCashierFilter");
         var dateField = Field("DATE RANGE", dates);
         Bind(dateField, Visual.IsVisibleProperty, "IsDateFilteredReportTab");
         var typeField = Field("SALES TYPE", type); Grid.SetColumn(typeField, 1);
@@ -345,7 +345,7 @@ public sealed class PageTopBar : UserControl
         var cashierField = Field("CASHIER", cashier); Grid.SetColumnSpan(cashierField, 2); Grid.SetRow(cashierField, 1);
         Bind(typeField, Visual.IsVisibleProperty, "IsSalesReportTab");
         Bind(employeeField, Visual.IsVisibleProperty, "IsEmployeePurchasesTab");
-        Bind(cashierField, Visual.IsVisibleProperty, "IsCashierRemittanceTab");
+        Bind(cashierField, Visual.IsVisibleProperty, "ShowsCashierFilter");
         var actions = Buttons(Button("Apply filters", "RefreshCommand", ActionButtonVariant.Primary), Button("Clear employee", "ClearEmployeeFilterCommand", ActionButtonVariant.Secondary));
         actions.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumnSpan(actions, 2); Grid.SetRow(actions, 2);
         return FilterPanel(new Grid

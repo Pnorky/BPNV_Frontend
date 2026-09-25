@@ -12,7 +12,8 @@ public enum ReportExportArea
     CashierRemittance = 2,
     Inventory = 3,
     Orders = 4,
-    All = 5
+    SalesAccountability = 5,
+    All = 6
 }
 
 public static class ReportExportService
@@ -313,15 +314,110 @@ public static class ReportExportService
                 CreateOrdersSheet(workbook, report.Orders);
                 if (report.EmployeePurchases is not null) CreateEmployeePurchasesSheet(workbook, report.EmployeePurchases);
                 if (report.CashierShifts is not null) CreateCashierRemittanceSheet(workbook, report.CashierShifts);
+                if (report.SalesAccountability is not null) CreateSalesAccountabilitySheet(workbook, report.SalesAccountability);
                 break;
             case ReportExportArea.Sales: CreateSalesSheet(workbook, report.Sales); break;
             case ReportExportArea.EmployeePurchases when report.EmployeePurchases is not null: CreateEmployeePurchasesSheet(workbook, report.EmployeePurchases); break;
             case ReportExportArea.CashierRemittance when report.CashierShifts is not null: CreateCashierRemittanceSheet(workbook, report.CashierShifts); break;
             case ReportExportArea.Inventory: CreateInventorySheet(workbook, report.Inventory); break;
             case ReportExportArea.Orders: CreateOrdersSheet(workbook, report.Orders); break;
+            case ReportExportArea.SalesAccountability when report.SalesAccountability is not null: CreateSalesAccountabilitySheet(workbook, report.SalesAccountability); break;
             default: CreateSummarySheet(workbook, report); break;
         }
         workbook.SaveAs(output);
+    }
+
+    public static void ExportSalesAccountabilityExcel(SalesAccountabilityReportResponse report, Stream output)
+    {
+        using var workbook = new XLWorkbook();
+        CreateSalesAccountabilitySheet(workbook, report);
+        workbook.SaveAs(output);
+    }
+
+    public static void ExportSalesAccountabilityPdf(SalesAccountabilityReportResponse report, Stream output)
+    {
+        var dateChunks = report.Dates.Chunk(5).ToArray();
+        Document.Create(document =>
+        {
+            foreach (var dates in dateChunks)
+            {
+                document.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(26);
+                    page.DefaultTextStyle(style => style.FontSize(8));
+                    page.Header().Column(header =>
+                    {
+                        header.Item().Text("BPNV CONVENIENCE STORE").Bold().FontSize(18).FontColor(Colors.Orange.Darken2);
+                        header.Item().Text("Sales Accountability Report").SemiBold().FontSize(12);
+                        header.Item().Text($"{report.FromDate:MMM d, yyyy} to {report.ToDateExclusive.AddDays(-1):MMM d, yyyy}")
+                            .FontSize(8).FontColor(Colors.Grey.Darken1);
+                    });
+                    page.Content().PaddingVertical(14).Column(content =>
+                    {
+                        content.Spacing(12);
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(1.4f);
+                                foreach (var _ in dates) { columns.RelativeColumn(); columns.RelativeColumn(); }
+                            });
+                            table.Header(header =>
+                            {
+                                PdfHeader(header.Cell().RowSpan(2), "Category");
+                                foreach (var date in dates)
+                                    PdfHeaderCentered(header.Cell().ColumnSpan(2), $"{date:MMM d, yyyy}");
+                                foreach (var _ in dates)
+                                {
+                                    PdfHeader(header.Cell(), "Regular Sales");
+                                    PdfHeader(header.Cell(), "Employee Sales");
+                                }
+                            });
+                            foreach (var category in report.Categories.Append("TOTAL SALES"))
+                            {
+                                PdfCell(table.Cell(), category);
+                                foreach (var date in dates)
+                                {
+                                    var values = category == "TOTAL SALES"
+                                        ? report.Sales.Where(cell => cell.BusinessDate == date).ToArray()
+                                        : report.Sales.Where(cell => cell.BusinessDate == date && cell.Category == category).ToArray();
+                                    PdfCell(table.Cell(), values.Sum(cell => cell.RegularSales).ToString("₱#,##0.00"));
+                                    PdfCell(table.Cell(), values.Sum(cell => cell.EmployeeSales).ToString("₱#,##0.00"));
+                                }
+                            }
+                        });
+
+                        if (report.IncludesCashAccountability && dates.SequenceEqual(dateChunks[^1]))
+                        {
+                            content.Item().Text("Daily cash accountability").Bold().FontSize(11);
+                            content.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.RelativeColumn(); columns.RelativeColumn(); columns.RelativeColumn();
+                                    columns.RelativeColumn(); columns.RelativeColumn(); columns.RelativeColumn();
+                                    columns.RelativeColumn(); columns.RelativeColumn(1.4f);
+                                });
+                                table.Header(header =>
+                                {
+                                    foreach (var label in new[] { "Business Date", "Total Sales", "Cash Sales", "GCash Payments", "Approved Expenses", "Cash Remitted", "Cash Difference", "Assigned Cashiers" })
+                                        PdfHeader(header.Cell(), label);
+                                });
+                                foreach (var day in report.Days)
+                                {
+                                    PdfCell(table.Cell(), day.DateDisplay); PdfCell(table.Cell(), day.TotalSales.ToString("₱#,##0.00"));
+                                    PdfCell(table.Cell(), day.CashSales.ToString("₱#,##0.00")); PdfCell(table.Cell(), day.GCashPayments.ToString("₱#,##0.00"));
+                                    PdfCell(table.Cell(), day.ApprovedExpenses.ToString("₱#,##0.00")); PdfCell(table.Cell(), MoneyOrDash(day.CashRemitted));
+                                    PdfCell(table.Cell(), MoneyOrDash(day.Variance)); PdfCell(table.Cell(), day.CashiersDisplay);
+                                }
+                            });
+                        }
+                    });
+                    page.Footer().AlignCenter().Text(text => { text.Span("Page "); text.CurrentPageNumber(); text.Span(" of "); text.TotalPages(); });
+                });
+            }
+        }).GeneratePdf(output);
     }
 
     private static void CreateSummarySheet(XLWorkbook workbook, ApiReportSnapshot report)
@@ -514,6 +610,101 @@ public static class ReportExportService
         StyleDataSheet(sheet, headers.Length, row - 1);
     }
 
+    private static void CreateSalesAccountabilitySheet(XLWorkbook workbook, SalesAccountabilityReportResponse report)
+    {
+        var sheet = workbook.Worksheets.Add("Sales Accountability");
+        var lastColumn = 1 + report.Dates.Count * 2;
+        sheet.Range(1, 1, 1, lastColumn).Merge();
+        sheet.Cell(1, 1).Value = "BPNV SALES ACCOUNTABILITY REPORT";
+        sheet.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(16);
+        sheet.Cell(2, 1).Value = "Date range";
+        sheet.Cell(2, 2).Value = $"{report.FromDate:MMM d, yyyy} to {report.ToDateExclusive.AddDays(-1):MMM d, yyyy}";
+        sheet.Cell(4, 1).Value = "Category";
+        var column = 2;
+        foreach (var date in report.Dates)
+        {
+            sheet.Range(4, column, 4, column + 1).Merge();
+            sheet.Cell(4, column).Value = date.ToDateTime(TimeOnly.MinValue);
+            sheet.Cell(4, column).Style.DateFormat.Format = "mmm d, yyyy";
+            sheet.Cell(5, column).Value = "Regular Sales";
+            sheet.Cell(5, column + 1).Value = "Employee Sales";
+            column += 2;
+        }
+
+        var row = 6;
+        foreach (var category in report.Categories.Append("TOTAL SALES"))
+        {
+            sheet.Cell(row, 1).Value = category;
+            column = 2;
+            foreach (var date in report.Dates)
+            {
+                var values = category == "TOTAL SALES"
+                    ? report.Sales.Where(cell => cell.BusinessDate == date).ToArray()
+                    : report.Sales.Where(cell => cell.BusinessDate == date && cell.Category == category).ToArray();
+                sheet.Cell(row, column).Value = values.Sum(cell => cell.RegularSales);
+                sheet.Cell(row, column + 1).Value = values.Sum(cell => cell.EmployeeSales);
+                column += 2;
+            }
+            row++;
+        }
+        sheet.Range(6, 2, row - 1, lastColumn).Style.NumberFormat.Format = "₱#,##0.00";
+        column = 2;
+        foreach (var _ in report.Dates)
+        {
+            sheet.Range(4, column, 4, column + 1).Style.DateFormat.Format = "mmm d, yyyy";
+            column += 2;
+        }
+        sheet.Range(4, 1, 5, lastColumn).Style.Font.Bold = true;
+        sheet.Range(4, 1, 5, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#F59E0B");
+        sheet.Range(4, 1, row - 1, lastColumn).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        sheet.Range(4, 1, row - 1, lastColumn).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+
+        if (!report.IncludesCashAccountability)
+        {
+            sheet.Column(1).Width = 20;
+            for (var index = 2; index <= lastColumn; index++) sheet.Column(index).Width = 18;
+            return;
+        }
+
+        row += 2;
+        string[] headers = ["Business date", "Total sales", "Cash sales", "GCash payments", "Employee owed", "Approved expenses", "Cash remitted", "Expected cash", "Actual cash", "Cash difference", "Assigned cashiers"];
+        for (var index = 0; index < headers.Length; index++) sheet.Cell(row, index + 1).Value = headers[index];
+        sheet.Range(row, 1, row, headers.Length).Style.Font.Bold = true;
+        sheet.Range(row, 1, row, headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F59E0B");
+        foreach (var day in report.Days)
+        {
+            row++;
+            sheet.Cell(row, 1).Value = day.BusinessDate.ToDateTime(TimeOnly.MinValue);
+            sheet.Cell(row, 2).Value = day.TotalSales; sheet.Cell(row, 3).Value = day.CashSales;
+            sheet.Cell(row, 4).Value = day.GCashPayments; sheet.Cell(row, 5).Value = day.EmployeeOwedSales;
+            sheet.Cell(row, 6).Value = day.ApprovedExpenses;
+            SetNullableMoney(sheet.Cell(row, 7), day.CashRemitted); SetNullableMoney(sheet.Cell(row, 8), day.ExpectedCash);
+            SetNullableMoney(sheet.Cell(row, 9), day.ActualCash); SetNullableMoney(sheet.Cell(row, 10), day.Variance);
+            sheet.Cell(row, 11).Value = day.CashiersDisplay;
+        }
+        sheet.Column(1).Style.DateFormat.Format = "yyyy-mm-dd";
+        sheet.Columns(2, 10).Style.NumberFormat.Format = "₱#,##0.00";
+        column = 2;
+        foreach (var date in report.Dates)
+        {
+            sheet.Range(4, column, 4, column + 1).Style.NumberFormat.Format = "mmm d, yyyy";
+            sheet.Range(4, column, 4, column + 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Cell(4, column).Value = date.ToDateTime(TimeOnly.MinValue);
+            column += 2;
+        }
+        sheet.Column(1).Width = 18;
+        for (var index = 2; index <= 10; index++) sheet.Column(index).Width = 16;
+        sheet.Column(11).Width = 24;
+    }
+
+    private static void SetNullableMoney(IXLCell cell, decimal? value)
+    {
+        if (value.HasValue) cell.Value = value.Value;
+        else cell.Value = "-";
+    }
+
+    private static string MoneyOrDash(decimal? value) => value.HasValue ? value.Value.ToString("₱#,##0.00") : "-";
+
     private static void WriteHeaders(IXLWorksheet sheet, IReadOnlyList<string> headers)
     {
         for (var index = 0; index < headers.Count; index++)
@@ -541,6 +732,12 @@ public static class ReportExportService
 
     private static void PdfHeader(IContainer container, string text) => container
         .Background(Colors.Orange.Medium).Padding(5).Text(text).Bold().FontSize(8);
+
+    private static void PdfHeaderCentered(IContainer container, string text) => container
+        .Background(Colors.Orange.Medium).Padding(5).Row(row =>
+        {
+            row.RelativeItem().OffsetX(-90).AlignCenter().Text(text).Bold().FontSize(8);
+        });
 
     private static void PdfCell(IContainer container, string text) => container
         .BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(text).FontSize(8);

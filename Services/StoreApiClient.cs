@@ -395,6 +395,14 @@ public sealed class StoreApiClient(AuthApiClient authClient)
             ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)),
             ("cashierUserId", cashierUserId?.ToString()), ("shiftDefinitionId", shiftDefinitionId?.ToString()))), cancellationToken);
 
+    public Task<SalesAccountabilityReportResponse> GetSalesAccountabilityReportAsync(
+        DateOnly fromDate, DateOnly toDateExclusive, Guid? cashierUserId = null,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<SalesAccountabilityReportResponse>(() => new HttpRequestMessage(HttpMethod.Get,
+            WithQuery("api/reports/sales-accountability",
+                ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)),
+                ("cashierUserId", cashierUserId?.ToString()))), cancellationToken);
+
     public Task<DashboardResponse> GetDashboardAsync(CancellationToken cancellationToken = default) =>
         SendAsync<DashboardResponse>(() => new HttpRequestMessage(HttpMethod.Get, "api/dashboard"), cancellationToken);
 

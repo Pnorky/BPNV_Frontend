@@ -167,7 +167,9 @@ public sealed class ExcelInventoryImportServiceTests
         Assert.AreEqual(25m, product.CostPrice);
         Assert.AreEqual(35m, product.RegularPrice);
         Assert.AreEqual(30m, product.EmployeePrice);
-        Assert.IsEmpty(result.Issues);
+        Assert.IsFalse(result.Issues.Any(issue => issue.Severity == ExcelInventoryIssueSeverity.Error));
+        Assert.IsTrue(result.Issues.Any(issue => issue.Code == "DefaultedSalesReportCategory"));
+        Assert.AreEqual(SalesReportCategories.Other, product.SalesReportCategory);
     }
 
     [TestMethod]

@@ -43,6 +43,49 @@ public sealed class ReportExportServiceTests
         CollectionAssert.AreEqual("%PDF"u8.ToArray(), output.ToArray()[..4]);
     }
 
+    [TestMethod]
+    public void SalesAccountabilityExcelContainsMatrixAndDailySection()
+    {
+        using var output = new MemoryStream();
+
+        ReportExportService.ExportSalesAccountabilityExcel(AccountabilityReport(), output);
+
+        output.Position = 0;
+        using var workbook = new XLWorkbook(output);
+        var sheet = workbook.Worksheet("Sales Accountability");
+        Assert.AreEqual("Drinks", sheet.Cell("A6").GetString());
+        Assert.AreEqual(120d, sheet.Cell("B6").Value.GetNumber());
+        Assert.AreEqual(30d, sheet.Cell("C6").Value.GetNumber());
+        Assert.IsTrue(sheet.CellsUsed().Any(cell => cell.GetString() == "Cash remitted"));
+        Assert.IsTrue(sheet.CellsUsed().Any(cell => cell.GetString() == "Cashier One"));
+    }
+
+    [TestMethod]
+    public void SalesAccountabilityPdfContainsDocument()
+    {
+        QuestSettings.License = LicenseType.Community;
+        using var output = new MemoryStream();
+
+        ReportExportService.ExportSalesAccountabilityPdf(AccountabilityReport(), output);
+
+        Assert.IsTrue(output.Length > 0);
+        CollectionAssert.AreEqual("%PDF"u8.ToArray(), output.ToArray()[..4]);
+    }
+
+    private static SalesAccountabilityReportResponse AccountabilityReport()
+    {
+        var date = new DateOnly(2026, 8, 27);
+        return new(
+            date,
+            date.AddDays(1),
+            [date],
+            ["Drinks", "Other"],
+            [new(date, "Drinks", 120m, 30m)],
+            [new(date, 150m, 120m, 20m, 10m, 5m, 115m, 115m, 115m, 0m, ["Cashier One"])],
+            true,
+            1);
+    }
+
     private static ApiReportSnapshot Snapshot()
     {
         var productId = Guid.Parse("11111111-1111-1111-1111-111111111111");

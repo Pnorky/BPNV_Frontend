@@ -76,6 +76,7 @@ public sealed class ExcelInventoryProductDraft
     public string PieceBarcode { get; set; } = "";
     public string Name { get; set; } = "";
     public string Category { get; set; } = "";
+    public string SalesReportCategory { get; set; } = SalesReportCategories.Other;
     public string Unit { get; set; } = "";
     public decimal? CostPrice { get; set; }
     public decimal? RegularPrice { get; set; }
@@ -115,6 +116,7 @@ public sealed class ExcelInventoryImportService
     ];
     private static readonly string[] FixedProductHeaders =
     ["Supplier", "Product", "Category", "Item type", "Purchase Price/Unit Price", "Selling Price", "Employee Price"];
+    private static readonly string[] FixedProductOutputHeaders = [.. FixedProductHeaders, "Sales Report Category"];
 
     public ExcelInventoryImportResult Parse(Stream input)
     {
@@ -150,6 +152,7 @@ public sealed class ExcelInventoryImportService
                 SupplierName = Text(sheet, row, columns, "Supplier"),
                 Name = Text(sheet, row, columns, "Product"),
                 Category = Text(sheet, row, columns, "Category"),
+                SalesReportCategory = OptionalText(sheet, row, columns, "Sales Report Category"),
                 Unit = "piece",
                 CostPrice = ReadDecimal(sheet, row, columns, "Purchase Price/Unit Price", result),
                 RegularPrice = ReadDecimal(sheet, row, columns, "Selling Price", result),
@@ -158,6 +161,7 @@ public sealed class ExcelInventoryImportService
             var itemType = Text(sheet, row, columns, "Item type");
             if (Enum.TryParse<ApiInventoryItemType>(itemType, true, out var parsedType)) product.ItemType = parsedType;
             else AddError(product.Issues, "InvalidItemType", "Item type must be Merchandise, Consumable, or Supply.", sheet, row);
+            ValidateSalesReportCategory(product, sheet);
 
             foreach (var (value, label) in new[]
                      { (product.SupplierName, "Supplier"), (product.Name, "Product"), (product.Category, "Category") })
@@ -187,7 +191,7 @@ public sealed class ExcelInventoryImportService
         instructions.Column(1).Width = 110;
 
         var products = workbook.Worksheets.Add("Products");
-        WriteHeaders(products, FixedProductHeaders);
+        WriteHeaders(products, FixedProductOutputHeaders);
 
         if (source is not null)
         {
@@ -195,11 +199,12 @@ public sealed class ExcelInventoryImportService
             {
                 var product = source.Products[index];
                 WriteRow(products, index + 2, product.SupplierName, product.Name, product.Category,
-                    product.ItemType?.ToString() ?? "", product.CostPrice, product.RegularPrice, product.EmployeePrice);
+                    product.ItemType?.ToString() ?? "", product.CostPrice, product.RegularPrice, product.EmployeePrice,
+                    product.SalesReportCategory);
             }
         }
 
-        StyleTemplateSheet(products, FixedProductHeaders.Length);
+        StyleTemplateSheet(products, FixedProductOutputHeaders.Length);
         workbook.SaveAs(output);
     }
 
@@ -341,6 +346,7 @@ public sealed class ExcelInventoryImportService
                 Section = section,
                 Name = name
             };
+            ValidateSalesReportCategory(product, sheet);
             var beginningDisplay = ReadLegacyInteger(sheet.Cell(row, 2), product, "display beginning");
             var displayAdd = ReadLegacyInteger(sheet.Cell(row, 3), product, "display add");
             var sales = ReadLegacyInteger(sheet.Cell(row, 4), product, "sales");
@@ -440,6 +446,7 @@ public sealed class ExcelInventoryImportService
                 PieceBarcode = Text(sheet, row, columns, "PieceBarcode", true),
                 Name = Text(sheet, row, columns, "Name"),
                 Category = Text(sheet, row, columns, "Category"),
+                SalesReportCategory = OptionalText(sheet, row, columns, "SalesReportCategory", "Sales Report Category"),
                 Unit = Text(sheet, row, columns, "Unit"),
                 CostPrice = ReadDecimal(sheet, row, columns, "CostPrice", result),
                 RegularPrice = ReadDecimal(sheet, row, columns, "RegularPrice", result),
@@ -454,6 +461,7 @@ public sealed class ExcelInventoryImportService
             var itemType = Text(sheet, row, columns, "ItemType");
             if (Enum.TryParse<ApiInventoryItemType>(itemType, true, out var parsedType)) product.ItemType = parsedType;
             else AddIssue(product.Issues, "InvalidItemType", "ItemType must be Merchandise, Consumable, or Supply.", sheet, row);
+            ValidateSalesReportCategory(product, sheet);
 
             foreach (var (value, label) in new[]
                      {
@@ -588,6 +596,40 @@ public sealed class ExcelInventoryImportService
         var cell = sheet.Cell(row, columns[Normalize(header)]);
         if (cell.HasFormula) return "";
         return (formatted ? cell.GetFormattedString() : cell.GetString()).Trim();
+    }
+
+    private static string OptionalText(
+        IXLWorksheet sheet,
+        int row,
+        IReadOnlyDictionary<string, int> columns,
+        params string[] headers)
+    {
+        foreach (var header in headers)
+        {
+            if (columns.TryGetValue(Normalize(header), out var column))
+                return sheet.Cell(row, column).GetString().Trim();
+        }
+        return "";
+    }
+
+    private static void ValidateSalesReportCategory(ExcelInventoryProductDraft product, IXLWorksheet sheet)
+    {
+        if (string.IsNullOrWhiteSpace(product.SalesReportCategory))
+        {
+            product.SalesReportCategory = SalesReportCategories.Other;
+            AddIssue(product.Issues, "DefaultedSalesReportCategory",
+                "Sales report category was blank or missing and was set to Other.", sheet, product.SourceRow);
+            return;
+        }
+
+        if (!SalesReportCategories.IsValid(product.SalesReportCategory))
+        {
+            AddError(product.Issues, "InvalidSalesReportCategory",
+                $"Sales report category must be one of: {string.Join(", ", SalesReportCategories.Values)}.", sheet, product.SourceRow);
+            return;
+        }
+
+        product.SalesReportCategory = SalesReportCategories.NormalizeOrOther(product.SalesReportCategory);
     }
 
     private static int? ReadInteger(

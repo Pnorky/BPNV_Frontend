@@ -61,6 +61,7 @@ public partial class AddProductViewModel : ObservableObject
     [ObservableProperty] private string _pieceBarcode = "";
     [ObservableProperty] private string _name = "";
     [ObservableProperty] private string _category = "";
+    [ObservableProperty] private string _salesReportCategory = Services.SalesReportCategories.Other;
     [ObservableProperty] private string _unit = "piece";
     [ObservableProperty] private decimal _costPrice;
     [ObservableProperty] private decimal _regularPrice;
@@ -83,6 +84,7 @@ public partial class AddProductViewModel : ObservableObject
         "Beverages", "Snacks", "Grocery", "Personal Care", "Household",
         "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
     ];
+    public IReadOnlyList<string> SalesReportCategories { get; } = Services.SalesReportCategories.Values;
     public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
     public AddProductViewModel(StoreApiClient api, INotificationService notifications)
@@ -248,6 +250,7 @@ public partial class AddProductViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(Sku)) return Fail("SKU is required.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
         if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
+        if (!Services.SalesReportCategories.IsValid(SalesReportCategory)) return Fail("Select a valid sales report category.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
         if (CostPrice < 0 || RegularPrice < 0 || EmployeePrice < 0)
             return Fail("Purchase and selling prices cannot be negative.", out error);
@@ -281,7 +284,7 @@ public partial class AddProductViewModel : ObservableObject
             CostPrice, RegularPrice, EmployeePrice,
             (int)CriticalReorderLevel, (int)CriticalOrderQuantity,
             (int)WarningReorderLevel, (int)WarningOrderQuantity, packages,
-            ItemType == ApiInventoryItemType.Supply ? false : IsSellable, IsPerishable);
+            ItemType == ApiInventoryItemType.Supply ? false : IsSellable, IsPerishable, SalesReportCategory);
         return true;
     }
 
@@ -291,6 +294,7 @@ public partial class AddProductViewModel : ObservableObject
         PieceBarcode = "";
         Name = "";
         Category = "";
+        SalesReportCategory = Services.SalesReportCategories.Other;
         CostPrice = 0;
         RegularPrice = 0;
         EmployeePrice = 0;

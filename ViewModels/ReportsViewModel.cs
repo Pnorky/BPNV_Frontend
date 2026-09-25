@@ -7,9 +7,20 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AvaloniaApp.ViewModels;
 
+public sealed record SalesAccountabilityValueViewModel(DateOnly Date, decimal Regular, decimal Employee)
+{
+    public string DateDisplay => Date.ToString("MMM d");
+    public string RegularDisplay => Regular == 0 ? "-" : $"₱{Regular:N2}";
+    public string EmployeeDisplay => Employee == 0 ? "-" : $"₱{Employee:N2}";
+}
+
+public sealed record SalesAccountabilityCategoryRowViewModel(
+    string Category, IReadOnlyList<SalesAccountabilityValueViewModel> Values);
+
 public partial class ReportsViewModel : ObservableObject
 {
     private readonly StoreApiClient _api;
+    private readonly AuthSession? _session;
 
     [ObservableProperty] private ApiReportSnapshot? _snapshot;
     [ObservableProperty] private IReadOnlyList<TopProductResponse> _topProducts = [];
@@ -29,6 +40,8 @@ public partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private DateTimeOffset? _toDate;
     [ObservableProperty] private string _selectedCustomerType = "All sales";
     [ObservableProperty] private int _selectedReportTabIndex;
+    [ObservableProperty] private SalesAccountabilityReportResponse? _salesAccountability;
+    [ObservableProperty] private IReadOnlyList<SalesAccountabilityCategoryRowViewModel> _accountabilityRows = [];
 
     public IReadOnlyList<string> CustomerTypeOptions { get; } = ["All sales", "Regular", "Employee"];
     public bool IsSalesReportTab => SelectedReportTabIndex == 0;
@@ -36,7 +49,14 @@ public partial class ReportsViewModel : ObservableObject
     public bool IsCashierRemittanceTab => SelectedReportTabIndex == 2;
     public bool IsInventoryReportTab => SelectedReportTabIndex == 3;
     public bool IsOrderReportTab => SelectedReportTabIndex == 4;
-    public bool IsDateFilteredReportTab => IsSalesReportTab || IsEmployeePurchasesTab || IsCashierRemittanceTab;
+    public bool IsSalesAccountabilityTab => SelectedReportTabIndex == 5;
+    public bool CanViewStandardReports => !IsCashierOnly;
+    public bool IsCashierOnly => _session?.HasRole("Cashier") == true &&
+                                 _session.HasRole("Admin") == false && _session.HasRole("Inventory") == false;
+    public bool CanSelectAccountabilityCashier => _session?.HasRole("Admin") == true;
+    public bool ShowsCashierFilter => IsCashierRemittanceTab || IsSalesAccountabilityTab && CanSelectAccountabilityCashier;
+    public bool HasOtherReportCategories => SalesAccountability?.OtherAssignedProductCount > 0;
+    public bool IsDateFilteredReportTab => IsSalesReportTab || IsEmployeePurchasesTab || IsCashierRemittanceTab || IsSalesAccountabilityTab;
     public bool HasReportFilters => IsDateFilteredReportTab;
 
     public string GrossSalesDisplay => $"₱{Snapshot?.Sales.Summary.GrossSales ?? 0:N2}";
@@ -59,9 +79,11 @@ public partial class ReportsViewModel : ObservableObject
     public int EmployeeTransactions => Snapshot?.EmployeePurchases?.Summary.Transactions ?? 0;
     public int EmployeesRepresented => Snapshot?.EmployeePurchases?.Summary.Employees ?? 0;
 
-    public ReportsViewModel(StoreApiClient api)
+    public ReportsViewModel(StoreApiClient api, AuthSession? session = null)
     {
         _api = api;
+        _session = session;
+        if (IsCashierOnly) SelectedReportTabIndex = 5;
         _ = RefreshAsync();
     }
 
@@ -74,6 +96,8 @@ public partial class ReportsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCashierRemittanceTab));
         OnPropertyChanged(nameof(IsInventoryReportTab));
         OnPropertyChanged(nameof(IsOrderReportTab));
+        OnPropertyChanged(nameof(IsSalesAccountabilityTab));
+        OnPropertyChanged(nameof(ShowsCashierFilter));
         OnPropertyChanged(nameof(IsDateFilteredReportTab));
         OnPropertyChanged(nameof(HasReportFilters));
     }
@@ -90,6 +114,16 @@ public partial class ReportsViewModel : ObservableObject
         StatusMessage = "Loading reports...";
         try
         {
+            var accountFrom = DateOnly.FromDateTime(FromDate?.Date ?? StoreDateTime.StoreToday);
+            var accountTo = DateOnly.FromDateTime((ToDate?.Date ?? FromDate?.Date ?? StoreDateTime.StoreToday).AddDays(1));
+            if (IsCashierOnly)
+            {
+                SalesAccountability = await _api.GetSalesAccountabilityReportAsync(accountFrom, accountTo);
+                BuildAccountabilityRows();
+                StatusMessage = "Sales accountability report is up to date.";
+                return;
+            }
+
             var (fromUtc, toUtcExclusive) = StoreDateTime.GetUtcDateRange(FromDate, ToDate);
             var customerType = SelectedCustomerType switch
             {
@@ -107,7 +141,9 @@ public partial class ReportsViewModel : ObservableObject
                 DateOnly.FromDateTime((ToDate?.Date ?? FromDate?.Date ?? StoreDateTime.StoreToday).AddDays(1)),
                 SelectedCashier?.Id);
             var cashiersTask = _api.GetUsersAsync(includeInactive: true);
-            await Task.WhenAll(salesTask, inventoryTask, ordersTask, employeeReportTask, employeesTask);
+            var accountabilityTask = _api.GetSalesAccountabilityReportAsync(
+                accountFrom, accountTo, CanSelectAccountabilityCashier ? SelectedCashier?.Id : null);
+            await Task.WhenAll(salesTask, inventoryTask, ordersTask, employeeReportTask, employeesTask, accountabilityTask);
             CashierShiftReportResponse? cashierReport = null;
             try { cashierReport = await cashierReportTask; }
             catch (Exception) { }
@@ -120,7 +156,10 @@ public partial class ReportsViewModel : ObservableObject
                 await inventoryTask,
                 await ordersTask,
                 await employeeReportTask,
-                cashierReport);
+                cashierReport,
+                await accountabilityTask);
+            SalesAccountability = Snapshot.SalesAccountability;
+            BuildAccountabilityRows();
             TopProducts = Snapshot.Sales.TopProducts;
             RecentSales = Snapshot.Sales.RecentSales;
             InventoryItems = Snapshot.Inventory.Products;
@@ -140,6 +179,8 @@ public partial class ReportsViewModel : ObservableObject
             InventoryItems = [];
             OrderSummaries = [];
             EmployeePurchaseLines = [];
+            SalesAccountability = null;
+            AccountabilityRows = [];
             ErrorMessage = exception is TaskCanceledException ? "The report request timed out." : exception.Message;
             StatusMessage = ErrorMessage;
             NotifySummaryChanged();
@@ -153,6 +194,16 @@ public partial class ReportsViewModel : ObservableObject
     [RelayCommand]
     private async Task ExportPdf()
     {
+        if (IsSalesAccountabilityTab && SalesAccountability is not null)
+        {
+            var accountabilityFile = await SelectExportFileAsync("Export PDF report", BuildExportFileName("pdf"), "PDF report", "*.pdf");
+            if (accountabilityFile is null) return;
+            await using var accountabilityStream = await accountabilityFile.OpenWriteAsync();
+            if (accountabilityStream.CanSeek) accountabilityStream.SetLength(0);
+            ReportExportService.ExportSalesAccountabilityPdf(SalesAccountability, accountabilityStream);
+            ExportStatus = "PDF report exported successfully.";
+            return;
+        }
         if (Snapshot is null)
         {
             ExportStatus = "Load the reports before exporting.";
@@ -178,6 +229,16 @@ public partial class ReportsViewModel : ObservableObject
     [RelayCommand]
     private async Task ExportExcel()
     {
+        if (IsSalesAccountabilityTab && SalesAccountability is not null)
+        {
+            var accountabilityFile = await SelectExportFileAsync("Export Excel report", BuildExportFileName("xlsx"), "Excel workbook", "*.xlsx");
+            if (accountabilityFile is null) return;
+            await using var accountabilityStream = await accountabilityFile.OpenWriteAsync();
+            if (accountabilityStream.CanSeek) accountabilityStream.SetLength(0);
+            ReportExportService.ExportSalesAccountabilityExcel(SalesAccountability, accountabilityStream);
+            ExportStatus = "Excel report exported successfully.";
+            return;
+        }
         if (Snapshot is null)
         {
             ExportStatus = "Load the reports before exporting.";
@@ -231,6 +292,7 @@ public partial class ReportsViewModel : ObservableObject
             2 => "cashier-remittance",
             3 => "inventory-summary",
             4 => "order-summary",
+            5 => "sales-accountability",
             _ => "sales-summary"
         };
         var datePart = FromDate is null && ToDate is null
@@ -246,6 +308,33 @@ public partial class ReportsViewModel : ObservableObject
         var fileName = $"BPNV-{reportName}-{datePart}-{filterPart}";
         foreach (var character in Path.GetInvalidFileNameChars()) fileName = fileName.Replace(character, '-');
         return $"{fileName}.{extension}";
+    }
+
+    private void BuildAccountabilityRows()
+    {
+        if (SalesAccountability is null)
+        {
+            AccountabilityRows = [];
+            return;
+        }
+
+        AccountabilityRows = SalesAccountability.Categories.Select(category =>
+            new SalesAccountabilityCategoryRowViewModel(category,
+                SalesAccountability.Dates.Select(date =>
+                {
+                    var cell = SalesAccountability.Sales.FirstOrDefault(item =>
+                        item.BusinessDate == date && string.Equals(item.Category, category, StringComparison.OrdinalIgnoreCase));
+                    return new SalesAccountabilityValueViewModel(
+                        date, cell?.RegularSales ?? 0, cell?.EmployeeSales ?? 0);
+                }).ToArray())).Append(
+            new SalesAccountabilityCategoryRowViewModel("TOTAL SALES",
+                SalesAccountability.Dates.Select(date =>
+                {
+                    var cells = SalesAccountability.Sales.Where(item => item.BusinessDate == date).ToArray();
+                    return new SalesAccountabilityValueViewModel(
+                        date, cells.Sum(item => item.RegularSales), cells.Sum(item => item.EmployeeSales));
+                }).ToArray())).ToArray();
+        OnPropertyChanged(nameof(HasOtherReportCategories));
     }
 
     private static async Task<IStorageFile?> SelectExportFileAsync(

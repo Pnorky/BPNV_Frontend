@@ -99,7 +99,8 @@ public sealed record ProductResponse(
     bool IsActive,
     IReadOnlyList<ProductUnitResponse> Units,
     bool IsSellable = true,
-    bool IsPerishable = false)
+    bool IsPerishable = false,
+    string SalesReportCategory = SalesReportCategories.Other)
 {
     public string ActivityStatus => IsActive ? "Active" : "Inactive";
     public bool IsInactive => !IsActive;
@@ -204,7 +205,8 @@ public sealed record CreateProductRequest(
     int WarningOrderQuantity,
     IReadOnlyList<CreateProductUnitRequest>? Packages,
     bool? IsSellable = null,
-    bool IsPerishable = false);
+    bool IsPerishable = false,
+    string? SalesReportCategory = null);
 
 public sealed record UpdateProductUnitRequest(
     Guid? Id,
@@ -233,7 +235,8 @@ public sealed record UpdateProductRequest(
     ulong Version,
     IReadOnlyList<UpdateProductUnitRequest>? Packages,
     bool? IsSellable = null,
-    bool? IsPerishable = null);
+    bool? IsPerishable = null,
+    string? SalesReportCategory = null);
 
 public sealed record ReplaceBarcodeRequest(bool Confirmed);
 
@@ -279,7 +282,10 @@ public sealed record InventoryImportProductRequest(
     int WarningOrderQuantity,
     int OpeningDisplayStock,
     int OpeningBodegaStock,
-    IReadOnlyList<InventoryImportPackageRequest>? Packages);
+    IReadOnlyList<InventoryImportPackageRequest>? Packages,
+    bool? IsSellable = null,
+    bool IsPerishable = false,
+    string? SalesReportCategory = null);
 
 public sealed record InventoryImportRequest(
     Guid ImportKey,
@@ -387,7 +393,8 @@ public sealed record BatchReceiptNewProductRequest(
     int WarningOrderQuantity,
     IReadOnlyList<CreateProductUnitRequest>? Packages,
     bool? IsSellable = null,
-    bool IsPerishable = false);
+    bool IsPerishable = false,
+    string? SalesReportCategory = null);
 
 public sealed record BatchReceiptRequest(
     Guid IdempotencyKey,
@@ -948,7 +955,8 @@ public sealed record ApiReportSnapshot(
     InventoryReportResponse Inventory,
     OrderReportResponse Orders,
     EmployeePurchaseReportResponse? EmployeePurchases = null,
-    CashierShiftReportResponse? CashierShifts = null);
+    CashierShiftReportResponse? CashierShifts = null,
+    SalesAccountabilityReportResponse? SalesAccountability = null);
 
 public sealed record ShiftDefinitionResponse(Guid Id, string Name, TimeOnly StartLocalTime, TimeOnly EndLocalTime, bool IsActive)
 {
@@ -1082,6 +1090,23 @@ public sealed record CashierShiftReportSummaryResponse(
     int Sessions, decimal TotalSales, decimal CashSales, decimal GCashSales,
     decimal ExpectedRemittance, decimal ActualRemittance, decimal Variance);
 public sealed record CashierShiftReportResponse(CashierShiftReportSummaryResponse Summary, IReadOnlyList<CashierShiftReportRowResponse> Sessions);
+
+public sealed record SalesAccountabilityCategoryCellResponse(
+    DateOnly BusinessDate, string Category, decimal RegularSales, decimal EmployeeSales);
+public sealed record SalesAccountabilityDayResponse(
+    DateOnly BusinessDate, decimal TotalSales, decimal CashSales, decimal GCashPayments,
+    decimal EmployeeOwedSales, decimal ApprovedExpenses, decimal? CashRemitted,
+    decimal? ExpectedCash, decimal? ActualCash, decimal? Variance,
+    IReadOnlyList<string> AssignedCashiers)
+{
+    public string DateDisplay => BusinessDate.ToString("MMM d, yyyy");
+    public string CashiersDisplay => AssignedCashiers.Count == 0 ? "-" : string.Join(" / ", AssignedCashiers);
+}
+public sealed record SalesAccountabilityReportResponse(
+    DateOnly FromDate, DateOnly ToDateExclusive, IReadOnlyList<DateOnly> Dates,
+    IReadOnlyList<string> Categories, IReadOnlyList<SalesAccountabilityCategoryCellResponse> Sales,
+    IReadOnlyList<SalesAccountabilityDayResponse> Days, bool IncludesCashAccountability,
+    int OtherAssignedProductCount);
 
 public static class CashierShiftFormatting
 {
