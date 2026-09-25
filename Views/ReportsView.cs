@@ -244,14 +244,14 @@ public class ReportsView : UserControl
             ("EMPLOYEES", "EmployeesRepresented")));
         var table = new PagedTable { ItemName = "purchase line", ItemNamePlural = "purchase lines", PageSize = 12, MinHeight = 0, MinTableWidth = 1450, IsSelectable = false };
         Bind(table, PagedTable.ItemsSourceProperty, "EmployeePurchaseLines");
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("DATE & TIME", item => item.SoldAtDisplay, new GridLength(1.7, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SALE", item => item.SaleNumber, new GridLength(0.8, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("EMPLOYEE", item => item.EmployeeDisplay, new GridLength(2.0, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SKU", item => item.Sku, new GridLength(1.1, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("PRODUCT", item => item.ProductName, new GridLength(1.6, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("QUANTITY", item => item.QuantityDisplay, new GridLength(1.1, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("UNIT PRICE", item => item.UnitPriceDisplay, new GridLength(0.8, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("LINE TOTAL", item => item.LineTotalDisplay, new GridLength(0.8, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("DATE & TIME", item => item.SoldAtDisplay, new GridLength(220)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SALE", item => item.SaleNumber, new GridLength(170)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("EMPLOYEE", item => item.EmployeeDisplay, new GridLength(260)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("SKU", item => item.Sku, new GridLength(170)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("PRODUCT", item => item.ProductName, new GridLength(220)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("QUANTITY", item => item.QuantityDisplay, new GridLength(220)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("UNIT PRICE", item => item.UnitPriceDisplay, new GridLength(150)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeePurchaseLineResponse, string>("LINE TOTAL", item => item.LineTotalDisplay, new GridLength(150)));
         content.Children.Add(At(table, row: 1));
         return content;
     }

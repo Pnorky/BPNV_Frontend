@@ -22,13 +22,21 @@ public sealed class ReportExportServiceTests
             workbook.Worksheets.Select(sheet => sheet.Name).ToArray());
         Assert.AreEqual("SALE-1", workbook.Worksheet("Sales").Cell("A2").GetString());
         Assert.AreEqual("Cash", workbook.Worksheet("Sales").Cell("D2").GetString());
+        CollectionAssert.AreEqual(
+            new[] { "Sale #", "Date & time", "Sale type", "Payment method", "Cashier", "SKU", "Product / unit", "Price", "Quantity", "Amount" },
+            Enumerable.Range(1, 10).Select(column => workbook.Worksheet("Sales").Cell(1, column).GetString()).ToArray());
+        Assert.AreEqual("Regular", workbook.Worksheet("Sales").Cell("C2").GetString());
+        Assert.AreEqual("Product (piece)", workbook.Worksheet("Sales").Cell("G2").GetString());
+        Assert.AreEqual(12.5d, workbook.Worksheet("Sales").Cell("H2").GetDouble());
+        Assert.AreEqual(2d, workbook.Worksheet("Sales").Cell("I2").GetDouble());
+        Assert.AreEqual(25d, workbook.Worksheet("Sales").Cell("J2").GetDouble());
         Assert.AreEqual("SKU-1", workbook.Worksheet("Inventory").Cell("A2").GetString());
         Assert.AreEqual("Supplier A", workbook.Worksheet("Orders").Cell("A2").GetString());
-        Assert.AreEqual("EMP-000001", workbook.Worksheet("Employee Purchases").Cell("C2").GetString());
+        Assert.AreEqual("EMP-000001 · Employee One", workbook.Worksheet("Employee Purchases").Cell("A2").GetString());
         Assert.AreEqual(new DateTime(2026, 8, 27, 9, 0, 0), workbook.Worksheet("Sales").Cell("B2").GetDateTime());
         Assert.AreEqual(StoreDateTime.ExcelTimestampFormat, workbook.Worksheet("Sales").Cell("B2").Style.DateFormat.Format);
-        Assert.AreEqual(new DateTime(2026, 8, 27, 9, 0, 0), workbook.Worksheet("Employee Purchases").Cell("B2").GetDateTime());
-        Assert.AreEqual(StoreDateTime.ExcelTimestampFormat, workbook.Worksheet("Employee Purchases").Cell("B2").Style.DateFormat.Format);
+        Assert.AreEqual(new DateTime(2026, 8, 27, 9, 0, 0), workbook.Worksheet("Employee Purchases").Cell("C2").GetDateTime());
+        Assert.AreEqual(StoreDateTime.ExcelTimestampFormat, workbook.Worksheet("Employee Purchases").Cell("C2").Style.DateFormat.Format);
     }
 
     [TestMethod]

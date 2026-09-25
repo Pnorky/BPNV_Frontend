@@ -842,7 +842,8 @@ public sealed record EmployeePurchaseLineResponse(
     int BasePieceQuantity,
     decimal UnitPrice,
     decimal LineTotal,
-    decimal SaleTotal)
+    decimal SaleTotal,
+    bool IsOwed = false)
 {
     public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
     public string EmployeeDisplay => EmployeeNumber is null ? "Unattributed" : $"{EmployeeNumber} · {EmployeeName}";

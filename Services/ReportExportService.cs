@@ -56,41 +56,49 @@ public static class ReportExportService
                         SummaryCard(row.RelativeItem(), "Low stock", report.Inventory.Summary.LowStockItems.ToString());
                     });
 
-                    content.Item().Text("Sales lines").Bold().FontSize(13);
+                    content.Item().Text("Sales summary").Bold().FontSize(13);
                     content.Item().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.ConstantColumn(52);
+                            columns.ConstantColumn(58);
                             columns.ConstantColumn(76);
+                            columns.ConstantColumn(54);
                             columns.ConstantColumn(42);
-                            columns.ConstantColumn(48);
+                            columns.ConstantColumn(46);
                             columns.RelativeColumn();
                             columns.ConstantColumn(38);
+                            columns.ConstantColumn(52);
                             columns.ConstantColumn(58);
                         });
                         table.Header(header =>
                         {
                             PdfHeader(header.Cell(), "Sale");
                             PdfHeader(header.Cell(), "Date and time");
+                            PdfHeader(header.Cell(), "Sale type");
                             PdfHeader(header.Cell(), "Payment");
                             PdfHeader(header.Cell(), "SKU");
                             PdfHeader(header.Cell(), "Product / unit");
+                            PdfHeader(header.Cell(), "Price");
                             PdfHeader(header.Cell(), "Qty");
                             PdfHeader(header.Cell(), "Amount");
                         });
 
                         foreach (var sale in report.Sales.Sales.OrderByDescending(sale => sale.SoldAtUtc))
                         {
+                            var firstLine = true;
                             foreach (var line in sale.Lines)
                             {
-                                PdfCell(table.Cell(), sale.SaleNumber);
-                                PdfCell(table.Cell(), StoreDateTime.FormatUtc(sale.SoldAtUtc));
-                                PdfCell(table.Cell(), sale.PaymentMethodDisplay);
+                                PdfCell(table.Cell(), firstLine ? sale.SaleNumber : "");
+                                PdfCell(table.Cell(), firstLine ? StoreDateTime.FormatUtc(sale.SoldAtUtc) : "");
+                                PdfCell(table.Cell(), firstLine ? sale.CustomerType.ToString() : "");
+                                PdfCell(table.Cell(), firstLine ? sale.PaymentMethodDisplay : "");
                                 PdfCell(table.Cell(), line.Sku);
                                 PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})");
+                                PdfCell(table.Cell(), line.UnitPrice.ToString("₱#,##0.00"));
                                 PdfCell(table.Cell(), line.BasePieceQuantity.ToString());
                                 PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                                firstLine = false;
                             }
                         }
                     });
@@ -133,25 +141,55 @@ public static class ReportExportService
 
                     if (report.EmployeePurchases is { } employeePurchases)
                     {
-                        content.Item().Text($"Employee purchases · Total deductions {employeePurchases.Summary.TotalDeductions:₱#,##0.00}").Bold().FontSize(13);
+                        var employeePaid = employeePurchases.Summary.TotalDeductions - employeePurchases.Summary.TotalOwed;
+                        content.Item().Text($"Employee purchases · Paid {employeePaid:₱#,##0.00} · Owed {employeePurchases.Summary.TotalOwed:₱#,##0.00}").Bold().FontSize(13);
+                        var displayedEmployees = new HashSet<string>();
                         content.Item().Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.ConstantColumn(52); columns.ConstantColumn(65); columns.RelativeColumn();
-                                columns.ConstantColumn(46); columns.RelativeColumn(); columns.ConstantColumn(34); columns.ConstantColumn(58);
+                                columns.RelativeColumn(); columns.ConstantColumn(62); columns.ConstantColumn(68);
+                                columns.ConstantColumn(48); columns.RelativeColumn(); columns.ConstantColumn(52); columns.ConstantColumn(38);
+                                columns.ConstantColumn(58); columns.ConstantColumn(58);
                             });
                             table.Header(header =>
                             {
-                                PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date & time"); PdfHeader(header.Cell(), "Employee");
-                                PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product / unit"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Amount");
+                                PdfHeader(header.Cell(), "Employee"); PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date & time");
+                                PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product / unit"); PdfHeader(header.Cell(), "Price"); PdfHeader(header.Cell(), "Qty");
+                                PdfHeader(header.Cell(), "Paid"); PdfHeader(header.Cell(), "Owed");
                             });
-                            foreach (var line in employeePurchases.Lines.OrderByDescending(line => line.SoldAtUtc))
+                            foreach (var employee in employeePurchases.Lines.GroupBy(line => line.EmployeeDisplay).OrderBy(group => group.Key))
+                            foreach (var sale in employee.GroupBy(line => new { line.SaleId, line.SaleNumber, line.SoldAtUtc, line.EmployeeDisplay }).OrderByDescending(group => group.Key.SoldAtUtc))
                             {
-                                PdfCell(table.Cell(), line.SaleNumber); PdfCell(table.Cell(), StoreDateTime.FormatUtc(line.SoldAtUtc));
-                                PdfCell(table.Cell(), line.EmployeeDisplay); PdfCell(table.Cell(), line.Sku);
-                                PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})"); PdfCell(table.Cell(), line.Count.ToString());
-                                PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                                var firstLine = true;
+                                foreach (var line in sale)
+                                {
+                                    PdfCell(table.Cell(), firstLine && displayedEmployees.Add(line.EmployeeDisplay) ? line.EmployeeDisplay : ""); PdfCell(table.Cell(), firstLine ? line.SaleNumber : "");
+                                    PdfCell(table.Cell(), firstLine ? StoreDateTime.FormatUtc(line.SoldAtUtc) : ""); PdfCell(table.Cell(), line.Sku);
+                                    PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})"); PdfCell(table.Cell(), line.UnitPrice.ToString("₱#,##0.00"));
+                                    PdfCell(table.Cell(), line.BasePieceQuantity.ToString());
+                                    if (line == sale.Last())
+                                    {
+                                        PdfCell(table.Cell(), (line.IsOwed ? 0m : line.SaleTotal).ToString("₱#,##0.00"));
+                                        PdfCell(table.Cell(), (line.IsOwed ? line.SaleTotal : 0m).ToString("₱#,##0.00"));
+                                    }
+                                    else
+                                    {
+                                        PdfCell(table.Cell(), ""); PdfCell(table.Cell(), "");
+                                    }
+                                    firstLine = false;
+                                }
+                            }
+                        });
+                        content.Item().Text("Employee owed summary").Bold().FontSize(11);
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns => { columns.RelativeColumn(); columns.ConstantColumn(80); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Employee"); PdfHeader(header.Cell(), "Owed"); });
+                            foreach (var employee in employeePurchases.Lines.GroupBy(line => line.EmployeeDisplay).OrderBy(group => group.Key))
+                            {
+                                PdfCell(table.Cell(), employee.Key);
+                                PdfCell(table.Cell(), employee.Where(line => line.IsOwed).GroupBy(line => line.SaleId).Sum(sale => sale.First().SaleTotal).ToString("₱#,##0.00"));
                             }
                         });
                     }
@@ -228,30 +266,52 @@ public static class ReportExportService
                 switch (area)
                 {
                     case ReportExportArea.Sales:
-                        content.Item().Text("Sales lines").Bold().FontSize(13);
+                        content.Item().Text("Sales summary").Bold().FontSize(13);
                         content.Item().Table(table =>
                         {
-                            table.ColumnsDefinition(columns => { columns.ConstantColumn(52); columns.ConstantColumn(76); columns.ConstantColumn(42); columns.ConstantColumn(48); columns.RelativeColumn(); columns.ConstantColumn(38); columns.ConstantColumn(58); });
-                            table.Header(header => { PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date and time"); PdfHeader(header.Cell(), "Payment"); PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product / unit"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Amount"); });
+                            table.ColumnsDefinition(columns => { columns.ConstantColumn(58); columns.ConstantColumn(76); columns.ConstantColumn(54); columns.ConstantColumn(46); columns.ConstantColumn(46); columns.RelativeColumn(); columns.ConstantColumn(52); columns.ConstantColumn(38); columns.ConstantColumn(58); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date and time"); PdfHeader(header.Cell(), "Sale type"); PdfHeader(header.Cell(), "Payment"); PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product / unit"); PdfHeader(header.Cell(), "Price"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Amount"); });
                             foreach (var sale in report.Sales.Sales.OrderByDescending(sale => sale.SoldAtUtc))
-                            foreach (var line in sale.Lines)
                             {
-                                PdfCell(table.Cell(), sale.SaleNumber); PdfCell(table.Cell(), StoreDateTime.FormatUtc(sale.SoldAtUtc)); PdfCell(table.Cell(), sale.PaymentMethodDisplay);
-                                PdfCell(table.Cell(), line.Sku); PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})"); PdfCell(table.Cell(), line.BasePieceQuantity.ToString()); PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                                var firstLine = true;
+                                foreach (var line in sale.Lines)
+                                {
+                                    PdfCell(table.Cell(), firstLine ? sale.SaleNumber : ""); PdfCell(table.Cell(), firstLine ? StoreDateTime.FormatUtc(sale.SoldAtUtc) : "");
+                                    PdfCell(table.Cell(), firstLine ? sale.CustomerType.ToString() : ""); PdfCell(table.Cell(), firstLine ? sale.PaymentMethodDisplay : "");
+                                    PdfCell(table.Cell(), line.Sku); PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})"); PdfCell(table.Cell(), line.UnitPrice.ToString("₱#,##0.00"));
+                                    PdfCell(table.Cell(), line.BasePieceQuantity.ToString()); PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                                    firstLine = false;
+                                }
                             }
                         });
                         break;
                     case ReportExportArea.EmployeePurchases when report.EmployeePurchases is { } employee:
-                        content.Item().Text($"Employee purchases · Total deductions {employee.Summary.TotalDeductions:₱#,##0.00}").Bold().FontSize(13);
+                        var displayedEmployees = new HashSet<string>();
+                        content.Item().Text($"Employee purchases · Paid {(employee.Summary.TotalDeductions - employee.Summary.TotalOwed):₱#,##0.00} · Owed {employee.Summary.TotalOwed:₱#,##0.00}").Bold().FontSize(13);
                         content.Item().Table(table =>
                         {
-                            table.ColumnsDefinition(columns => { columns.ConstantColumn(55); columns.ConstantColumn(72); columns.RelativeColumn(); columns.ConstantColumn(48); columns.RelativeColumn(); columns.ConstantColumn(38); columns.ConstantColumn(58); });
-                            table.Header(header => { PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date & time"); PdfHeader(header.Cell(), "Employee"); PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Amount"); });
-                            foreach (var line in employee.Lines.OrderByDescending(line => line.SoldAtUtc))
+                            table.ColumnsDefinition(columns => { columns.RelativeColumn(); columns.ConstantColumn(62); columns.ConstantColumn(68); columns.ConstantColumn(48); columns.RelativeColumn(); columns.ConstantColumn(52); columns.ConstantColumn(38); columns.ConstantColumn(58); columns.ConstantColumn(58); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Employee"); PdfHeader(header.Cell(), "Sale"); PdfHeader(header.Cell(), "Date & time"); PdfHeader(header.Cell(), "SKU"); PdfHeader(header.Cell(), "Product / unit"); PdfHeader(header.Cell(), "Price"); PdfHeader(header.Cell(), "Qty"); PdfHeader(header.Cell(), "Paid"); PdfHeader(header.Cell(), "Owed"); });
+                            foreach (var employeeGroup in employee.Lines.GroupBy(line => line.EmployeeDisplay).OrderBy(group => group.Key))
+                            foreach (var sale in employeeGroup.GroupBy(line => new { line.SaleId, line.SaleNumber, line.SoldAtUtc, line.EmployeeDisplay }).OrderByDescending(group => group.Key.SoldAtUtc))
                             {
-                                PdfCell(table.Cell(), line.SaleNumber); PdfCell(table.Cell(), StoreDateTime.FormatUtc(line.SoldAtUtc)); PdfCell(table.Cell(), line.EmployeeDisplay);
-                                PdfCell(table.Cell(), line.Sku); PdfCell(table.Cell(), line.ProductName); PdfCell(table.Cell(), line.Count.ToString()); PdfCell(table.Cell(), line.LineTotal.ToString("₱#,##0.00"));
+                                var firstLine = true;
+                                foreach (var line in sale)
+                                {
+                                    PdfCell(table.Cell(), firstLine && displayedEmployees.Add(line.EmployeeDisplay) ? line.EmployeeDisplay : ""); PdfCell(table.Cell(), firstLine ? line.SaleNumber : ""); PdfCell(table.Cell(), firstLine ? StoreDateTime.FormatUtc(line.SoldAtUtc) : "");
+                                    PdfCell(table.Cell(), line.Sku); PdfCell(table.Cell(), $"{line.ProductName} ({line.UnitLabel})"); PdfCell(table.Cell(), line.UnitPrice.ToString("₱#,##0.00")); PdfCell(table.Cell(), line.BasePieceQuantity.ToString());
+                                    if (line == sale.Last()) { PdfCell(table.Cell(), (line.IsOwed ? 0m : line.SaleTotal).ToString("₱#,##0.00")); PdfCell(table.Cell(), (line.IsOwed ? line.SaleTotal : 0m).ToString("₱#,##0.00")); }
+                                    else { PdfCell(table.Cell(), ""); PdfCell(table.Cell(), ""); }
+                                    firstLine = false;
+                                }
                             }
+                        });
+                        content.Item().Text("Employee owed summary").Bold().FontSize(11);
+                        content.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns => { columns.RelativeColumn(); columns.ConstantColumn(80); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Employee"); PdfHeader(header.Cell(), "Owed"); });
+                            foreach (var group in employee.Lines.GroupBy(line => line.EmployeeDisplay).OrderBy(group => group.Key)) { PdfCell(table.Cell(), group.Key); PdfCell(table.Cell(), group.Where(line => line.IsOwed).GroupBy(line => line.SaleId).Sum(sale => sale.First().SaleTotal).ToString("₱#,##0.00")); }
                         });
                         break;
                     case ReportExportArea.CashierRemittance when report.CashierShifts is { } cashier:
@@ -471,33 +531,47 @@ public static class ReportExportService
     private static void CreateSalesSheet(XLWorkbook workbook, SalesReportResponse sales)
     {
         var sheet = workbook.Worksheets.Add("Sales");
-        string[] headers = ["Sale #", "Date & time", "Customer pricing", "Payment method", "Cashier", "SKU", "Product", "Unit", "Unit count", "Base pieces", "Unit price", "Amount"];
+        string[] headers = ["Sale #", "Date & time", "Sale type", "Payment method", "Cashier", "SKU", "Product / unit", "Price", "Quantity", "Amount"];
         WriteHeaders(sheet, headers);
 
         var row = 2;
         foreach (var sale in sales.Sales.OrderByDescending(sale => sale.SoldAtUtc))
         {
+            var firstLine = true;
             foreach (var line in sale.Lines)
             {
-                sheet.Cell(row, 1).Value = sale.SaleNumber;
-                sheet.Cell(row, 2).Value = StoreDateTime.ToStoreTimeFromUtc(sale.SoldAtUtc);
-                sheet.Cell(row, 3).Value = sale.CustomerType.ToString();
-                sheet.Cell(row, 4).Value = sale.PaymentMethodDisplay;
-                sheet.Cell(row, 5).Value = sale.SoldByName;
+                sheet.Cell(row, 1).Value = firstLine ? sale.SaleNumber : "";
+                if (firstLine)
+                {
+                    sheet.Cell(row, 2).Value = StoreDateTime.ToStoreTimeFromUtc(sale.SoldAtUtc);
+                    sheet.Cell(row, 3).Value = sale.CustomerType.ToString();
+                    sheet.Cell(row, 4).Value = sale.PaymentMethodDisplay;
+                    sheet.Cell(row, 5).Value = sale.SoldByName;
+                }
                 sheet.Cell(row, 6).Value = line.Sku;
-                sheet.Cell(row, 7).Value = line.ProductName;
-                sheet.Cell(row, 8).Value = line.UnitLabel;
-                sheet.Cell(row, 9).Value = line.Count;
-                sheet.Cell(row, 10).Value = line.BasePieceQuantity;
-                sheet.Cell(row, 11).Value = line.UnitPrice;
-                sheet.Cell(row, 12).Value = line.LineTotal;
+                sheet.Cell(row, 7).Value = $"{line.ProductName} ({line.UnitLabel})";
+                sheet.Cell(row, 8).Value = line.UnitPrice;
+                sheet.Cell(row, 9).Value = line.BasePieceQuantity;
+                sheet.Cell(row, 10).Value = line.LineTotal;
                 row++;
+                firstLine = false;
             }
         }
 
         sheet.Column(2).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
-        sheet.Columns(11, 12).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Column(8).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Column(10).Style.NumberFormat.Format = "₱#,##0.00";
         StyleDataSheet(sheet, headers.Length, row - 1);
+
+        // Keep report columns readable even when the data values are short.
+        var widths = new[] { 18, 32, 14, 18, 20, 18, 28, 12, 12, 14 };
+        for (var column = 1; column <= widths.Length; column++)
+            sheet.Column(column).Width = widths[column - 1];
+        sheet.Range(1, 1, row - 1, headers.Length).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        sheet.Range(1, 1, 1, headers.Length).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        sheet.Column(2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        // The Excel table already repeats its header while scrolling; avoid a second frozen pane.
+        sheet.SheetView.FreezeRows(0);
     }
 
     private static void CreateInventorySheet(XLWorkbook workbook, InventoryReportResponse inventory)
@@ -564,31 +638,58 @@ public static class ReportExportService
     private static void CreateEmployeePurchasesSheet(XLWorkbook workbook, EmployeePurchaseReportResponse report)
     {
         var sheet = workbook.Worksheets.Add("Employee Purchases");
-        string[] headers = ["Sale #", "Date & time", "Employee ID", "Employee", "SKU", "Product", "Unit", "Unit count", "Base pieces", "Unit price", "Line total", "Sale total"];
+        string[] headers = ["Employee", "Sale #", "Date & time", "SKU", "Product / unit", "Price", "Quantity", "Line total", "Paid", "Owed"];
         WriteHeaders(sheet, headers);
         var row = 2;
-        foreach (var line in report.Lines.OrderByDescending(line => line.SoldAtUtc))
+        var displayedEmployees = new HashSet<string>();
+        foreach (var employee in report.Lines.GroupBy(line => line.EmployeeDisplay).OrderBy(group => group.Key))
+        foreach (var sale in employee.GroupBy(line => new { line.SaleId, line.SaleNumber, line.SoldAtUtc, line.EmployeeDisplay }).OrderByDescending(group => group.Key.SoldAtUtc))
         {
-            sheet.Cell(row, 1).Value = line.SaleNumber;
-            sheet.Cell(row, 2).Value = StoreDateTime.ToStoreTimeFromUtc(line.SoldAtUtc);
-            sheet.Cell(row, 3).Value = line.EmployeeNumber ?? "Unattributed";
-            sheet.Cell(row, 4).Value = line.EmployeeName ?? "Unattributed";
-            sheet.Cell(row, 5).Value = line.Sku;
-            sheet.Cell(row, 6).Value = line.ProductName;
-            sheet.Cell(row, 7).Value = line.UnitLabel;
-            sheet.Cell(row, 8).Value = line.Count;
-            sheet.Cell(row, 9).Value = line.BasePieceQuantity;
-            sheet.Cell(row, 10).Value = line.UnitPrice;
-            sheet.Cell(row, 11).Value = line.LineTotal;
-            sheet.Cell(row, 12).Value = line.SaleTotal;
-            row++;
+            var firstLine = true;
+            foreach (var line in sale)
+            {
+                sheet.Cell(row, 1).Value = firstLine && displayedEmployees.Add(line.EmployeeDisplay) ? line.EmployeeDisplay : "";
+                sheet.Cell(row, 2).Value = firstLine ? line.SaleNumber : "";
+                if (firstLine)
+                    sheet.Cell(row, 3).Value = StoreDateTime.ToStoreTimeFromUtc(line.SoldAtUtc);
+                sheet.Cell(row, 4).Value = line.Sku;
+                sheet.Cell(row, 5).Value = $"{line.ProductName} ({line.UnitLabel})";
+                sheet.Cell(row, 6).Value = line.UnitPrice;
+                sheet.Cell(row, 7).Value = line.BasePieceQuantity;
+                sheet.Cell(row, 8).Value = line.LineTotal;
+                if (line == sale.Last())
+                {
+                    sheet.Cell(row, 9).Value = line.IsOwed ? 0m : line.SaleTotal;
+                    sheet.Cell(row, 10).Value = line.IsOwed ? line.SaleTotal : 0m;
+                }
+                row++;
+                firstLine = false;
+            }
         }
-        sheet.Column(2).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
-        sheet.Columns(10, 12).Style.NumberFormat.Format = "₱#,##0.00";
         StyleDataSheet(sheet, headers.Length, row - 1);
-        sheet.Cell(row + 1, 11).Value = "Total deductions";
-        sheet.Cell(row + 1, 12).Value = report.Summary.TotalDeductions;
-        sheet.Cell(row + 1, 12).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Column(3).Style.DateFormat.Format = StoreDateTime.ExcelTimestampFormat;
+        sheet.Column(6).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Column(8).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Columns(9, 10).Style.NumberFormat.Format = "₱#,##0.00";
+
+        var widths = new[] { 30, 18, 32, 18, 28, 14, 12, 16, 16, 16 };
+        for (var column = 1; column <= widths.Length; column++)
+            sheet.Column(column).Width = widths[column - 1];
+        sheet.Range(1, 1, row - 1, headers.Length).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        sheet.Range(1, 1, 1, headers.Length).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        sheet.Column(3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        sheet.SheetView.FreezeRows(0);
+        var summaryRow = row + 1;
+        sheet.Cell(summaryRow, 1).Value = "Employee";
+        sheet.Cell(summaryRow, 2).Value = "Owed";
+        sheet.Range(summaryRow, 1, summaryRow, 2).Style.Font.Bold = true;
+        foreach (var employee in report.Lines.GroupBy(line => line.EmployeeDisplay).OrderBy(group => group.Key))
+        {
+            summaryRow++;
+            sheet.Cell(summaryRow, 1).Value = employee.Key;
+            sheet.Cell(summaryRow, 2).Value = employee.Where(line => line.IsOwed).GroupBy(line => line.SaleId).Sum(sale => sale.First().SaleTotal);
+            sheet.Cell(summaryRow, 2).Style.NumberFormat.Format = "₱#,##0.00";
+        }
     }
 
     private static void CreateCashierRemittanceSheet(XLWorkbook workbook, CashierShiftReportResponse report)
