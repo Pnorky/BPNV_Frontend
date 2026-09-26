@@ -113,6 +113,7 @@ public static class SampleData
         new() { Icon = "FileSpreadsheet", Text = "Import Excel", Tag = "InventoryImport", IsChild = true },
         new() { Icon = "Truck", Text = "Suppliers", Tag = "InventorySuppliers", IsChild = true, Group = "Operations" },
         new() { Icon = "ArrowLeftRight", Text = "Stock Activity", Tag = "InventoryMovements", IsChild = true },
+        new() { Icon = "HandCoins", Text = "Employee Balances", Tag = "EmployeeBalances", Group = "Operations" },
         new() { Icon = "ChartColumn", Text = "Reports", Tag = "Reports", Group = "Insights" },
         new() { Icon = "CalendarClock", Text = "Cashier Shifts", Tag = "CashierShiftManagement", Group = "Administration" },
         new() { Icon = "ReceiptText", Text = "Cashier Operations", Tag = "CashierOperations" },

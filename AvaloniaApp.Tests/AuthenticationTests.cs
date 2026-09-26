@@ -105,8 +105,8 @@ public sealed class AuthenticationTests
 
     [TestMethod]
     [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,Reports")]
-    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,Reports,Employees")]
-    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,Reports,CashierShiftManagement,CashierOperations,AdminNotifications,Employees,Users")]
+    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports,Employees")]
+    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports,CashierShiftManagement,CashierOperations,AdminNotifications,Employees,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));
@@ -128,6 +128,7 @@ public sealed class AuthenticationTests
             if (item.Tag == "InventorySuppliers") Assert.IsInstanceOfType<SuppliersViewModel>(viewModel.CurrentPage);
             if (item.Tag == "InventoryDeliveryHistory") Assert.IsInstanceOfType<DeliveryHistoryViewModel>(viewModel.CurrentPage);
             if (item.Tag == "Employees") Assert.IsInstanceOfType<EmployeesViewModel>(viewModel.CurrentPage);
+            if (item.Tag == "EmployeeBalances") Assert.IsInstanceOfType<EmployeeBalancesViewModel>(viewModel.CurrentPage);
         }
     }
 
@@ -144,7 +145,7 @@ public sealed class AuthenticationTests
 
         inventoryViewModel.ToggleSidebarCommand.Execute(null);
         CollectionAssert.AreEqual(
-            new[] { "Dashboard", "InventoryProducts", "Reports", "Employees" },
+            new[] { "Dashboard", "InventoryProducts", "EmployeeBalances", "Reports", "Employees" },
             inventoryViewModel.NavItems.Select(item => item.Tag).ToArray());
         inventoryViewModel.OpenInventorySection("InventoryDeliveryHistory");
 

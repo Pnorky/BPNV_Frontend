@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
@@ -19,14 +20,21 @@ public class ProductCatalogView : UserControl
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding("FilteredProducts"));
         list.ItemTemplate = new FuncDataTemplate<ProductResponse>((_, _) => ProductRow(), true);
         Grid.SetRow(list, 1);
+        var tableSurface = new Grid
+        {
+            MinWidth = 1420,
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            Children = { CatalogHeader(), list }
+        };
         var card = new Border
         {
             Padding = new Thickness(0),
             ClipToBounds = true,
-            Child = new Grid
+            Child = new ScrollViewer
             {
-                RowDefinitions = new RowDefinitions("Auto,*"),
-                Children = { CatalogHeader(), list }
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = tableSurface
             }
         };
         card.Classes.Add("theme-card");
@@ -65,6 +73,7 @@ public class ProductCatalogView : UserControl
         };
         var row = new Grid
         {
+            MinWidth = 1550,
             ColumnDefinitions = CatalogColumns(),
             ColumnSpacing = 14,
             Children =
@@ -94,7 +103,7 @@ public class ProductCatalogView : UserControl
 
     private static Border CatalogHeader()
     {
-        var grid = new Grid { ColumnDefinitions = CatalogColumns(), ColumnSpacing = 14 };
+        var grid = new Grid { MinWidth = 1550, ColumnDefinitions = CatalogColumns(), ColumnSpacing = 14 };
         var labels = new[] { "PRODUCT", "SUPPLIER", "TYPE / STOCK", "STOCK / REORDER", "STATUS", "PURCHASE / PIECE", "SELLING", "EMPLOYEE", "ACTIONS" };
         for (var index = 0; index < labels.Length; index++)
         {
@@ -112,7 +121,7 @@ public class ProductCatalogView : UserControl
         return header;
     }
 
-    private static ColumnDefinitions CatalogColumns() => new("1.3*,0.9*,0.95*,1*,96,0.8*,0.7*,0.85*,330");
+    private static ColumnDefinitions CatalogColumns() => new("220,165,170,180,120,120,100,110,330");
 
     private static Button Action(string text, string commandPath)
     {

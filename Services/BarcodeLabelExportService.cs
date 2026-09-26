@@ -3,6 +3,7 @@ using System.Text;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using SkiaSharp;
 using ZXing;
 using ZXing.Common;
 
@@ -12,33 +13,51 @@ public static class BarcodeLabelExportService
 {
     public static void ExportSvg(BarcodeLabelDataResponse label, Stream stream)
     {
-        var matrix = new MultiFormatWriter().encode(
-            label.Barcode,
-            BarcodeFormat.CODE_128,
-            600,
-            150,
-            new Dictionary<EncodeHintType, object>
-            {
-                [EncodeHintType.MARGIN] = 8,
-                [EncodeHintType.PURE_BARCODE] = true
-            });
+        var matrix = Encode(label.Barcode);
         using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true);
         writer.Write(ToSvg(matrix));
         writer.Flush();
     }
 
+    public static void ExportPng(BarcodeLabelDataResponse label, Stream stream)
+    {
+        const int width = 900;
+        const int height = 450;
+        var matrix = Encode(label.Barcode);
+        using var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.White);
+
+        using var text = new SKPaint { Color = SKColors.Black, IsAntialias = true };
+        using var titleFont = new SKFont(SKTypeface.Default, 38);
+        using var priceFont = new SKFont(SKTypeface.Default, 36) { Embolden = true };
+        using var numberFont = new SKFont(SKTypeface.Default, 28);
+        canvas.DrawText(label.ProductName, 40, 76, SKTextAlign.Left, titleFont, text);
+        var price = $"₱{label.RegularPrice:N2}";
+        canvas.DrawText(price, width - priceFont.MeasureText(price) - 40, 76, SKTextAlign.Left, priceFont, text);
+
+        const int barcodeWidth = 540;
+        const int barcodeHeight = 170;
+        var left = (width - barcodeWidth) / 2;
+        var top = 96;
+        using var bars = new SKPaint { Color = SKColors.Black, IsAntialias = false };
+        for (var y = 0; y < matrix.Height; y++)
+        for (var x = 0; x < matrix.Width; x++)
+            if (matrix[x, y])
+                canvas.DrawRect(left + x * barcodeWidth / (float)matrix.Width, top + y * barcodeHeight / (float)matrix.Height,
+                    barcodeWidth / (float)matrix.Width + 1, barcodeHeight / (float)matrix.Height + 1, bars);
+
+        var numberWidth = numberFont.MeasureText(label.Barcode);
+        canvas.DrawText(label.Barcode, (width - numberWidth) / 2, top + barcodeHeight + 35, SKTextAlign.Left, numberFont, text);
+
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        data.SaveTo(stream);
+    }
+
     public static void ExportPdf(BarcodeLabelDataResponse label, Stream stream)
     {
-        var matrix = new MultiFormatWriter().encode(
-            label.Barcode,
-            BarcodeFormat.CODE_128,
-            600,
-            150,
-            new Dictionary<EncodeHintType, object>
-            {
-                [EncodeHintType.MARGIN] = 8,
-                [EncodeHintType.PURE_BARCODE] = true
-            });
+        var matrix = Encode(label.Barcode);
         var svg = ToSvg(matrix);
 
         Document.Create(document => document.Page(page =>
@@ -50,11 +69,13 @@ public static class BarcodeLabelExportService
             page.Content().Column(column =>
             {
                 column.Spacing(2);
-                column.Item().Text(label.ProductName).SemiBold().FontSize(11);
-                column.Item().Text($"{label.UnitLabel}  |  SKU {label.Sku}").FontSize(7);
-                column.Item().Height(17, Unit.Millimetre).Svg(svg);
+                column.Item().Row(row =>
+                {
+                    row.RelativeItem().Text(label.ProductName).SemiBold().FontSize(11);
+                    row.AutoItem().AlignRight().Text($"₱{label.RegularPrice:N2}").Bold().FontSize(12);
+                });
+                column.Item().AlignCenter().Height(17, Unit.Millimetre).Svg(svg);
                 column.Item().AlignCenter().Text(label.Barcode).FontSize(8).LetterSpacing(0.8f);
-                column.Item().AlignRight().Text($"₱{label.RegularPrice:N2}").Bold().FontSize(12);
             });
         })).GeneratePdf(stream);
     }
@@ -78,5 +99,22 @@ public static class BarcodeLabelExportService
             }
         }
         return svg.Append("</svg>").ToString();
+    }
+
+    private static BitMatrix Encode(string barcode)
+    {
+        var format = barcode.Length == 13 && barcode.All(char.IsDigit)
+            ? BarcodeFormat.EAN_13
+            : BarcodeFormat.CODE_128;
+        return new MultiFormatWriter().encode(
+            barcode,
+            format,
+            600,
+            150,
+            new Dictionary<EncodeHintType, object>
+            {
+                [EncodeHintType.MARGIN] = 8,
+                [EncodeHintType.PURE_BARCODE] = true
+            });
     }
 }

@@ -845,7 +845,7 @@ public static class ReportExportService
         }
 
         row += 2;
-        string[] headers = ["Business date", "Total sales", "Cash sales", "GCash payments", "Employee owed", "Approved expenses", "Cash remitted", "Expected cash", "Actual cash", "Cash difference", "Assigned cashiers"];
+        string[] headers = ["Business date", "Total sales", "Cash sales", "GCash payments", "Employee owed", "Cash debt repayments", "GCash debt repayments", "Approved expenses", "Cash remitted", "Expected cash", "Actual cash", "Cash difference", "Assigned cashiers"];
         for (var index = 0; index < headers.Length; index++) sheet.Cell(row, index + 1).Value = headers[index];
         sheet.Range(row, 1, row, headers.Length).Style.Font.Bold = true;
         sheet.Range(row, 1, row, headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F59E0B");
@@ -855,14 +855,16 @@ public static class ReportExportService
             sheet.Cell(row, 1).Value = day.BusinessDate.ToDateTime(TimeOnly.MinValue);
             sheet.Cell(row, 2).Value = day.TotalSales; sheet.Cell(row, 3).Value = day.CashSales;
             sheet.Cell(row, 4).Value = day.GCashPayments; sheet.Cell(row, 5).Value = day.EmployeeOwedSales;
-            sheet.Cell(row, 6).Value = day.ApprovedExpenses;
-            SetNullableMoney(sheet.Cell(row, 7), day.CashRemitted); SetNullableMoney(sheet.Cell(row, 8), day.ExpectedCash);
-            SetNullableMoney(sheet.Cell(row, 9), day.ActualCash); SetNullableMoney(sheet.Cell(row, 10), day.Variance);
-            sheet.Cell(row, 11).Value = day.CashiersDisplay;
+            sheet.Cell(row, 6).Value = day.CashEmployeeDebtRepayments;
+            sheet.Cell(row, 7).Value = day.GCashEmployeeDebtRepayments;
+            sheet.Cell(row, 8).Value = day.ApprovedExpenses;
+            SetNullableMoney(sheet.Cell(row, 9), day.CashRemitted); SetNullableMoney(sheet.Cell(row, 10), day.ExpectedCash);
+            SetNullableMoney(sheet.Cell(row, 11), day.ActualCash); SetNullableMoney(sheet.Cell(row, 12), day.Variance);
+            sheet.Cell(row, 13).Value = day.CashiersDisplay;
         }
         sheet.Column(1).Style.DateFormat.Format = "mmm d, yyyy";
         sheet.Column(1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
-        sheet.Columns(2, 10).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Columns(2, 12).Style.NumberFormat.Format = "₱#,##0.00";
         column = 2;
         foreach (var date in dates)
         {
@@ -872,8 +874,8 @@ public static class ReportExportService
             column += 2;
         }
         sheet.Column(1).Width = 18;
-        for (var index = 2; index <= 10; index++) sheet.Column(index).Width = 16;
-        sheet.Column(11).Width = 24;
+        for (var index = 2; index <= 12; index++) sheet.Column(index).Width = 16;
+        sheet.Column(13).Width = 24;
     }
 
     private static void SetNullableMoney(IXLCell cell, decimal? value)

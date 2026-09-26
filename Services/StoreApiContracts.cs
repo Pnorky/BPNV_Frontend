@@ -35,6 +35,12 @@ public enum ApiPaymentMethod
     EmployeeOwed
 }
 
+public enum ApiEmployeeDebtPaymentMethod
+{
+    Cash,
+    GCash
+}
+
 public enum ApiCashierShiftSessionStatus
 {
     Open,
@@ -143,6 +149,49 @@ public sealed record EmployeeResponse(Guid Id, string EmployeeNumber, string Nam
 
 public sealed record CreateEmployeeRequest(string Name);
 public sealed record UpdateEmployeeRequest(string Name);
+
+public sealed record EmployeeBalanceResponse(
+    Guid EmployeeId, string EmployeeNumber, string EmployeeName, bool IsActive,
+    decimal TotalPurchases, decimal PaidAtPurchase, decimal OriginallyOwed,
+    decimal Repayments, decimal OutstandingBalance, DateTime? LastPaymentAtUtc)
+{
+    public string EmployeeDisplay => $"{EmployeeNumber} · {EmployeeName}";
+    public string TotalPurchasesDisplay => $"₱{TotalPurchases:N2}";
+    public string PaidAtPurchaseDisplay => $"₱{PaidAtPurchase:N2}";
+    public string OriginallyOwedDisplay => $"₱{OriginallyOwed:N2}";
+    public string RepaymentsDisplay => $"₱{Repayments:N2}";
+    public string OutstandingBalanceDisplay => $"₱{OutstandingBalance:N2}";
+    public string LastPaymentDisplay => LastPaymentAtUtc is null ? "No payments" : StoreDateTime.FormatUtc(LastPaymentAtUtc.Value);
+    public string Status => IsActive ? "Active" : "Inactive";
+    public bool CanRecordPayment => IsActive && OutstandingBalance > 0;
+}
+
+public sealed record EmployeeBalanceSummaryResponse(
+    decimal TotalPurchases, decimal PaidAtPurchase, decimal OriginallyOwed,
+    decimal Repayments, decimal OutstandingBalance);
+
+public sealed record EmployeeBalancePageResponse(
+    IReadOnlyList<EmployeeBalanceResponse> Items, int Page, int PageSize, int TotalCount,
+    EmployeeBalanceSummaryResponse Summary);
+
+public sealed record EmployeeDebtPaymentResponse(
+    Guid Id, Guid EmployeeId, decimal Amount, ApiEmployeeDebtPaymentMethod PaymentMethod,
+    string? ReferenceNumber, string? Note, Guid RecordedByUserId, string RecordedByName,
+    Guid? CashierShiftId, DateTime PaidAtUtc, bool IsIdempotentReplay = false)
+{
+    public string AmountDisplay => $"₱{Amount:N2}";
+    public string PaidAtDisplay => StoreDateTime.FormatUtc(PaidAtUtc);
+    public string ReferenceDisplay => string.IsNullOrWhiteSpace(ReferenceNumber) ? "-" : ReferenceNumber;
+    public string NoteDisplay => string.IsNullOrWhiteSpace(Note) ? "-" : Note;
+}
+
+public sealed record EmployeeOwedPurchaseResponse(
+    Guid SaleId, string SaleNumber, DateTime SoldAtUtc,
+    decimal OriginalAmount, decimal PaidAmount, decimal OutstandingAmount);
+
+public sealed record CreateEmployeeDebtPaymentRequest(
+    Guid IdempotencyKey, decimal Amount, ApiEmployeeDebtPaymentMethod PaymentMethod,
+    string? ReferenceNumber, string? Note);
 
 public sealed record UserResponse(
     Guid Id,
@@ -1098,7 +1147,8 @@ public sealed record SalesAccountabilityDayResponse(
     DateOnly BusinessDate, decimal TotalSales, decimal CashSales, decimal GCashPayments,
     decimal EmployeeOwedSales, decimal ApprovedExpenses, decimal? CashRemitted,
     decimal? ExpectedCash, decimal? ActualCash, decimal? Variance,
-    IReadOnlyList<string> AssignedCashiers)
+    IReadOnlyList<string> AssignedCashiers,
+    decimal CashEmployeeDebtRepayments = 0, decimal GCashEmployeeDebtRepayments = 0)
 {
     public string DateDisplay => BusinessDate.ToString("MMM d, yyyy");
     public string CashiersDisplay => AssignedCashiers.Count == 0 ? "-" : string.Join(" / ", AssignedCashiers);

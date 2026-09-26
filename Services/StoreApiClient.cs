@@ -88,6 +88,27 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task ReactivateEmployeeAsync(Guid id, CancellationToken cancellationToken = default) =>
         SendWithoutResponseAsync(HttpMethod.Post, $"api/employees/{id}/reactivate", cancellationToken);
 
+    public Task<EmployeeBalancePageResponse> GetEmployeeBalancesAsync(
+        string? search = null, bool includeInactive = true, string sortBy = "employeeName",
+        bool sortDescending = false, int page = 1, int pageSize = 100,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<EmployeeBalancePageResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery(
+            "api/employee-balances", ("search", search), ("includeInactive", includeInactive ? "true" : "false"),
+            ("sortBy", sortBy), ("sortDescending", sortDescending ? "true" : null),
+            ("page", page.ToString(CultureInfo.InvariantCulture)), ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+
+    public Task<EmployeeBalanceResponse> GetEmployeeBalanceAsync(Guid employeeId, CancellationToken cancellationToken = default) =>
+        SendAsync<EmployeeBalanceResponse>(() => new HttpRequestMessage(HttpMethod.Get, $"api/employee-balances/{employeeId}"), cancellationToken);
+
+    public Task<IReadOnlyList<EmployeeDebtPaymentResponse>> GetEmployeeDebtPaymentsAsync(Guid employeeId, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<EmployeeDebtPaymentResponse>>(() => new HttpRequestMessage(HttpMethod.Get, $"api/employee-balances/{employeeId}/payments"), cancellationToken);
+
+    public Task<IReadOnlyList<EmployeeOwedPurchaseResponse>> GetEmployeeOwedPurchasesAsync(Guid employeeId, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<EmployeeOwedPurchaseResponse>>(() => new HttpRequestMessage(HttpMethod.Get, $"api/employee-balances/{employeeId}/owed-purchases"), cancellationToken);
+
+    public Task<EmployeeDebtPaymentResponse> CreateEmployeeDebtPaymentAsync(Guid employeeId, CreateEmployeeDebtPaymentRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<EmployeeDebtPaymentResponse, CreateEmployeeDebtPaymentRequest>(HttpMethod.Post, $"api/employee-balances/{employeeId}/payments", request, cancellationToken);
+
     public Task<ProductResponse> CreateProductAsync(
         CreateProductRequest request,
         CancellationToken cancellationToken = default) =>

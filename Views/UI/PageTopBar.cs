@@ -271,6 +271,10 @@ public sealed class PageTopBar : UserControl
                 yield return Button("Refresh", "LoadCommand", ActionButtonVariant.Secondary);
                 yield return Button("Add employee", "CreateEmployeeCommand", ActionButtonVariant.Primary);
                 break;
+            case EmployeeBalancesViewModel:
+                yield return Search("Search employee balances...", "SearchText", 300);
+                yield return Button("Refresh", "LoadCommand", ActionButtonVariant.Primary);
+                break;
             case UsersViewModel:
                 yield return Search("Search users...", "SearchText", 250);
                 var status = new ComboBox { Width = 130, Tag = "filter" };

@@ -184,6 +184,7 @@ public class ReportsView : UserControl
         daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("TOTAL SALES", item => Money(item.TotalSales), new GridLength(0.9, GridUnitType.Star)));
         daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("CASH", item => Money(item.CashSales), new GridLength(0.8, GridUnitType.Star)));
          daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("GCASH PAYMENTS", item => Money(item.GCashPayments), new GridLength(0.8, GridUnitType.Star)));
+        daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("DEBT PAYMENTS", item => Money(item.CashEmployeeDebtRepayments + item.GCashEmployeeDebtRepayments), new GridLength(0.9, GridUnitType.Star)));
         daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("EXPENSES", item => Money(item.ApprovedExpenses), new GridLength(0.8, GridUnitType.Star)));
          daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("CASH REMITTED", item => Money(item.CashRemitted), new GridLength(0.9, GridUnitType.Star)));
         daily.Columns.Add(PagedTableColumn.Create<SalesAccountabilityDayResponse, string>("EXPECTED", item => Money(item.ExpectedCash), new GridLength(0.9, GridUnitType.Star)));

@@ -109,13 +109,13 @@ public partial class ProductLabelViewModel(
             var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Export barcode image",
-                SuggestedFileName = SafeFileName($"{label.Sku}-{label.UnitLabel}-barcode.svg"),
-                DefaultExtension = "svg",
-                FileTypeChoices = [new FilePickerFileType("SVG image") { Patterns = ["*.svg"] }]
+                SuggestedFileName = SafeFileName($"{label.Sku}-{label.UnitLabel}-barcode.png"),
+                DefaultExtension = "png",
+                FileTypeChoices = [new FilePickerFileType("PNG image") { Patterns = ["*.png"] }]
             });
             if (file is null) return;
             await using var stream = await file.OpenWriteAsync();
-            BarcodeLabelExportService.ExportSvg(label, stream);
+            BarcodeLabelExportService.ExportPng(label, stream);
             StatusMessage = $"Barcode image exported for {label.ProductName}, {label.UnitLabel}.";
             notifications.ShowSuccess("Barcode image exported", StatusMessage);
         }
