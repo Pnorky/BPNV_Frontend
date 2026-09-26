@@ -61,11 +61,11 @@ public partial class ProductEditViewModel : ObservableObject
     public IReadOnlyList<SupplierResponse> Suppliers { get; }
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
     public IReadOnlyList<string> Categories { get; }
-    public IReadOnlyList<string> SalesReportCategories { get; } = Services.SalesReportCategories.Values;
+    public IReadOnlyList<string> SalesReportCategories { get; }
     public ObservableCollection<ProductEditPackageDraft> Packages { get; } = [];
     public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
-    public ProductEditViewModel(ProductResponse product, IReadOnlyList<SupplierResponse> suppliers)
+    public ProductEditViewModel(ProductResponse product, IReadOnlyList<SupplierResponse> suppliers, IReadOnlyList<string>? categories = null, IReadOnlyList<string>? salesReportCategories = null)
     {
         Suppliers = suppliers.Where(supplier => supplier.IsActive).OrderBy(supplier => supplier.Name).ToArray();
         SelectedSupplier = Suppliers.FirstOrDefault(supplier => supplier.Id == product.SupplierId);
@@ -76,7 +76,7 @@ public partial class ProductEditViewModel : ObservableObject
         PieceBarcode = product.Barcode ?? product.Units.FirstOrDefault(unit => unit.IsBasePiece)?.Barcode ?? "";
         Name = product.Name;
         Category = product.Category;
-        SalesReportCategory = Services.SalesReportCategories.NormalizeOrOther(product.SalesReportCategory);
+        SalesReportCategory = product.SalesReportCategory;
         Unit = product.Unit;
         CostPrice = product.CostPrice;
         RegularPrice = product.RegularPrice;
@@ -94,12 +94,8 @@ public partial class ProductEditViewModel : ObservableObject
                 package.RegularPrice, package.EmployeePrice, package.IsActive));
         }
 
-        var categories = new[]
-        {
-            "Beverages", "Snacks", "Grocery", "Personal Care", "Household",
-            "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
-        };
-        Categories = categories.Append(product.Category).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        Categories = (categories ?? []).Append(product.Category).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        SalesReportCategories = (salesReportCategories ?? []).Append(product.SalesReportCategory).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     partial void OnItemTypeChanged(ApiInventoryItemType value)
@@ -129,8 +125,8 @@ public partial class ProductEditViewModel : ObservableObject
         if (ItemType == ApiInventoryItemType.Merchandise && string.IsNullOrWhiteSpace(PieceBarcode))
             return Fail("Piece barcode is required for Merchandise.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
-        if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
-        if (!Services.SalesReportCategories.IsValid(SalesReportCategory)) return Fail("Select a valid sales report category.", out error);
+        if (!Categories.Contains(Category, StringComparer.OrdinalIgnoreCase)) return Fail("Select a valid product category.", out error);
+        if (!SalesReportCategories.Contains(SalesReportCategory, StringComparer.OrdinalIgnoreCase)) return Fail("Select a valid sales report category.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
         if (CostPrice < 0 || RegularPrice < 0 || EmployeePrice < 0)
             return Fail("Purchase and selling prices cannot be negative.", out error);

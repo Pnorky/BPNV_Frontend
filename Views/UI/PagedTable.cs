@@ -461,7 +461,7 @@ public class PagedTable : UserControl
                     TextAlignment = textAlignment,
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(12, 10)
+                     Margin = new Thickness(8, 10)
                 };
                 Grid.SetColumn(header, index);
                 HeaderGrid.Children.Add(header);
@@ -472,7 +472,7 @@ public class PagedTable : UserControl
                 Content = BuildHeaderContent(definition, definition.Header),
                 Foreground = HeaderForeground,
                 IsEnabled = definition.IsSortable,
-                Padding = new Thickness(12, 10),
+                 Padding = new Thickness(8, 10),
                 HorizontalAlignment = definition.HorizontalAlignment == HorizontalAlignment.Right
                     ? HorizontalAlignment.Right
                     : HorizontalAlignment.Stretch,

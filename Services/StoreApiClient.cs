@@ -88,6 +88,23 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task ReactivateEmployeeAsync(Guid id, CancellationToken cancellationToken = default) =>
         SendWithoutResponseAsync(HttpMethod.Post, $"api/employees/{id}/reactivate", cancellationToken);
 
+    public Task<IReadOnlyList<ManagedCategoryResponse>> GetManagedCategoriesAsync(
+        ApiManagedCategoryKind kind, bool includeInactive = false, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<ManagedCategoryResponse>>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery(
+            "api/categories", ("kind", kind.ToString()), ("includeInactive", includeInactive ? "true" : null))), cancellationToken);
+
+    public Task<ManagedCategoryResponse> CreateManagedCategoryAsync(CreateManagedCategoryRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<ManagedCategoryResponse, CreateManagedCategoryRequest>(HttpMethod.Post, "api/categories", request, cancellationToken);
+
+    public Task<ManagedCategoryResponse> UpdateManagedCategoryAsync(Guid id, UpdateManagedCategoryRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<ManagedCategoryResponse, UpdateManagedCategoryRequest>(HttpMethod.Put, $"api/categories/{id}", request, cancellationToken);
+
+    public Task DeactivateManagedCategoryAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Delete, $"api/categories/{id}", cancellationToken);
+
+    public Task ReactivateManagedCategoryAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/categories/{id}/reactivate", cancellationToken);
+
     public Task<EmployeeBalancePageResponse> GetEmployeeBalancesAsync(
         string? search = null, bool includeInactive = true, string sortBy = "employeeName",
         bool sortDescending = false, int page = 1, int pageSize = 100,

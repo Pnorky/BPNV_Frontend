@@ -34,22 +34,26 @@ public partial class BatchNewProductViewModel : ObservableObject
     public ObservableCollection<SupplierResponse> Suppliers { get; } = [];
     public ObservableCollection<ProductPackageDraft> Packages { get; } = [];
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
-    public IReadOnlyList<string> Categories { get; } =
-    [
-        "Beverages", "Snacks", "Grocery", "Personal Care", "Household",
-        "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
-    ];
-    public IReadOnlyList<string> SalesReportCategories { get; } = Services.SalesReportCategories.Values;
+    public IReadOnlyList<string> Categories { get; }
+    public IReadOnlyList<string> SalesReportCategories { get; }
     public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
     public BatchNewProductViewModel(
         IReadOnlyList<SupplierResponse> suppliers,
         string receiptBarcode,
         string supplierLibrary,
-        BatchReceiptNewProductRequest? existing = null)
+        BatchReceiptNewProductRequest? existing = null,
+        IReadOnlyList<string>? categories = null,
+        IReadOnlyList<string>? salesReportCategories = null)
     {
         ReceiptBarcode = receiptBarcode;
         SupplierLibrary = supplierLibrary;
+        categories ??= ["Beverages", "Snacks", "Grocery", "Personal Care", "Household", "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"];
+        salesReportCategories ??= Services.SalesReportCategories.Values;
+        Categories = categories.Append(existing?.Category ?? "").Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        SalesReportCategories = salesReportCategories.Append(existing?.SalesReportCategory ?? "").Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        Category = Categories.FirstOrDefault() ?? "";
+        SalesReportCategory = SalesReportCategories.FirstOrDefault(value => value.Equals("Other", StringComparison.OrdinalIgnoreCase)) ?? SalesReportCategories.FirstOrDefault() ?? "";
         foreach (var supplier in suppliers.Where(supplier => supplier.IsActive).OrderBy(supplier => supplier.Name))
             Suppliers.Add(supplier);
 
@@ -66,7 +70,7 @@ public partial class BatchNewProductViewModel : ObservableObject
         SetSku(existing.Sku);
         Name = existing.Name;
         Category = existing.Category;
-        SalesReportCategory = Services.SalesReportCategories.NormalizeOrOther(existing.SalesReportCategory);
+        SalesReportCategory = existing.SalesReportCategory ?? Services.SalesReportCategories.Other;
         Unit = existing.Unit;
         CostPrice = existing.CostPrice;
         RegularPrice = existing.RegularPrice;
@@ -126,8 +130,8 @@ public partial class BatchNewProductViewModel : ObservableObject
         if (SelectedSupplier is null) return Fail("Select an active supplier.", out error);
         if (string.IsNullOrWhiteSpace(Sku)) return Fail("SKU is required.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
-        if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
-        if (!Services.SalesReportCategories.IsValid(SalesReportCategory)) return Fail("Select a valid sales report category.", out error);
+        if (!Categories.Contains(Category, StringComparer.OrdinalIgnoreCase)) return Fail("Select a valid product category.", out error);
+        if (!SalesReportCategories.Contains(SalesReportCategory, StringComparer.OrdinalIgnoreCase)) return Fail("Select a valid sales report category.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
         if (!Money(CostPrice) || !Money(RegularPrice) || !Money(EmployeePrice))
             return Fail("Prices must be non-negative values with no more than two decimal places.", out error);

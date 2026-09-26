@@ -45,7 +45,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
     [ObservableProperty] private bool _backendValidated;
 
     [ObservableProperty] private string _defaultSupplierName = "";
-    [ObservableProperty] private string _defaultCategory = "General";
+    [ObservableProperty] private string _defaultCategory = "";
     [ObservableProperty] private string _defaultSalesReportCategory = Services.SalesReportCategories.Other;
     [ObservableProperty] private string _defaultUnit = "piece";
     [ObservableProperty] private ApiInventoryItemType _defaultItemType = ApiInventoryItemType.Merchandise;
@@ -63,7 +63,8 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
     public ObservableCollection<ExcelInventoryExcludedSectionDraft> ExcludedSections { get; } = [];
     public ObservableCollection<InventoryImportDisplayIssue> Issues { get; } = [];
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
-    public IReadOnlyList<string> SalesReportCategories { get; } = Services.SalesReportCategories.Values;
+    public ObservableCollection<string> Categories { get; } = [];
+    public ObservableCollection<string> SalesReportCategories { get; } = [];
     public Guid ImportKey { get; private set; }
     public int ProductCount => Products.Count;
     public int PackageCount => Packages.Count;
@@ -76,10 +77,36 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
     public bool CanValidate => IsLoaded && !HasLocalErrors && !IsBusy;
     public bool CanImport => IsLoaded && BackendValidated && !IsBusy;
 
-    public ExcelInventoryImportViewModel(StoreApiClient api, INotificationService notifications)
+    public ExcelInventoryImportViewModel(StoreApiClient api, INotificationService notifications,
+        IReadOnlyList<string>? categories = null, IReadOnlyList<string>? salesReportCategories = null)
     {
         _api = api;
         _notifications = notifications;
+        if (categories is not null && salesReportCategories is not null)
+        {
+            foreach (var category in categories) Categories.Add(category);
+            foreach (var category in salesReportCategories) SalesReportCategories.Add(category);
+        }
+        else _ = LoadCategoriesAsync();
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        try
+        {
+            var categoriesTask = _api.GetManagedCategoriesAsync(ApiManagedCategoryKind.Product);
+            var reportCategoriesTask = _api.GetManagedCategoriesAsync(ApiManagedCategoryKind.SalesReport);
+            await Task.WhenAll(categoriesTask, reportCategoriesTask);
+            foreach (var item in await categoriesTask) Categories.Add(item.Name);
+            foreach (var item in await reportCategoriesTask) SalesReportCategories.Add(item.Name);
+            DefaultCategory = Categories.FirstOrDefault() ?? "";
+            DefaultSalesReportCategory = SalesReportCategories.FirstOrDefault(item => item.Equals("Other", StringComparison.OrdinalIgnoreCase)) ?? SalesReportCategories.FirstOrDefault() ?? "";
+        }
+        catch (Exception exception) when (IsApiFailure(exception))
+        {
+            var message = exception is HttpRequestException ? "Cannot reach the store API." : exception is TaskCanceledException ? "The store API did not respond in time." : exception.Message;
+            _notifications.ShowError("Categories could not be loaded", message);
+        }
     }
 
     partial void OnIsBusyChanged(bool value)
@@ -336,8 +363,9 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
             Required(product, product.SupplierName, "supplier", "Supplier is required.");
             Required(product, product.Sku, "sku", "SKU is required.");
             Required(product, product.Name, "name", "Product name is required.");
-            Required(product, product.Category, "category", "Category is required.");
-            if (!Services.SalesReportCategories.IsValid(product.SalesReportCategory))
+            if (!Categories.Contains(product.Category, StringComparer.OrdinalIgnoreCase))
+                AddLocal(product.SourceRow, "category", "Select a valid product category.");
+            if (!SalesReportCategories.Contains(product.SalesReportCategory, StringComparer.OrdinalIgnoreCase))
                 AddLocal(product.SourceRow, "salesReportCategory", "Select a valid sales report category.");
             Required(product, product.Unit, "unit", "Unit is required.");
             if (product.ItemType is null) AddLocal(product.SourceRow, "itemType", "Item type is required.");
@@ -408,7 +436,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
                 .Select(package => new InventoryImportPackageRequest(
                     NullIfWhiteSpace(package.Barcode), package.Label.Trim(), package.PiecesPerUnit!.Value,
                     package.RegularPrice!.Value, package.EmployeePrice!.Value, package.IsActive)).ToArray(),
-                SalesReportCategory: Services.SalesReportCategories.NormalizeOrOther(product.SalesReportCategory))).ToArray();
+                SalesReportCategory: product.SalesReportCategory.Trim())).ToArray();
         request = new InventoryImportRequest(ImportKey, FileName, SourceHash, suppliers, products);
         ValidationSummary = $"Local checks passed: {products.Length} products, {suppliers.Length} suppliers, {Packages.Count} packages";
         return true;

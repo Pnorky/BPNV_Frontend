@@ -7,6 +7,12 @@ public enum ApiInventoryItemType
     Supply
 }
 
+public enum ApiManagedCategoryKind
+{
+    Product,
+    SalesReport
+}
+
 public enum ApiInventoryStockLocation
 {
     Display,
@@ -149,6 +155,15 @@ public sealed record EmployeeResponse(Guid Id, string EmployeeNumber, string Nam
 
 public sealed record CreateEmployeeRequest(string Name);
 public sealed record UpdateEmployeeRequest(string Name);
+
+public sealed record ManagedCategoryResponse(Guid Id, ApiManagedCategoryKind Kind, string Name, int SortOrder, bool IsActive, bool IsSystem)
+{
+    public string Status => IsActive ? "Active" : "Inactive";
+    public string TypeDisplay => Kind == ApiManagedCategoryKind.Product ? "Product category" : "Sales report category";
+    public override string ToString() => Name;
+}
+public sealed record CreateManagedCategoryRequest(ApiManagedCategoryKind Kind, string Name, int SortOrder);
+public sealed record UpdateManagedCategoryRequest(string Name, int SortOrder);
 
 public sealed record EmployeeBalanceResponse(
     Guid EmployeeId, string EmployeeNumber, string EmployeeName, bool IsActive,

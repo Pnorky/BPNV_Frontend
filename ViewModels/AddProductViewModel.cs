@@ -79,19 +79,31 @@ public partial class AddProductViewModel : ObservableObject
     public ObservableCollection<SupplierResponse> Suppliers { get; } = [];
     public ObservableCollection<ProductPackageDraft> Packages { get; } = [];
     public IReadOnlyList<ApiInventoryItemType> ItemTypes { get; } = Enum.GetValues<ApiInventoryItemType>();
-    public IReadOnlyList<string> Categories { get; } =
-    [
-        "Beverages", "Snacks", "Grocery", "Personal Care", "Household",
-        "Condiments", "Frozen", "Tobacco", "Lubricants", "Consumables", "Supplies", "Other"
-    ];
-    public IReadOnlyList<string> SalesReportCategories { get; } = Services.SalesReportCategories.Values;
+    public ObservableCollection<string> Categories { get; } = [];
+    public ObservableCollection<string> SalesReportCategories { get; } = [];
     public bool CanChooseSellable => ItemType != ApiInventoryItemType.Supply;
 
     public AddProductViewModel(StoreApiClient api, INotificationService notifications)
     {
         _api = api;
         _notifications = notifications;
-        _ = LoadSuppliersAsync();
+        _ = LoadReferenceDataAsync();
+    }
+
+    private async Task LoadReferenceDataAsync()
+    {
+        await LoadSuppliersAsync();
+        try
+        {
+            var productTask = _api.GetManagedCategoriesAsync(ApiManagedCategoryKind.Product);
+            var reportTask = _api.GetManagedCategoriesAsync(ApiManagedCategoryKind.SalesReport);
+            await Task.WhenAll(productTask, reportTask);
+            foreach (var item in await productTask) Categories.Add(item.Name);
+            foreach (var item in await reportTask) SalesReportCategories.Add(item.Name);
+            Category = Categories.FirstOrDefault() ?? "";
+            SalesReportCategory = SalesReportCategories.FirstOrDefault(item => item.Equals("Other", StringComparison.OrdinalIgnoreCase)) ?? SalesReportCategories.FirstOrDefault() ?? "";
+        }
+        catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Categories could not be loaded", FailureMessage(exception)); }
     }
 
     [RelayCommand]
@@ -249,8 +261,8 @@ public partial class AddProductViewModel : ObservableObject
         if (SelectedSupplier is null) return Fail("Select or create a supplier.", out error);
         if (string.IsNullOrWhiteSpace(Sku)) return Fail("SKU is required.", out error);
         if (string.IsNullOrWhiteSpace(Name)) return Fail("Product name is required.", out error);
-        if (string.IsNullOrWhiteSpace(Category)) return Fail("Category is required.", out error);
-        if (!Services.SalesReportCategories.IsValid(SalesReportCategory)) return Fail("Select a valid sales report category.", out error);
+        if (!Categories.Contains(Category, StringComparer.OrdinalIgnoreCase)) return Fail("Select a valid product category.", out error);
+        if (!SalesReportCategories.Contains(SalesReportCategory, StringComparer.OrdinalIgnoreCase)) return Fail("Select a valid sales report category.", out error);
         if (string.IsNullOrWhiteSpace(Unit)) return Fail("Base piece unit label is required.", out error);
         if (CostPrice < 0 || RegularPrice < 0 || EmployeePrice < 0)
             return Fail("Purchase and selling prices cannot be negative.", out error);

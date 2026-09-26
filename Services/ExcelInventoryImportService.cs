@@ -622,14 +622,13 @@ public sealed class ExcelInventoryImportService
             return;
         }
 
-        if (!SalesReportCategories.IsValid(product.SalesReportCategory))
+        product.SalesReportCategory = product.SalesReportCategory.Trim();
+        if (product.SalesReportCategory.Length > 100)
         {
             AddError(product.Issues, "InvalidSalesReportCategory",
-                $"Sales report category must be one of: {string.Join(", ", SalesReportCategories.Values)}.", sheet, product.SourceRow);
+                "Sales report category cannot exceed 100 characters.", sheet, product.SourceRow);
             return;
         }
-
-        product.SalesReportCategory = SalesReportCategories.NormalizeOrOther(product.SalesReportCategory);
     }
 
     private static int? ReadInteger(

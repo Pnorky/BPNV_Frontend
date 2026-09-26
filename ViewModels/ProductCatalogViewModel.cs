@@ -82,9 +82,13 @@ public partial class ProductCatalogViewModel : ObservableObject
         StatusMessage = "Loading active suppliers...";
         try
         {
-            var suppliers = await _api.GetSuppliersAsync();
+            var suppliersTask = _api.GetSuppliersAsync();
+            var categoriesTask = _api.GetManagedCategoriesAsync(ApiManagedCategoryKind.Product);
+            var reportCategoriesTask = _api.GetManagedCategoriesAsync(ApiManagedCategoryKind.SalesReport);
+            await Task.WhenAll(suppliersTask, categoriesTask, reportCategoriesTask);
+            var suppliers = await suppliersTask;
             IsBusy = false;
-            var dialog = new ProductEditDialog(new ProductEditViewModel(product, suppliers));
+            var dialog = new ProductEditDialog(new ProductEditViewModel(product, suppliers, (await categoriesTask).Select(item => item.Name).ToArray(), (await reportCategoriesTask).Select(item => item.Name).ToArray()));
             var request = await dialog.ShowDialog<UpdateProductRequest?>(owner);
             if (request is null) return;
 

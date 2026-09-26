@@ -162,7 +162,7 @@ public sealed class ExcelInventoryImportView : UserControl
             Children =
             {
                 Field("DEFAULT SUPPLIER", Input("DefaultSupplierName", "Used only when blank")),
-                At(Field("CATEGORY", Input("DefaultCategory", "General")), column: 1),
+                At(Field("CATEGORY", Select("DefaultCategory", "Categories", placeholder: "Product category")), column: 1),
                 At(Field("SALES CATEGORY", salesCategory), column: 2),
                 At(Field("UNIT", Input("DefaultUnit", "piece")), column: 3),
                 At(Field("ITEM TYPE", type), column: 4),
@@ -286,6 +286,8 @@ public sealed class ExcelInventoryImportView : UserControl
         row.VerticalAlignment = VerticalAlignment.Center;
         var type = Select("ItemType", "DataContext.ItemTypes", typeof(ExcelInventoryImportView));
         type.MinWidth = 130;
+        var category = Select("Category", "DataContext.Categories", typeof(ExcelInventoryImportView), "Product category");
+        category.MinWidth = 150;
         var salesCategory = Select("SalesReportCategory", "DataContext.SalesReportCategories", typeof(ExcelInventoryImportView), "Sales category");
         salesCategory.MinWidth = 150;
         return RowBorder(new Grid
@@ -300,7 +302,7 @@ public sealed class ExcelInventoryImportView : UserControl
                 At(CompactInput("Sku"), column: 2),
                 At(CompactInput("PieceBarcode"), column: 3),
                 At(CompactInput("Name"), column: 4),
-                At(CompactInput("Category"), column: 5),
+                At(category, column: 5),
                 At(salesCategory, column: 6),
                 At(CompactInput("Unit"), column: 7),
                 At(type, column: 8),

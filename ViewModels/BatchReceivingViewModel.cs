@@ -417,9 +417,17 @@ public partial class BatchReceivingViewModel : ObservableObject
         IsBusy = true;
         StatusMessage = "Loading active suppliers for the new product...";
         IReadOnlyList<SupplierResponse> suppliers;
+        IReadOnlyList<ManagedCategoryResponse> categories;
+        IReadOnlyList<ManagedCategoryResponse> salesReportCategories;
         try
         {
-            suppliers = await _api.GetSuppliersAsync();
+            var suppliersTask = _api.GetSuppliersAsync();
+            var categoriesTask = _api.GetManagedCategoriesAsync(ApiManagedCategoryKind.Product);
+            var salesReportCategoriesTask = _api.GetManagedCategoriesAsync(ApiManagedCategoryKind.SalesReport);
+            await Task.WhenAll(suppliersTask, categoriesTask, salesReportCategoriesTask);
+            suppliers = await suppliersTask;
+            categories = await categoriesTask;
+            salesReportCategories = await salesReportCategoriesTask;
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
@@ -435,7 +443,8 @@ public partial class BatchReceivingViewModel : ObservableObject
         if (owner is null) return;
         _newProducts.TryGetValue(row.Barcode, out var existing);
         var correlationId = existing?.CorrelationId ?? row.NewProductCorrelationId ?? Guid.NewGuid();
-        var model = new BatchNewProductViewModel(suppliers, row.Barcode, row.SupplierLibrary, existing);
+        var model = new BatchNewProductViewModel(suppliers, row.Barcode, row.SupplierLibrary, existing,
+            categories.Select(item => item.Name).ToArray(), salesReportCategories.Select(item => item.Name).ToArray());
         var draft = await new BatchNewProductDialog(model, correlationId).ShowDialog<BatchReceiptNewProductRequest?>(owner);
         if (draft is not null) await ApplyNewProductDraftAndReviewAsync(draft);
     }

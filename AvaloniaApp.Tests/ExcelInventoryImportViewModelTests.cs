@@ -15,7 +15,7 @@ public sealed class ExcelInventoryImportViewModelTests
                 BaseAddress = new Uri("https://test/")
             },
             new AuthSession()));
-        var viewModel = new ExcelInventoryImportViewModel(api, new TestNotificationService());
+        var viewModel = new ExcelInventoryImportViewModel(api, new TestNotificationService(), ["Supplies"], SalesReportCategories.Values);
         var draft = new ExcelInventoryImportResult { Format = ExcelInventoryWorkbookFormat.StandardTemplate };
         draft.Products.Add(new ExcelInventoryProductDraft
         {

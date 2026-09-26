@@ -163,6 +163,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             "CashierOperations" => "Cashier Operations",
             "AdminNotifications" => "Admin Notifications",
             "Employees" => "Employees",
+            "Categories" => "Categories",
             "Users" => "Users",
             _ => "Overview"
         };
@@ -186,6 +187,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             "CashierOperations" => _cashierOperationsPage ??= new AdminCashierOperationsViewModel(_storeClient, _notifications),
             "AdminNotifications" => CreateAdminNotificationsPage(),
             "Employees" => new EmployeesViewModel(_storeClient, _notifications),
+            "Categories" => new CategoriesViewModel(_storeClient, _notifications),
             "Users" => new UsersViewModel(_storeClient, _notifications),
             _ => new DashboardPageViewModel(_storeClient, _notifications, IsCashier)
         };
@@ -327,7 +329,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
         "InventoryBatchReceive" or "InventoryDeliveryHistory" or "InventoryImport" or "InventorySuppliers" or "InventoryMovements" =>
             _session.HasRole("Admin") || _session.HasRole("Inventory"),
         "Reports" => _session.HasRole("Admin") || _session.HasRole("Inventory") || _session.HasRole("Cashier"),
-        "Employees" => _session.HasRole("Admin") || _session.HasRole("Inventory"),
+        "Employees" or "Categories" => _session.HasRole("Admin") || _session.HasRole("Inventory"),
         "EmployeeBalances" => _session.HasRole("Admin") || _session.HasRole("Inventory"),
         "CashierShiftManagement" or "CashierOperations" or "AdminNotifications" => _session.HasRole("Admin"),
         "Users" => _session.HasRole("Admin"),

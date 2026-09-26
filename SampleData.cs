@@ -119,6 +119,7 @@ public static class SampleData
         new() { Icon = "ReceiptText", Text = "Cashier Operations", Tag = "CashierOperations" },
         new() { Icon = "Bell", Text = "Notifications", Tag = "AdminNotifications" },
         new() { Icon = "Users", Text = "Employees", Tag = "Employees" },
+        new() { Icon = "Tags", Text = "Categories", Tag = "Categories" },
         new() { Icon = "User", Text = "Users", Tag = "Users" },
     };
 
