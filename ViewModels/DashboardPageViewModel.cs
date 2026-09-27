@@ -67,7 +67,7 @@ public partial class DashboardPageViewModel : ObservableObject
             BodegaUnits = 0;
             AttentionItems = [];
             RecentSales = [];
-            ErrorMessage = exception is TaskCanceledException ? "The dashboard request timed out." : exception.Message;
+            ErrorMessage = UserFacingErrors.Get(exception, "The dashboard could not be loaded. Please try again.");
             StatusMessage = ErrorMessage;
             _notifications.ShowError("Store overview could not be loaded", ErrorMessage);
             OnPropertyChanged(nameof(TodaySalesDisplay));

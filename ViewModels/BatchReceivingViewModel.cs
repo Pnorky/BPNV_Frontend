@@ -378,8 +378,9 @@ public partial class BatchReceivingViewModel : ObservableObject
             BackendCanCommit = false;
             _validatedRequest = null;
             _validatedFingerprint = null;
-            AddIssue("Error", null, "batch", "commitFailed", exception.Message);
-            StatusMessage = $"The batch could not be received: {exception.Message} Review the batch before trying again. Your captured text was kept.";
+            var friendlyError = UserFacingErrors.Get(exception, "The batch could not be received. Review the batch before trying again.");
+            AddIssue("Error", null, "batch", "commitFailed", friendlyError);
+            StatusMessage = $"{friendlyError} Your captured text was kept.";
             _notifications.ShowError("Batch could not be received", StatusMessage);
             RefreshStateProperties();
         }
@@ -723,7 +724,7 @@ public partial class BatchReceivingViewModel : ObservableObject
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException or InvalidOperationException;
     private static string FailureMessage(Exception exception) => exception is HttpRequestException
         ? "Cannot reach the store API."
-        : exception is TaskCanceledException ? "The store API did not respond in time." : exception.Message;
+        : UserFacingErrors.Get(exception, "The batch could not be loaded. Please try again.");
     private static Avalonia.Controls.Window? MainWindow() =>
         Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } window } ? window : null;
 }

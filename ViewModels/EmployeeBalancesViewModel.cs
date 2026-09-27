@@ -20,11 +20,14 @@ public partial class EmployeeBalancesViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "Loading employee balances...";
     [ObservableProperty] private string? _errorMessage;
 
-    public string TotalPurchasesDisplay => $"₱{Summary.TotalPurchases:N2}";
-    public string PaidAtPurchaseDisplay => $"₱{Summary.PaidAtPurchase:N2}";
-    public string OriginallyOwedDisplay => $"₱{Summary.OriginallyOwed:N2}";
-    public string RepaymentsDisplay => $"₱{Summary.Repayments:N2}";
-    public string OutstandingDisplay => $"₱{Summary.OutstandingBalance:N2}";
+    public string OutstandingDisplay => $"₱{Balances.Sum(item => item.OutstandingBalance):N2}";
+    public string EmployeesWithBalanceDisplay => Balances.Count(item => item.OutstandingBalance > 0).ToString("N0");
+    public string RepaymentsDisplay => $"₱{Balances.Sum(item => item.Repayments):N2}";
+    public string FullyPaidDisplay => Balances.Count(item => item.OutstandingBalance <= 0).ToString("N0");
+    public string LargestBalanceDisplay => Balances.Where(item => item.OutstandingBalance > 0)
+        .OrderByDescending(item => item.OutstandingBalance)
+        .Select(item => $"{item.EmployeeName} · ₱{item.OutstandingBalance:N2}")
+        .FirstOrDefault() ?? "None";
     public bool IsFiltered => !string.IsNullOrWhiteSpace(SearchText);
 
     public EmployeeBalancesViewModel(StoreApiClient api, INotificationService notifications)
@@ -42,11 +45,11 @@ public partial class EmployeeBalancesViewModel : ObservableObject
 
     partial void OnSummaryChanged(EmployeeBalanceSummaryResponse value)
     {
-        OnPropertyChanged(nameof(TotalPurchasesDisplay));
-        OnPropertyChanged(nameof(PaidAtPurchaseDisplay));
-        OnPropertyChanged(nameof(OriginallyOwedDisplay));
-        OnPropertyChanged(nameof(RepaymentsDisplay));
         OnPropertyChanged(nameof(OutstandingDisplay));
+        OnPropertyChanged(nameof(EmployeesWithBalanceDisplay));
+        OnPropertyChanged(nameof(RepaymentsDisplay));
+        OnPropertyChanged(nameof(FullyPaidDisplay));
+        OnPropertyChanged(nameof(LargestBalanceDisplay));
     }
 
     [RelayCommand]
@@ -137,10 +140,15 @@ public partial class EmployeeBalancesViewModel : ObservableObject
         Balances = (search.Length == 0 ? _allBalances : _allBalances.Where(employee =>
             employee.EmployeeNumber.Contains(search, StringComparison.OrdinalIgnoreCase) ||
             employee.EmployeeName.Contains(search, StringComparison.OrdinalIgnoreCase))).ToArray();
+        OnPropertyChanged(nameof(OutstandingDisplay));
+        OnPropertyChanged(nameof(EmployeesWithBalanceDisplay));
+        OnPropertyChanged(nameof(RepaymentsDisplay));
+        OnPropertyChanged(nameof(FullyPaidDisplay));
+        OnPropertyChanged(nameof(LargestBalanceDisplay));
     }
 
     private void ShowError(string title, string message) { StatusMessage = message; _notifications.ShowError(title, message); }
     private static Avalonia.Controls.Window? MainWindow() => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;
-    private static string FailureMessage(Exception exception) => exception is HttpRequestException ? "Cannot reach the store API." : exception is TaskCanceledException ? "The store API did not respond in time." : exception.Message;
+    private static string FailureMessage(Exception exception) => UserFacingErrors.Get(exception, "Employee balances could not be loaded. Please try again.");
 }

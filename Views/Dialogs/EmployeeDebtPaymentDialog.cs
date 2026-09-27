@@ -14,9 +14,9 @@ public sealed class EmployeeDebtPaymentDialog : Window
     {
         Title = "Record Employee Payment - BPNV Convenience Store";
         Width = 500;
-        Height = 520;
+        Height = 580;
         MinWidth = 500;
-        MinHeight = 520;
+        MinHeight = 580;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         CanResize = false;
         this.BindResource(BackgroundProperty, "Card");
@@ -62,11 +62,17 @@ public sealed class EmployeeDebtPaymentDialog : Window
                 Children =
                 {
                     new StackPanel { Spacing = 4, Children = { new TextBlock { Text = "Record employee payment", Classes = { "h2" } }, employee } },
-                    At(new StackPanel { Spacing = 10, Children =
+                    At(new Grid
                     {
-                        new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { Label("OUTSTANDING BALANCE"), At(outstanding, column: 1) } },
-                        Label("Amount"), amount, Label("Payment method"), method, reference, Label("Note"), note, validation
-                    } }, row: 1),
+                        RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"),
+                        RowSpacing = 10,
+                        Children =
+                        {
+                            At(new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { Label("OUTSTANDING BALANCE"), At(outstanding, column: 1) } }),
+                            At(Label("Amount"), 1), At(amount, 2), At(Label("Payment method"), 3), At(method, 4),
+                            At(reference, 5), At(Label("Note"), 6), At(note, 7), At(validation, 8)
+                        }
+                    }, row: 1),
                     At(new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 10, Children = { cancel, confirm } }, row: 2)
                 }
             }

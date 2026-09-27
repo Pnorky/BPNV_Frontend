@@ -104,7 +104,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
-            var message = exception is HttpRequestException ? "Cannot reach the store API." : exception is TaskCanceledException ? "The store API did not respond in time." : exception.Message;
+            var message = UserFacingErrors.Get(exception, "The inventory could not be loaded. Please try again.");
             _notifications.ShowError("Categories could not be loaded", message);
         }
     }
@@ -155,7 +155,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         catch (Exception exception)
         {
             ClearDraft();
-            StatusMessage = $"Could not load the workbook: {exception.Message}";
+            StatusMessage = $"Could not load the workbook: {UserFacingErrors.Get(exception, "Please choose a supported workbook and try again.")}";
         }
         finally
         {
@@ -264,7 +264,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         catch (Exception exception) when (IsApiFailure(exception))
         {
             BackendValidated = false;
-            StatusMessage = $"Validation failed: {exception.Message}";
+            StatusMessage = $"Validation failed: {UserFacingErrors.Get(exception, "The workbook could not be validated. Check the required columns and try again.")}";
             _notifications.ShowError("Please fix the listed issues", StatusMessage);
         }
         finally
@@ -327,7 +327,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         catch (Exception exception) when (IsApiFailure(exception))
         {
             BackendValidated = false;
-            StatusMessage = $"Import failed: {exception.Message}";
+            StatusMessage = $"Import failed: {UserFacingErrors.Get(exception, "The inventory could not be imported. Please review the validation messages and try again.")}";
             _notifications.ShowError("Inventory could not be imported", StatusMessage);
         }
         finally
@@ -523,7 +523,7 @@ public partial class ExcelInventoryImportViewModel : ObservableObject
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            StatusMessage = $"Template export failed: {exception.Message}";
+            StatusMessage = $"Template export failed: {UserFacingErrors.Get(exception, "The template could not be exported. Please try again.")}";
         }
     }
 

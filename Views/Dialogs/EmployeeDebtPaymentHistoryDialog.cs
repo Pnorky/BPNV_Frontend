@@ -12,21 +12,21 @@ public sealed class EmployeeDebtPaymentHistoryDialog : Window
     public EmployeeDebtPaymentHistoryDialog(EmployeeBalanceResponse employee, IReadOnlyList<EmployeeDebtPaymentResponse> payments)
     {
         Title = $"Payment History - {employee.EmployeeName}";
-        Width = 900;
+        Width = 1240;
         Height = 560;
-        MinWidth = 720;
+        MinWidth = 1000;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         this.BindResource(BackgroundProperty, "Card");
         this.BindResource(ForegroundProperty, "Foreground");
 
-        var table = new PagedTable { ItemsSource = payments, ItemName = "payment", ItemNamePlural = "payments", PageSize = 10, MinTableWidth = 780 };
-        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("DATE & TIME", item => item.PaidAtDisplay, new GridLength(1.4, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("AMOUNT", item => item.AmountDisplay, new GridLength(.8, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("METHOD", item => item.PaymentMethod.ToString(), new GridLength(.7, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("REFERENCE", item => item.ReferenceDisplay, new GridLength(1, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("RECORDED BY", item => item.RecordedByName, new GridLength(1.1, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("NOTE", item => item.NoteDisplay, new GridLength(1.2, GridUnitType.Star)));
+        var table = new PagedTable { ItemsSource = payments, ItemName = "payment", ItemNamePlural = "payments", PageSize = 10, MinTableWidth = 1180 };
+        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("DATE & TIME", item => item.PaidAtDisplay, new GridLength(2.8, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("AMOUNT", item => item.AmountDisplay, new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("METHOD", item => item.PaymentMethod.ToString(), new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("REFERENCE", item => item.ReferenceDisplay, new GridLength(1.3, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("RECORDED BY", item => item.RecordedByName, new GridLength(2.2, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeDebtPaymentResponse, string>("NOTE", item => item.NoteDisplay, new GridLength(1.5, GridUnitType.Star)));
         var close = new ActionButton("Close", ActionButtonVariant.Secondary);
         close.Click += (_, _) => Close();
         Content = new Grid

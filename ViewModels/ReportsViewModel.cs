@@ -193,7 +193,7 @@ public partial class ReportsViewModel : ObservableObject
             EmployeePurchaseLines = [];
             SalesAccountability = null;
             AccountabilityRows = [];
-            ErrorMessage = exception is TaskCanceledException ? "The report request timed out." : exception.Message;
+            ErrorMessage = UserFacingErrors.Get(exception, "The report could not be loaded. Please try again.");
             StatusMessage = ErrorMessage;
             NotifySummaryChanged();
         }
@@ -234,7 +234,7 @@ public partial class ReportsViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            ExportStatus = $"PDF export failed: {exception.Message}";
+            ExportStatus = $"PDF export failed: {UserFacingErrors.Get(exception, "The PDF could not be created. Please try again.")}";
         }
     }
 
@@ -269,7 +269,7 @@ public partial class ReportsViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            ExportStatus = $"Excel export failed: {exception.Message}";
+            ExportStatus = $"Excel export failed: {UserFacingErrors.Get(exception, "The Excel file could not be created. Please try again.")}";
         }
     }
 

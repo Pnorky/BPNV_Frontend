@@ -46,7 +46,7 @@ public partial class CashierSalesViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is ApiClientException or HttpRequestException or TaskCanceledException)
         {
-            Report = null; StatusMessage = ex.Message; Notify();
+            Report = null; StatusMessage = UserFacingErrors.Get(ex, "Sales could not be loaded. Please try again."); Notify();
         }
         finally { IsLoading = false; }
     }

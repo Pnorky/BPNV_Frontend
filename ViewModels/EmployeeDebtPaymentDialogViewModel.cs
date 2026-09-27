@@ -8,7 +8,7 @@ public sealed record EmployeeDebtPaymentDialogResult(
 
 public partial class EmployeeDebtPaymentDialogViewModel(EmployeeBalanceResponse employee) : ObservableObject
 {
-    [ObservableProperty] private decimal _amount;
+    [ObservableProperty] private decimal? _amount;
     [ObservableProperty] private ApiEmployeeDebtPaymentMethod _paymentMethod = ApiEmployeeDebtPaymentMethod.Cash;
     [ObservableProperty] private string _referenceNumber = "";
     [ObservableProperty] private string _note = "";
@@ -16,21 +16,22 @@ public partial class EmployeeDebtPaymentDialogViewModel(EmployeeBalanceResponse 
     public string EmployeeDisplay => employee.EmployeeDisplay;
     public string OutstandingDisplay => employee.OutstandingBalanceDisplay;
     public bool IsGCash => PaymentMethod == ApiEmployeeDebtPaymentMethod.GCash;
-    public bool CanConfirm => employee.IsActive && Amount > 0 && Amount <= employee.OutstandingBalance &&
+    public bool CanConfirm => employee.IsActive && Amount is > 0 && Amount <= employee.OutstandingBalance &&
                               (!IsGCash || !string.IsNullOrWhiteSpace(ReferenceNumber));
     public string ValidationMessage => !employee.IsActive ? "Inactive employees cannot receive new payments."
+        : Amount is null ? "Enter the amount you want to pay."
         : Amount <= 0 ? "Enter a payment amount greater than zero."
-        : Amount > employee.OutstandingBalance ? $"Amount cannot exceed {employee.OutstandingBalanceDisplay}."
+        : Amount > employee.OutstandingBalance ? $"The payment cannot be more than {employee.OutstandingBalanceDisplay}."
         : IsGCash && string.IsNullOrWhiteSpace(ReferenceNumber) ? "Enter the GCash reference number."
         : "";
     public bool HasValidationError => !CanConfirm;
 
-    partial void OnAmountChanged(decimal value) => NotifyValidation();
+    partial void OnAmountChanged(decimal? value) => NotifyValidation();
     partial void OnPaymentMethodChanged(ApiEmployeeDebtPaymentMethod value) { OnPropertyChanged(nameof(IsGCash)); NotifyValidation(); }
     partial void OnReferenceNumberChanged(string value) => NotifyValidation();
 
     public EmployeeDebtPaymentDialogResult? CreateResult() => CanConfirm
-        ? new(Amount, PaymentMethod, NullIfWhiteSpace(ReferenceNumber), NullIfWhiteSpace(Note))
+        ? new(Amount!.Value, PaymentMethod, NullIfWhiteSpace(ReferenceNumber), NullIfWhiteSpace(Note))
         : null;
 
     private void NotifyValidation()

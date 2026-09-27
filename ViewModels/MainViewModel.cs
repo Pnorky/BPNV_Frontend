@@ -55,7 +55,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (ApiClientException exception)
         {
-            ShowError(exception.Message);
+            ShowError(UserFacingErrors.Get(exception));
         }
         catch (HttpRequestException)
         {
@@ -100,7 +100,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (ApiClientException exception)
         {
-            ShowError(exception.Message);
+            ShowError(UserFacingErrors.Get(exception));
         }
         catch (HttpRequestException)
         {

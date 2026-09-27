@@ -18,7 +18,7 @@ public sealed class EmployeeBalancesView : UserControl
         var table = new PagedTable
         {
             ItemName = "employee balance", ItemNamePlural = "employee balances", PageSize = 10,
-            MinTableWidth = 1750, MinHeight = 440, IsSelectable = false
+            MinTableWidth = 1850, MinHeight = 440, IsSelectable = false
         };
         table.Bind(PagedTable.ItemsSourceProperty, new Binding(nameof(EmployeeBalancesViewModel.Balances)));
         table.Bind(PagedTable.IsLoadingProperty, new Binding(nameof(EmployeeBalancesViewModel.IsBusy)));
@@ -32,7 +32,7 @@ public sealed class EmployeeBalancesView : UserControl
         table.Columns.Add(Money("TOTAL OWED", item => item.OriginallyOwedDisplay, 130));
         table.Columns.Add(Money("PAYMENTS RECEIVED", item => item.RepaymentsDisplay, 155));
         table.Columns.Add(Money("BALANCE DUE", item => item.OutstandingBalanceDisplay, 140));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeBalanceResponse, string>("LAST PAYMENT", item => item.LastPaymentDisplay, new GridLength(180)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeBalanceResponse, string>("LAST PAYMENT", item => item.LastPaymentDisplay, new GridLength(280)));
         var status = PagedTableColumn.Create<EmployeeBalanceResponse, string>("ACCOUNT STATUS", item => item.Status, new GridLength(135));
         status.CellTemplate = new FuncDataTemplate<EmployeeBalanceResponse>((_, _) => StatusCell(), true);
         table.Columns.Add(status);
@@ -53,11 +53,12 @@ public sealed class EmployeeBalancesView : UserControl
     private static Control Metrics()
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"), ColumnSpacing = 12 };
-        string[] labels = ["TOTAL PURCHASES", "PAID AT SALE", "ORIGINALLY OWED", "REPAYMENTS", "OUTSTANDING"];
-        string[] paths = ["TotalPurchasesDisplay", "PaidAtPurchaseDisplay", "OriginallyOwedDisplay", "RepaymentsDisplay", "OutstandingDisplay"];
+        string[] labels = ["OUTSTANDING BALANCE", "EMPLOYEES WITH BALANCE", "REPAYMENTS RECEIVED", "FULLY PAID", "LARGEST BALANCE"];
+        string[] paths = ["OutstandingDisplay", "EmployeesWithBalanceDisplay", "RepaymentsDisplay", "FullyPaidDisplay", "LargestBalanceDisplay"];
         for (var index = 0; index < labels.Length; index++)
         {
-            var value = Bound(paths[index], 24, FontWeight.Bold);
+            var value = Bound(paths[index], index == 4 ? 15 : 24, FontWeight.Bold);
+            value.TextWrapping = Avalonia.Media.TextWrapping.Wrap;
             var label = new TextBlock { Text = labels[index], FontSize = 10, FontWeight = FontWeight.SemiBold };
             label.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground"));
             var card = new Border { Padding = new Thickness(16), Child = new StackPanel { Spacing = 4, Children = { label, value } } };

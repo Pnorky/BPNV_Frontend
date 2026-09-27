@@ -126,5 +126,5 @@ public partial class EmployeesViewModel : ObservableObject
 
     private void ShowError(string title, string message) { StatusMessage = message; _notifications.ShowError(title, message); }
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;
-    private static string FailureMessage(Exception exception) => exception is HttpRequestException ? "Cannot reach the store API." : exception is TaskCanceledException ? "The store API did not respond in time." : exception.Message;
+    private static string FailureMessage(Exception exception) => UserFacingErrors.Get(exception, "Employees could not be loaded. Please try again.");
 }

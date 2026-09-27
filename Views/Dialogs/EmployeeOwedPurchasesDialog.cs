@@ -11,15 +11,15 @@ public sealed class EmployeeOwedPurchasesDialog : Window
     public EmployeeOwedPurchasesDialog(EmployeeBalanceResponse employee, IReadOnlyList<EmployeeOwedPurchaseResponse> purchases)
     {
         Title = $"Outstanding Purchases - {employee.EmployeeName}";
-        Width = 820; Height = 520; MinWidth = 680; MinHeight = 400;
+        Width = 1080; Height = 520; MinWidth = 900; MinHeight = 400;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         this.BindResource(BackgroundProperty, "Card"); this.BindResource(ForegroundProperty, "Foreground");
-        var table = new PagedTable { ItemsSource = purchases, ItemName = "owed purchase", ItemNamePlural = "owed purchases", PageSize = 10, MinTableWidth = 700 };
-        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, string>("SALE", item => item.SaleNumber));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, DateTime>("DATE", item => item.SoldAtUtc));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, decimal>("ORIGINAL", item => item.OriginalAmount));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, decimal>("PAID", item => item.PaidAmount));
-        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, decimal>("OUTSTANDING", item => item.OutstandingAmount));
+        var table = new PagedTable { ItemsSource = purchases, ItemName = "owed purchase", ItemNamePlural = "owed purchases", PageSize = 10, MinTableWidth = 1000 };
+        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, string>("SALE", item => item.SaleNumber, new GridLength(1.2, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, string>("DATE", item => StoreDateTime.FormatUtc(item.SoldAtUtc), new GridLength(2.8, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, decimal>("ORIGINAL", item => item.OriginalAmount, new GridLength(1.2, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, decimal>("PAID", item => item.PaidAmount, new GridLength(1.2, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<EmployeeOwedPurchaseResponse, decimal>("OUTSTANDING", item => item.OutstandingAmount, new GridLength(1.4, GridUnitType.Star)));
         var close = new ActionButton("Close", ActionButtonVariant.Secondary); close.Click += (_, _) => Close();
         Content = new Grid { Margin = new Thickness(24), RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 16, Children =
         {
