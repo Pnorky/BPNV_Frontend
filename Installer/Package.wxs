@@ -1,0 +1,58 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Id="BPNV.Client"
+    Name="BPNV Convenience Store"
+    Manufacturer="BPNV"
+    Version="$(var.InstallerVersion)"
+    Scope="perMachine">
+
+    <SummaryInformation Description="BPNV Convenience Store desktop client" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of BPNV Convenience Store is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="BpnvIcon" SourceFile="$(var.PublishDir)\AvaloniaApp.exe" />
+
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="INSTALLFOLDER" Name="BPNV Convenience Store" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="BPNVProgramMenuFolder" Name="BPNV Convenience Store" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="BPNV Convenience Store" Level="1">
+      <ComponentGroupRef Id="ApplicationFiles" />
+    </Feature>
+
+    <ComponentGroup Id="ApplicationFiles" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutableComponent">
+        <File Id="MainExecutable" Source="$(var.PublishDir)\AvaloniaApp.exe" KeyPath="yes" Checksum="yes" />
+      </Component>
+      <Files Include="$(var.PublishDir)\**">
+        <Exclude Files="$(var.PublishDir)\AvaloniaApp.exe" />
+        <Exclude Files="**\*.pdb" />
+      </Files>
+    </ComponentGroup>
+
+    <Component Id="ApplicationShortcuts" Directory="INSTALLFOLDER">
+      <Shortcut Id="StartMenuShortcut"
+                Directory="BPNVProgramMenuFolder"
+                Name="BPNV Convenience Store"
+                Target="[INSTALLFOLDER]AvaloniaApp.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="BpnvIcon" />
+      <Shortcut Id="DesktopShortcut"
+                Directory="DesktopFolder"
+                Name="BPNV Convenience Store"
+                Target="[INSTALLFOLDER]AvaloniaApp.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="BpnvIcon" />
+      <RemoveFolder Id="RemoveProgramMenuFolder" Directory="BPNVProgramMenuFolder" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\BPNV\Client" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="ShortcutFeature" Title="Shortcuts" Level="1">
+      <ComponentRef Id="ApplicationShortcuts" />
+    </Feature>
+  </Package>
+</Wix>

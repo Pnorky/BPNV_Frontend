@@ -20,6 +20,11 @@
 *.snupkg
 packages/
 
+# Installer and publish outputs
+publish/
+Installer/bin/
+Installer/obj/
+
 # OS
 Thumbs.db
 Desktop.ini
