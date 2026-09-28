@@ -20,7 +20,6 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
     [ObservableProperty] private decimal _employeePrice;
     [ObservableProperty] private string _reference = "";
     [ObservableProperty] private string _notes = "";
-    [ObservableProperty] private string _lotCode = "";
     [ObservableProperty] private DateTimeOffset? _receivedDate;
     [ObservableProperty] private TimeSpan? _receivedTime;
     [ObservableProperty] private DateTimeOffset? _productionDate;
@@ -167,7 +166,7 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             var result = await api.ReceiveStockAsync(new ReceiveStockRequest(
                 SelectedProduct.Id, SelectedUnit.Id, (int)Count,
                 UnitCost, SellingPrice, EmployeePrice,
-                NullIfWhiteSpace(Reference), NullIfWhiteSpace(Notes), NullIfWhiteSpace(LotCode),
+                NullIfWhiteSpace(Reference), NullIfWhiteSpace(Notes),
                 receivedAtUtc, productionAtUtc, expiresAtUtc));
             StatusMessage = $"Received {result.Count} {result.UnitLabel} = {result.BasePieceQuantity} base pieces. Bodega balance: {result.BodegaStock}; display: {result.DisplayStock}.";
             notifications.ShowSuccess("Stock received", StatusMessage);
@@ -181,7 +180,6 @@ public partial class StockReceivingViewModel(StoreApiClient api, INotificationSe
             EmployeePrice = 0;
             Reference = "";
             Notes = "";
-            LotCode = "";
             ReceivedDate = null;
             ReceivedTime = null;
             ProductionDate = null;

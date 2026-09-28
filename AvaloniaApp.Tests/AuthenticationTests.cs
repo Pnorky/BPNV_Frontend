@@ -104,7 +104,7 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
-    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,Reports")]
+    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,EmployeeBalances,Reports")]
     [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports,Employees,Categories")]
     [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports,CashierShiftManagement,CashierOperations,AdminNotifications,Employees,Categories,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)

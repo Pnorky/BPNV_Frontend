@@ -181,7 +181,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             "InventoryImport" => new ExcelInventoryImportViewModel(_storeClient, _notifications),
             "InventorySuppliers" => new SuppliersViewModel(_storeClient, _notifications),
             "InventoryMovements" => new ApiStockMovementsViewModel(_storeClient, _notifications),
-            "EmployeeBalances" => new EmployeeBalancesViewModel(_storeClient, _notifications),
+            "EmployeeBalances" => new EmployeeBalancesViewModel(_storeClient, _notifications, IsCashier),
             "Reports" => new ReportsViewModel(_storeClient, _session),
             "CashierShiftManagement" => _shiftManagementPage ??= new CashierShiftManagementViewModel(_storeClient, _notifications),
             "CashierOperations" => _cashierOperationsPage ??= new AdminCashierOperationsViewModel(_storeClient, _notifications),
@@ -330,7 +330,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             _session.HasRole("Admin") || _session.HasRole("Inventory"),
         "Reports" => _session.HasRole("Admin") || _session.HasRole("Inventory") || _session.HasRole("Cashier"),
         "Employees" or "Categories" => _session.HasRole("Admin") || _session.HasRole("Inventory"),
-        "EmployeeBalances" => _session.HasRole("Admin") || _session.HasRole("Inventory"),
+        "EmployeeBalances" => _session.HasRole("Admin") || _session.HasRole("Inventory") || _session.HasRole("Cashier"),
         "CashierShiftManagement" or "CashierOperations" or "AdminNotifications" => _session.HasRole("Admin"),
         "Users" => _session.HasRole("Admin"),
         _ => false

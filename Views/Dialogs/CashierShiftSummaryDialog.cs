@@ -33,21 +33,49 @@ public sealed class CashierShiftSummaryDialog : Window
         var title = new TextBlock { Text = $"{session.ShiftName} {statusText.ToLowerInvariant()}", FontSize = 32, FontWeight = FontWeight.SemiBold };
         var subtitle = new TextBlock { Text = $"{session.CashierName} | {session.BusinessDate:MMMM d, yyyy}", FontSize = 18 };
         subtitle.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
-        var details = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("180,*"),
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"),
+         var details = new Grid
+         {
+             ColumnDefinitions = new ColumnDefinitions("180,*"),
+             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto"),
             RowSpacing = 10
         };
-        AddRow(details, 0, "Scheduled", session.ScheduledDisplay);
-        AddRow(details, 1, "Actual time", session.ActualDisplay);
-        AddRow(details, 2, "Elapsed hours", session.WorkedDisplay);
-        AddRow(details, 3, "Transactions", (session.TransactionCount ?? 0).ToString("N0"));
-        AddRow(details, 4, "Total sales", CashierShiftFormatting.Money(session.TotalSales));
-        AddRow(details, 5, "Cash sales", CashierShiftFormatting.Money(session.CashSales));
-        AddRow(details, 6, "GCash", CashierShiftFormatting.Money(session.GCashSales));
-        AddRow(details, 7, "Cash refunds / payouts", $"{CashierShiftFormatting.Money(session.CashRefunds)} / {CashierShiftFormatting.Money(session.CashPayouts)}");
-        AddRow(details, 8, "Cash to remit", CashierShiftFormatting.Money(session.ExpectedRemittance), true);
+         AddRow(details, 0, "Scheduled", session.ScheduledDisplay);
+         AddRow(details, 1, "Actual time", session.ActualDisplay);
+         AddRow(details, 2, "Elapsed hours", session.WorkedDisplay);
+         AddRow(details, 3, "Transactions", (session.TransactionCount ?? 0).ToString("N0"));
+         AddRow(details, 4, "Total sales", CashierShiftFormatting.Money(session.TotalSales));
+         AddRow(details, 5, "Cash refunds / payouts", $"{CashierShiftFormatting.Money(session.CashRefunds)} / {CashierShiftFormatting.Money(session.CashPayouts)}");
+
+         var regularTable = new Grid
+         {
+             ColumnDefinitions = new ColumnDefinitions("*,150"),
+             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
+             RowSpacing = 0
+         };
+         AddSectionLabel(regularTable, 0, "Regular sales breakdown");
+         AddTableHeader(regularTable, 1);
+         AddTableRow(regularTable, 2, "Regular sales", CashierShiftFormatting.Money((session.RegularCashSales ?? 0) + (session.RegularGCashSales ?? 0)));
+         AddTableRow(regularTable, 3, "Cash sales", CashierShiftFormatting.Money(session.RegularCashSales));
+         AddTableRow(regularTable, 4, "GCash sales", CashierShiftFormatting.Money(session.RegularGCashSales));
+
+         var employeeTable = new Grid
+         {
+             ColumnDefinitions = new ColumnDefinitions("*,150"),
+             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"),
+             RowSpacing = 0
+         };
+         AddSectionLabel(employeeTable, 0, "Employee sales breakdown");
+         AddTableHeader(employeeTable, 1);
+         AddTableRow(employeeTable, 2, "Employee purchases", CashierShiftFormatting.Money(session.EmployeeSales));
+         AddTableRow(employeeTable, 3, "Paid at checkout", CashierShiftFormatting.Money(session.EmployeePaidSales));
+         AddTableRow(employeeTable, 4, "Added to balance (owed)", CashierShiftFormatting.Money(session.EmployeeOwedSales));
+         AddSectionLabel(employeeTable, 5, "Employee balance payments received");
+         AddTableHeader(employeeTable, 6);
+         AddTableRow(employeeTable, 7, "Cash payments", CashierShiftFormatting.Money(session.CashEmployeeDebtRepayments));
+         AddTableRow(employeeTable, 8, "GCash payments", CashierShiftFormatting.Money(session.GCashEmployeeDebtRepayments));
+
+         var cashToRemit = new Grid { ColumnDefinitions = new ColumnDefinitions("180,*") };
+         AddRow(cashToRemit, 0, "Cash to remit", CashierShiftFormatting.Money(session.ExpectedRemittance), true);
 
         var floatText = new TextBlock
         {
@@ -174,7 +202,7 @@ public sealed class CashierShiftSummaryDialog : Window
         {
             Margin = new Thickness(28),
             Spacing = 16,
-              Children = { new StackPanel { Children = { title, subtitle } }, details, requests, remittance, floatCard, note, close }
+              Children = { new StackPanel { Children = { title, subtitle } }, details, regularTable, employeeTable, cashToRemit, requests, remittance, floatCard, note, close }
         };
         var scroll = new ScrollViewer
         {
@@ -192,12 +220,47 @@ public sealed class CashierShiftSummaryDialog : Window
     {
         var key = new TextBlock { Text = label, FontSize = 15 };
         key.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
-        var amount = new TextBlock { Text = value, FontSize = emphasize ? 19 : 15, FontWeight = emphasize ? FontWeight.Bold : FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap };
+        var amount = new TextBlock { Text = value, FontSize = emphasize ? 19 : 15, FontWeight = emphasize ? FontWeight.Bold : FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = emphasize ? HorizontalAlignment.Right : HorizontalAlignment.Left };
         if (emphasize) amount.BindResource(TextBlock.ForegroundProperty, "Primary");
         Grid.SetRow(key, row);
         Grid.SetRow(amount, row);
         Grid.SetColumn(amount, 1);
         grid.Children.Add(key);
+        grid.Children.Add(amount);
+    }
+
+    private static void AddSectionLabel(Grid grid, int row, string text)
+    {
+        var heading = new TextBlock { Text = text, FontSize = 14, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) };
+        heading.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
+        Grid.SetRow(heading, row);
+        Grid.SetColumnSpan(heading, 2);
+        grid.Children.Add(heading);
+    }
+
+    private static void AddTableHeader(Grid grid, int row)
+    {
+        var detail = new TextBlock { Text = "DETAIL", FontSize = 12, FontWeight = FontWeight.SemiBold };
+        var amount = new TextBlock { Text = "AMOUNT", FontSize = 12, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Right };
+        detail.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
+        amount.BindResource(TextBlock.ForegroundProperty, "MutedForeground");
+        Grid.SetRow(detail, row);
+        Grid.SetRow(amount, row);
+        Grid.SetColumn(amount, 1);
+        grid.Children.Add(detail);
+        grid.Children.Add(amount);
+    }
+
+    private static void AddTableRow(Grid grid, int row, string label, string value)
+    {
+        var detail = new Border { Padding = new Thickness(8, 5), BorderThickness = new Thickness(1), Child = new TextBlock { Text = label, FontSize = 15 } };
+        var amount = new Border { Padding = new Thickness(8, 5), BorderThickness = new Thickness(1), Child = new TextBlock { Text = value, FontSize = 15, FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Right } };
+        detail.BindResource(Border.BorderBrushProperty, "Border");
+        amount.BindResource(Border.BorderBrushProperty, "Border");
+        Grid.SetRow(detail, row);
+        Grid.SetRow(amount, row);
+        Grid.SetColumn(amount, 1);
+        grid.Children.Add(detail);
         grid.Children.Add(amount);
     }
 }

@@ -214,8 +214,9 @@ public sealed class CashierShiftTests
             ClockedInAtUtc: now.AddHours(-1), ClockedOutAtUtc: null, ClockedOutByUserId: null,
             Status: status, CloseType: null, OpeningCashFloat: 1000m, ExpectedTerminalCash: null,
             WorkedMinutes: null, ClockInVarianceMinutes: 60, ClockOutVarianceMinutes: null,
-            TotalSales: null, CashSales: null, GCashSales: null, CashRefunds: null, CashPayouts: null,
-            TransactionCount: null, ExpectedRemittance: null, ActualRemittance: null, Variance: null,
+             TotalSales: null, CashSales: null, GCashSales: null, CashRefunds: null, CashPayouts: null,
+             TransactionCount: null, ExpectedRemittance: null, EmployeeSales: null, EmployeeOwedSales: null, EmployeePaidSales: null,
+             CashEmployeeDebtRepayments: null, GCashEmployeeDebtRepayments: null, ActualRemittance: null, Variance: null,
             CashFloatReturned: null, RemittanceNote: null, RemittanceRecordedAtUtc: null,
             RemittanceRecordedByUserId: null, CashFloatConfirmedAtUtc: null, CashFloatConfirmedByUserId: null);
     }

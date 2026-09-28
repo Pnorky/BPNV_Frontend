@@ -99,13 +99,13 @@ public sealed class StoreApiClientTests
         var received = new DateTimeOffset(2026, 9, 24, 1, 30, 0, TimeSpan.Zero);
         await new StoreApiClient(auth).ReceiveStockAsync(new ReceiveStockRequest(
             Guid.NewGuid(), Guid.NewGuid(), 2, 10m, 12m, 11m, "INV-001", "Delivery",
-            "LOT-7", received, null, received.AddDays(2)));
+            received, null, received.AddDays(2)));
 
         Assert.IsNotNull(body);
         StringAssert.Contains(body, "\"regularPrice\":12");
         Assert.IsFalse(body.Contains("\"sellingPrice\"", StringComparison.Ordinal));
         StringAssert.Contains(body, "\"reference\":\"INV-001\"");
-        StringAssert.Contains(body, "\"lotCode\":\"LOT-7\"");
+        Assert.IsFalse(body.Contains("\"lotCode\"", StringComparison.Ordinal));
         StringAssert.Contains(body, "\"expiresAtUtc\":\"2026-09-26T01:30:00+00:00\"");
     }
 

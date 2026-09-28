@@ -95,6 +95,10 @@ public sealed class EmployeeBalancesView : UserControl
         var payment = new ActionButton("Pay balance", ActionButtonVariant.Primary, ActionButtonSize.Sm);
         BindCommand(payment, "DataContext.RecordPaymentCommand");
         payment.Bind(IsEnabledProperty, new Binding(nameof(EmployeeBalanceResponse.CanRecordPayment)));
+        payment.Bind(IsVisibleProperty, new Binding("DataContext.CanRecordPayments")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(EmployeeBalancesView) }
+        });
         return new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Spacing = 6, Children = { purchases, history, payment } };
     }
 

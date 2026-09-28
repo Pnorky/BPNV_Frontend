@@ -103,7 +103,7 @@ public sealed class EyoyoBatchReceiveParserTests
     }
 
     [TestMethod]
-    public void ParsesOptionalLotAndStoreExpiryAndKeepsLotsDistinct()
+    public void ParsesStoreExpiryWithoutPersistingLotCodes()
     {
         var result = _parser.Parse(
             "Supplier A\t0001\t2\tLOT-A\t2026-10-01 18:30\n" +
@@ -111,14 +111,14 @@ public sealed class EyoyoBatchReceiveParserTests
 
         Assert.IsTrue(result.IsValid);
         Assert.AreEqual(2, result.Aggregates.Count);
-        Assert.AreEqual("LOT-A", result.Records[0].LotCode);
+        Assert.IsFalse(result.Records[0].GetType().GetProperties().Any(property => property.Name == "LotCode"));
         Assert.AreEqual(new DateTimeOffset(2026, 10, 1, 10, 30, 0, TimeSpan.Zero), result.Records[0].ExpiresAtUtc);
         Assert.AreEqual(new DateTimeOffset(2026, 10, 1, 15, 59, 59, TimeSpan.Zero).Date,
             result.Records[1].ExpiresAtUtc!.Value.Date);
     }
 
     [TestMethod]
-    public void ParsesContinuousFiveColumnLotRecords()
+    public void ParsesContinuousFiveColumnRecordsWithoutLotCodes()
     {
         var result = _parser.Parse(
             "Supplier A\t0001\t2\tLOT-A\t2026-10-01 18:30\t" +
@@ -126,6 +126,6 @@ public sealed class EyoyoBatchReceiveParserTests
 
         Assert.IsTrue(result.IsValid);
         Assert.AreEqual(2, result.Records.Count);
-        CollectionAssert.AreEqual(new[] { "LOT-A", "LOT-B" }, result.Records.Select(record => record.LotCode).ToArray());
+        Assert.IsFalse(result.Records[0].GetType().GetProperties().Any(property => property.Name == "LotCode"));
     }
 }

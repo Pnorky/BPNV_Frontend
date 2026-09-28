@@ -80,7 +80,6 @@ public class StockReceivingView : UserControl
             }
         };
 
-        var lotCode = Input("LotCode", "Supplier batch code (optional)");
         var received = DateTimePicker("RECEIVED / PREPARED", "TIME", "ReceivedDate", "ReceivedTime");
         var production = DateTimePicker("MADE ON (OPTIONAL)", "TIME", "ProductionDate", "ProductionTime");
         var expiry = DateTimePicker("USE BY / DISCARD", "TIME", "ExpiryDate", "ExpiryTime");
@@ -91,7 +90,6 @@ public class StockReceivingView : UserControl
             Children =
             {
                 Heading("Batch details"),
-                Field("BATCH / LOT CODE", lotCode),
                 received,
                 production,
                 expiry

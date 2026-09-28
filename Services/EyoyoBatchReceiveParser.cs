@@ -14,7 +14,6 @@ public sealed record EyoyoBatchReceiveAggregate(
     string SupplierLibrary,
     string Barcode,
     int UnitQuantity,
-    string? LotCode = null,
     DateTimeOffset? ExpiresAtUtc = null);
 
 public sealed record EyoyoBatchReceiveParseResult(
@@ -113,7 +112,6 @@ public sealed partial class EyoyoBatchReceiveParser
         var barcode = columns[1].Trim();
         var quantityText = columns[2].Trim();
         var quantity = 0;
-        var lotCode = columns.Length >= 4 ? NullIfWhiteSpace(columns[3]) : null;
         DateTimeOffset? expiresAtUtc = null;
         var valid = true;
 
@@ -145,13 +143,6 @@ public sealed partial class EyoyoBatchReceiveParser
             valid = false;
         }
 
-        if (lotCode?.Length > 100)
-        {
-            issues.Add(Issue("invalidLotCode", "lotCode", sourceRecord,
-                $"Record {sourceRecord}: lot code must not exceed 100 characters."));
-            valid = false;
-        }
-
         if (columns.Length == 5 && !string.IsNullOrWhiteSpace(columns[4]))
         {
             if (!TryParseStoreExpiry(columns[4].Trim(), out expiresAtUtc))
@@ -163,21 +154,21 @@ public sealed partial class EyoyoBatchReceiveParser
         }
 
         if (valid) records.Add(new BatchReceiptRecordRequest(
-            sourceRecord, library, barcode, quantity, lotCode, ExpiresAtUtc: expiresAtUtc));
+            sourceRecord, library, barcode, quantity, ExpiresAtUtc: expiresAtUtc));
     }
 
     private static IReadOnlyList<EyoyoBatchReceiveAggregate> Aggregate(
         IReadOnlyList<BatchReceiptRecordRequest> records,
         ICollection<EyoyoBatchReceiveParseIssue> issues)
     {
-        var aggregates = new Dictionary<(string Library, string Barcode, string LotCode, long? ExpiresTicks), MutableAggregate>(new BatchKeyComparer());
+        var aggregates = new Dictionary<(string Library, string Barcode, long? ExpiresTicks), MutableAggregate>(new BatchKeyComparer());
         foreach (var record in records)
         {
-            var key = (record.SupplierLibrary!, record.Barcode!, record.LotCode ?? "", record.ExpiresAtUtc?.UtcTicks);
+            var key = (record.SupplierLibrary!, record.Barcode!, record.ExpiresAtUtc?.UtcTicks);
             if (!aggregates.TryGetValue(key, out var aggregate))
             {
                 aggregates.Add(key, new MutableAggregate(record.SupplierLibrary!, record.Barcode!, record.UnitQuantity,
-                    [record.SourceRecord], record.LotCode, record.ExpiresAtUtc));
+                    [record.SourceRecord], record.ExpiresAtUtc));
                 continue;
             }
 
@@ -196,7 +187,7 @@ public sealed partial class EyoyoBatchReceiveParser
 
         return aggregates.Values.Where(item => !item.HasOverflow)
             .Select(item => new EyoyoBatchReceiveAggregate(item.SourceRecords.ToArray(), item.Library, item.Barcode,
-                item.UnitQuantity, item.LotCode, item.ExpiresAtUtc))
+                item.UnitQuantity, item.ExpiresAtUtc))
             .ToArray();
     }
 
@@ -219,29 +210,28 @@ public sealed partial class EyoyoBatchReceiveParser
 
     private sealed class MutableAggregate(
         string library, string barcode, int unitQuantity, List<int> sourceRecords,
-        string? lotCode, DateTimeOffset? expiresAtUtc)
+        DateTimeOffset? expiresAtUtc)
     {
         public string Library { get; } = library;
         public string Barcode { get; } = barcode;
         public int UnitQuantity { get; set; } = unitQuantity;
         public List<int> SourceRecords { get; } = sourceRecords;
         public bool HasOverflow { get; set; }
-        public string? LotCode { get; } = lotCode;
         public DateTimeOffset? ExpiresAtUtc { get; } = expiresAtUtc;
     }
 
-    private sealed class BatchKeyComparer : IEqualityComparer<(string Library, string Barcode, string LotCode, long? ExpiresTicks)>
+    private sealed class BatchKeyComparer : IEqualityComparer<(string Library, string Barcode, long? ExpiresTicks)>
     {
         public bool Equals(
-            (string Library, string Barcode, string LotCode, long? ExpiresTicks) x,
-            (string Library, string Barcode, string LotCode, long? ExpiresTicks) y) =>
+            (string Library, string Barcode, long? ExpiresTicks) x,
+            (string Library, string Barcode, long? ExpiresTicks) y) =>
             StringComparer.OrdinalIgnoreCase.Equals(x.Library, y.Library) &&
             StringComparer.Ordinal.Equals(x.Barcode, y.Barcode) &&
-            StringComparer.Ordinal.Equals(x.LotCode, y.LotCode) && x.ExpiresTicks == y.ExpiresTicks;
+            x.ExpiresTicks == y.ExpiresTicks;
 
-        public int GetHashCode((string Library, string Barcode, string LotCode, long? ExpiresTicks) value) =>
+        public int GetHashCode((string Library, string Barcode, long? ExpiresTicks) value) =>
             HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(value.Library),
-                StringComparer.Ordinal.GetHashCode(value.Barcode), StringComparer.Ordinal.GetHashCode(value.LotCode), value.ExpiresTicks);
+                StringComparer.Ordinal.GetHashCode(value.Barcode), value.ExpiresTicks);
     }
 
     [GeneratedRegex(@"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE][+-]?\d+$", RegexOptions.CultureInvariant)]

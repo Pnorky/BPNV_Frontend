@@ -133,7 +133,6 @@ public sealed class StockReceivingSelectionTests
             Count = 2,
             Reference = "INV-001",
             Notes = "Delivery",
-            LotCode = "LOT-1",
             ReceivedDate = received,
             ReceivedTime = TimeSpan.FromHours(9),
             ExpiryDate = expiry,
@@ -146,7 +145,7 @@ public sealed class StockReceivingSelectionTests
         Assert.IsNull(viewModel.SelectedProduct);
         Assert.AreEqual(string.Empty, viewModel.Reference);
         Assert.AreEqual(string.Empty, viewModel.Notes);
-        StringAssert.Contains(receiptBody!, "\"lotCode\":\"LOT-1\"");
+        Assert.IsFalse(receiptBody!.Contains("\"lotCode\"", StringComparison.Ordinal));
         StringAssert.Contains(receiptBody!, "\"receivedAtUtc\":\"2026-09-24T01:00:00+00:00\"");
         StringAssert.Contains(receiptBody!, "\"expiresAtUtc\":\"2026-09-26T10:00:00+00:00\"");
     }

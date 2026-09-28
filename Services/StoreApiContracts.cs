@@ -390,7 +390,6 @@ public sealed record ReceiveStockRequest(
     decimal EmployeePrice,
     string? Reference,
     string? Notes,
-    string? LotCode = null,
     DateTimeOffset? ReceivedAtUtc = null,
     DateTimeOffset? ProductionAtUtc = null,
     DateTimeOffset? ExpiresAtUtc = null);
@@ -426,7 +425,6 @@ public sealed record BatchReceiptRecordRequest(
     string? SupplierLibrary,
     string? Barcode,
     int UnitQuantity,
-    string? LotCode = null,
     DateTimeOffset? ReceivedAtUtc = null,
     DateTimeOffset? ProductionAtUtc = null,
     DateTimeOffset? ExpiresAtUtc = null);
@@ -1081,8 +1079,11 @@ public sealed record CashierShiftSessionResponse(
     Guid? ClockedOutByUserId, ApiCashierShiftSessionStatus Status, ApiCashierShiftCloseType? CloseType,
     decimal OpeningCashFloat, decimal? ExpectedTerminalCash, int? WorkedMinutes, int ClockInVarianceMinutes,
     int? ClockOutVarianceMinutes, decimal? TotalSales, decimal? CashSales, decimal? GCashSales,
-    decimal? CashRefunds, decimal? CashPayouts, int? TransactionCount, decimal? ExpectedRemittance,
-    decimal? ActualRemittance, decimal? Variance, bool? CashFloatReturned, string? RemittanceNote,
+      decimal? RegularCashSales, decimal? RegularGCashSales,
+     decimal? CashRefunds, decimal? CashPayouts, int? TransactionCount, decimal? ExpectedRemittance,
+     decimal? EmployeeSales, decimal? EmployeeOwedSales, decimal? EmployeePaidSales,
+     decimal? CashEmployeeDebtRepayments, decimal? GCashEmployeeDebtRepayments,
+     decimal? ActualRemittance, decimal? Variance, bool? CashFloatReturned, string? RemittanceNote,
     DateTime? RemittanceRecordedAtUtc, Guid? RemittanceRecordedByUserId,
     DateTime? CashFloatConfirmedAtUtc, Guid? CashFloatConfirmedByUserId,
     bool IsIdempotentReplay = false)

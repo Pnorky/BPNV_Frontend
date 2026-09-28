@@ -20,6 +20,8 @@ public partial class EmployeeBalancesViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "Loading employee balances...";
     [ObservableProperty] private string? _errorMessage;
 
+    public bool CanRecordPayments { get; }
+
     public string OutstandingDisplay => $"₱{Balances.Sum(item => item.OutstandingBalance):N2}";
     public string EmployeesWithBalanceDisplay => Balances.Count(item => item.OutstandingBalance > 0).ToString("N0");
     public string RepaymentsDisplay => $"₱{Balances.Sum(item => item.Repayments):N2}";
@@ -30,10 +32,11 @@ public partial class EmployeeBalancesViewModel : ObservableObject
         .FirstOrDefault() ?? "None";
     public bool IsFiltered => !string.IsNullOrWhiteSpace(SearchText);
 
-    public EmployeeBalancesViewModel(StoreApiClient api, INotificationService notifications)
+    public EmployeeBalancesViewModel(StoreApiClient api, INotificationService notifications, bool canRecordPayments = false)
     {
         _api = api;
         _notifications = notifications;
+        CanRecordPayments = canRecordPayments;
         _ = LoadAsync();
     }
 
