@@ -502,8 +502,8 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
             var usersTask = _api.GetUsersAsync(includeInactive: true, cancellationToken);
             var definitionsTask = _api.GetShiftDefinitionsAsync(includeInactive: true, cancellationToken);
             var salesTask = _api.GetSalesReportAsync(
-                StoreDateTime.AtStoreMidnight(_appliedFilters.FromDate.ToDateTime(TimeOnly.MinValue)).ToUniversalTime(),
-                StoreDateTime.AtStoreMidnight(_appliedFilters.ToDateExclusive.ToDateTime(TimeOnly.MinValue)).ToUniversalTime(),
+                fromUtc: null,
+                toUtcExclusive: null,
                 cancellationToken: cancellationToken);
             await Task.WhenAll(sessionsTask, reportTask, usersTask, definitionsTask, salesTask);
 
@@ -611,9 +611,13 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         var from = TransactionFromDate?.Date;
         var to = TransactionToDate?.Date;
         var sales = _transactionReport.Sales.Where(sale =>
-            (!from.HasValue || sale.SoldAtUtc.ToLocalTime().Date >= from.Value) &&
-            (!to.HasValue || sale.SoldAtUtc.ToLocalTime().Date <= to.Value) &&
-            (TransactionCashier is null || sale.SoldByUserId == TransactionCashier.Id));
+        {
+            var saleDate = sale.BusinessDate?.ToDateTime(TimeOnly.MinValue).Date
+                ?? StoreDateTime.ToStoreTimeFromUtc(sale.SoldAtUtc).Date;
+            return (!from.HasValue || saleDate >= from.Value) &&
+                   (!to.HasValue || saleDate <= to.Value) &&
+                   (TransactionCashier is null || sale.SoldByUserId == TransactionCashier.Id);
+        });
         if (TransactionShift is not null)
             sales = sales.Where(sale => sale.ShiftDefinitionId == TransactionShift.Id);
         TransactionSales = sales.OrderByDescending(sale => sale.SoldAtUtc).ToArray();

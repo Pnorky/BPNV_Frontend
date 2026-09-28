@@ -874,7 +874,8 @@ public sealed record ReportSaleResponse(
     string? EmployeeName = null,
      Guid? ShiftSessionId = null,
      Guid? ShiftDefinitionId = null,
-     string? ShiftName = null)
+     string? ShiftName = null,
+     DateOnly? BusinessDate = null)
 {
     public int ItemCount => Lines.Sum(line => line.BasePieceQuantity);
     public string PaymentMethodDisplay => PaymentMethod switch
