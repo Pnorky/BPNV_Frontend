@@ -265,7 +265,8 @@ public partial class SalesViewModel : ObservableObject, IDisposable
                 payment.PaymentMethod,
                 Cart.Select(line => new CreateSaleLineRequest(line.UnitId, line.Count)).ToArray(),
                 IsEmployeeSale ? SelectedEmployee?.Id : null,
-                payment.Reference));
+                payment.Reference,
+                payment.EmployeePin));
             _suppressCartMutation = true;
             Cart.Clear();
             _suppressCartMutation = false;

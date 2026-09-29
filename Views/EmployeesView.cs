@@ -73,17 +73,27 @@ public sealed class EmployeesView : UserControl
         };
         var restore = new ActionButton("Restore", ActionButtonVariant.Secondary, ActionButtonSize.Sm);
         restore.Click += async (_, _) => { if (restore.DataContext is EmployeeResponse employee && GetViewModel(restore) is { } vm) await vm.ReactivateEmployeeAsync(employee); };
+        var pin = new ActionButton("Set PIN", ActionButtonVariant.Secondary, ActionButtonSize.Sm);
+        pin.Click += async (_, _) =>
+        {
+            if (pin.DataContext is not EmployeeResponse employee || GetViewModel(pin) is not { } vm || TopLevel.GetTopLevel(pin) is not Window owner) return;
+            var dialog = new EmployeePinDialog(employee);
+            await dialog.ShowDialog(owner);
+            if (dialog.Confirmed) await vm.SetEmployeePinAsync(employee, dialog.Pin);
+        };
         var actions = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { edit, deactivate, restore }
+            Children = { edit, pin, deactivate, restore }
         };
         void UpdateActions()
         {
             if (actions.DataContext is not EmployeeResponse employee) return;
             edit.IsVisible = employee.IsActive;
+            pin.IsVisible = employee.IsActive;
+            pin.Content = employee.HasPurchasePin ? "Reset PIN" : "Set PIN";
             deactivate.IsVisible = employee.IsActive;
             restore.IsVisible = !employee.IsActive;
         }
@@ -92,14 +102,14 @@ public sealed class EmployeesView : UserControl
         var badge = StatusCell();
         var row = new Grid { ColumnDefinitions = Columns(), ColumnSpacing = 14, Children =
         {
-            Bound("EmployeeNumber", true), At(Bound("Name"), column: 1), At(badge, column: 2), At(actions, column: 3)
+            Bound("EmployeeNumber", true), At(new StackPanel { Spacing = 2, Children = { Bound("Name"), MutedBound("PurchasePinStatus") } }, column: 1), At(badge, column: 2), At(actions, column: 3)
         } };
         var border = new Border { BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 12), Child = row };
         border.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("Border"));
         return border;
     }
 
-    private static ColumnDefinitions Columns() => new("0.8*,1.5*,120,190");
+    private static ColumnDefinitions Columns() => new("0.8*,1.5*,120,280");
     private static EmployeesViewModel? GetViewModel(Control control) => control.GetVisualAncestors().OfType<EmployeesView>().FirstOrDefault()?.DataContext as EmployeesViewModel;
     private static StatusBadge StatusCell()
     {
@@ -111,5 +121,6 @@ public sealed class EmployeesView : UserControl
     private static Border Status() { var value = new Border { Padding = new Thickness(12, 8), CornerRadius = new CornerRadius(7), Child = Bound("StatusMessage") }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }
     private static TextBlock Bound(string path, bool bold = false) { var value = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontWeight = bold ? FontWeight.SemiBold : FontWeight.Normal }; value.Bind(TextBlock.TextProperty, new Binding(path)); return value; }
     private static TextBlock Muted(string text) { var value = new TextBlock { Text = text }; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
+    private static TextBlock MutedBound(string path) { var value = new TextBlock { FontSize = 10 }; value.Bind(TextBlock.TextProperty, new Binding(path)); value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
     private static T At<T>(T control, int row = 0, int column = 0) where T : Control { Grid.SetRow(control, row); Grid.SetColumn(control, column); return control; }
 }

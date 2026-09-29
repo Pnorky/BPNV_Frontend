@@ -73,11 +73,13 @@ public sealed class PaymentDialogViewModelTests
     {
         var viewModel = new PaymentDialogViewModel(125.50m, isEmployeeSale: true)
         {
-            SelectedPaymentMethod = ApiPaymentMethod.EmployeeOwed
+            SelectedPaymentMethod = ApiPaymentMethod.EmployeeOwed,
+            EmployeePin = "0047"
         };
 
         Assert.IsTrue(viewModel.CanConfirm);
         Assert.AreEqual(ApiPaymentMethod.EmployeeOwed, viewModel.CreateResult()!.PaymentMethod);
+        Assert.AreEqual("0047", viewModel.CreateResult()!.EmployeePin);
     }
 
     [TestMethod]
@@ -89,5 +91,35 @@ public sealed class PaymentDialogViewModelTests
         };
 
         Assert.IsFalse(viewModel.CanConfirm);
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("123")]
+    [DataRow("12345")]
+    [DataRow("12a4")]
+    [DataRow("١٢٣٤")]
+    public void EmployeeOwedRequiresExactlyFourAsciiDigits(string pin)
+    {
+        var viewModel = new PaymentDialogViewModel(125.50m, isEmployeeSale: true)
+        {
+            SelectedPaymentMethod = ApiPaymentMethod.EmployeeOwed,
+            EmployeePin = pin
+        };
+
+        Assert.IsFalse(viewModel.CanConfirm);
+        Assert.IsNull(viewModel.CreateResult());
+    }
+
+    [TestMethod]
+    public void NonOwedResultDoesNotExposeEnteredPin()
+    {
+        var viewModel = new PaymentDialogViewModel(125.50m)
+        {
+            AmountTendered = 125.50m,
+            EmployeePin = "1234"
+        };
+
+        Assert.IsNull(viewModel.CreateResult()!.EmployeePin);
     }
 }

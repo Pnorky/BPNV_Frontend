@@ -7,7 +7,8 @@ public sealed record PaymentDialogResult(
     ApiPaymentMethod PaymentMethod,
     decimal? AmountTendered,
     decimal Change,
-    string? Reference = null);
+    string? Reference = null,
+    string? EmployeePin = null);
 
 public partial class PaymentDialogViewModel : ObservableObject
 {
@@ -15,6 +16,7 @@ public partial class PaymentDialogViewModel : ObservableObject
     [ObservableProperty] private decimal? _amountTendered;
     [ObservableProperty] private bool _isGcashConfirmed;
     [ObservableProperty] private string _reference = "";
+    [ObservableProperty] private string _employeePin = "";
 
     public PaymentDialogViewModel(decimal total, bool isEmployeeSale = false)
     {
@@ -30,14 +32,15 @@ public partial class PaymentDialogViewModel : ObservableObject
     public bool IsGCash => SelectedPaymentMethod == ApiPaymentMethod.GCash;
     public decimal Change => IsCash ? Math.Max(0m, (AmountTendered ?? 0m) - Total) : 0m;
     public bool CanConfirm => IsEmployeeOwed
-        ? IsEmployeeSale
+        ? IsEmployeeSale && IsValidPin(EmployeePin)
         : IsCash
         ? AmountTendered is >= 0m && AmountTendered >= Total
         : IsGcashConfirmed;
     public string TotalDisplay => $"₱{Total:N2}";
     public string ChangeDisplay => $"₱{Change:N2}";
     public string ValidationMessage => IsEmployeeOwed
-        ? ""
+        ? !IsEmployeeSale ? "Only employee purchases can be recorded as owed."
+        : IsValidPin(EmployeePin) ? "" : "The employee must enter their 4-digit PIN."
         : IsCash
         ? AmountTendered switch
         {
@@ -54,21 +57,27 @@ public partial class PaymentDialogViewModel : ObservableObject
             SelectedPaymentMethod,
             IsCash ? AmountTendered : null,
             Change,
-            IsGCash ? Reference.Trim() : null)
+            IsGCash ? Reference.Trim() : null,
+            IsEmployeeOwed ? EmployeePin : null)
         : null;
 
     partial void OnSelectedPaymentMethodChanged(ApiPaymentMethod value) => NotifyPaymentState();
     partial void OnAmountTenderedChanged(decimal? value) => NotifyPaymentState();
     partial void OnIsGcashConfirmedChanged(bool value) => NotifyPaymentState();
+    partial void OnEmployeePinChanged(string value) => NotifyPaymentState();
 
     private void NotifyPaymentState()
     {
         OnPropertyChanged(nameof(IsCash));
         OnPropertyChanged(nameof(IsGCash));
+        OnPropertyChanged(nameof(IsEmployeeOwed));
         OnPropertyChanged(nameof(Change));
         OnPropertyChanged(nameof(ChangeDisplay));
         OnPropertyChanged(nameof(CanConfirm));
         OnPropertyChanged(nameof(ValidationMessage));
         OnPropertyChanged(nameof(HasValidationError));
     }
+
+    private static bool IsValidPin(string? pin) =>
+        pin is { Length: 4 } && pin.All(character => character is >= '0' and <= '9');
 }

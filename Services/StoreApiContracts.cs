@@ -146,15 +146,17 @@ public sealed record SupplierResponse(
     public override string ToString() => Name;
 }
 
-public sealed record EmployeeResponse(Guid Id, string EmployeeNumber, string Name, bool IsActive)
+public sealed record EmployeeResponse(Guid Id, string EmployeeNumber, string Name, bool IsActive, bool HasPurchasePin = false)
 {
     public string Status => IsActive ? "Active" : "Inactive";
+    public string PurchasePinStatus => HasPurchasePin ? "PIN configured" : "PIN not set";
     public string SearchText => $"{EmployeeNumber} {Name}";
     public override string ToString() => $"{EmployeeNumber} · {Name}";
 }
 
 public sealed record CreateEmployeeRequest(string Name);
 public sealed record UpdateEmployeeRequest(string Name);
+public sealed record SetEmployeePinRequest(string Pin);
 
 public sealed record ManagedCategoryResponse(Guid Id, ApiManagedCategoryKind Kind, string Name, int SortOrder, bool IsActive, bool IsSystem)
 {
@@ -804,7 +806,8 @@ public sealed record CreateSaleRequest(
     ApiPaymentMethod PaymentMethod,
     IReadOnlyList<CreateSaleLineRequest> Lines,
     Guid? EmployeeId = null,
-    string? Reference = null);
+    string? Reference = null,
+    string? EmployeePin = null);
 
 public sealed record SaleLineResponse(
     Guid Id,

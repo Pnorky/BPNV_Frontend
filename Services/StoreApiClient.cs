@@ -82,6 +82,9 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task<EmployeeResponse> UpdateEmployeeAsync(Guid id, UpdateEmployeeRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<EmployeeResponse, UpdateEmployeeRequest>(HttpMethod.Put, $"api/employees/{id}", request, cancellationToken);
 
+    public Task<EmployeeResponse> SetEmployeePinAsync(Guid id, SetEmployeePinRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<EmployeeResponse, SetEmployeePinRequest>(HttpMethod.Put, $"api/employees/{id}/pin", request, cancellationToken);
+
     public Task DeactivateEmployeeAsync(Guid id, CancellationToken cancellationToken = default) =>
         SendWithoutResponseAsync(HttpMethod.Delete, $"api/employees/{id}", cancellationToken);
 

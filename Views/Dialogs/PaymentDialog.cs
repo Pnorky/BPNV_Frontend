@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Layout;
+using Avalonia.Input;
 using Avalonia.Media;
 using AvaloniaApp.Services;
 using AvaloniaApp.ViewModels;
@@ -16,9 +17,9 @@ public sealed class PaymentDialog : Window
     {
         Title = "Checkout Payment - BPNV Convenience Store";
         Width = 500;
-        Height = 470;
+        Height = 510;
         MinWidth = 500;
-        MinHeight = 470;
+        MinHeight = 510;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         CanResize = false;
         this.BindResource(BackgroundProperty, "Card");
@@ -137,6 +138,32 @@ public sealed class PaymentDialog : Window
         gcashPanel.CornerRadius = new CornerRadius(0);
         gcashPanel.Bind(Visual.IsVisibleProperty, new Binding(nameof(PaymentDialogViewModel.IsGCash)));
 
+        var employeePin = new TextBox
+        {
+            PlaceholderText = "Employee enters 4-digit PIN",
+            PasswordChar = '*',
+            MaxLength = 4,
+            MinHeight = 42,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        employeePin.AddHandler(InputElement.TextInputEvent, (_, args) =>
+        {
+            if (args.Text?.Any(character => character is < '0' or > '9') == true) args.Handled = true;
+        });
+        employeePin.Bind(TextBox.TextProperty,
+            new Binding(nameof(PaymentDialogViewModel.EmployeePin)) { Mode = BindingMode.TwoWay });
+        var owedPanel = new Border
+        {
+            Padding = new Thickness(14),
+            Child = new StackPanel { Spacing = 8, Children =
+            {
+                Label("Employee authorization PIN"), employeePin,
+                new TextBlock { Text = "Ask the selected employee to enter their PIN personally. 5 failed attempts triggers a 5-minute cooldown.", FontSize = 11, TextWrapping = TextWrapping.Wrap }
+            } }
+        };
+        owedPanel.BindResource(Border.BackgroundProperty, "Card");
+        owedPanel.Bind(Visual.IsVisibleProperty, new Binding(nameof(PaymentDialogViewModel.IsEmployeeOwed)));
+
         var validation = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap };
         validation.Bind(TextBlock.TextProperty, new Binding(nameof(PaymentDialogViewModel.ValidationMessage)));
         validation.Bind(Visual.IsVisibleProperty, new Binding(nameof(PaymentDialogViewModel.HasValidationError)));
@@ -152,6 +179,7 @@ public sealed class PaymentDialog : Window
                 paymentMethod,
                 cashPanel,
                 gcashPanel,
+                owedPanel,
                 validation
             }
         };

@@ -81,6 +81,22 @@ public partial class EmployeesViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    public async Task SetEmployeePinAsync(EmployeeResponse employee, string pin)
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        try
+        {
+            await _api.SetEmployeePinAsync(employee.Id, new SetEmployeePinRequest(pin));
+            IsBusy = false;
+            await LoadAsync();
+            StatusMessage = $"Purchase PIN {(employee.HasPurchasePin ? "reset" : "set")} for {employee.EmployeeNumber}.";
+            _notifications.ShowSuccess("Employee PIN updated", StatusMessage);
+        }
+        catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Employee PIN not updated", FailureMessage(exception)); }
+        finally { IsBusy = false; }
+    }
+
     [RelayCommand]
     public async Task DeactivateEmployeeAsync(EmployeeResponse? employee)
     {

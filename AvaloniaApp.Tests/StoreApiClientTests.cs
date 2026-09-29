@@ -36,15 +36,16 @@ public sealed class StoreApiClientTests
         var client = new StoreApiClient(auth);
 
         var result = await client.CreateSaleAsync(new CreateSaleRequest(
-            Guid.NewGuid(), ApiCustomerType.Employee, ApiPaymentMethod.GCash,
-            [new CreateSaleLineRequest(Guid.NewGuid(), 2)]));
+            Guid.NewGuid(), ApiCustomerType.Employee, ApiPaymentMethod.EmployeeOwed,
+            [new CreateSaleLineRequest(Guid.NewGuid(), 2)], Guid.NewGuid(), EmployeePin: "0047"));
 
         Assert.AreEqual("SALE-1", result.SaleNumber);
         Assert.AreEqual(2, saleCalls);
         Assert.AreNotSame(requests[0], requests[1]);
         Assert.AreEqual(bodies[0], bodies[1]);
         StringAssert.Contains(bodies[0], "\"customerType\":\"Employee\"");
-        StringAssert.Contains(bodies[0], "\"paymentMethod\":\"GCash\"");
+        StringAssert.Contains(bodies[0], "\"paymentMethod\":\"EmployeeOwed\"");
+        StringAssert.Contains(bodies[0], "\"employeePin\":\"0047\"");
     }
 
     [TestMethod]
