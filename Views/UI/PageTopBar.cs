@@ -52,7 +52,8 @@ public sealed class PageTopBar : UserControl
             Orientation = Orientation.Horizontal,
             Spacing = 8,
             HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            RenderTransform = new TranslateTransform(12, 0)
         };
         Grid.SetColumn(_actions, 2);
 
