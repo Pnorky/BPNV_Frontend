@@ -10,7 +10,7 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of BPNV Convenience Store is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <Icon Id="BpnvIcon" SourceFile="$(var.PublishDir)\AvaloniaApp.exe" />
+    <Icon Id="BpnvIcon" SourceFile="$(var.ProjectDir)\..\Assets\icon.ico" />
 
     <StandardDirectory Id="ProgramFilesFolder">
       <Directory Id="INSTALLFOLDER" Name="BPNV Convenience Store" />
