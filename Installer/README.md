@@ -29,7 +29,7 @@ The installer includes the frontend only. MariaDB and the BPNV API are installed
 The current installer version is defined in `BPNV.Client.wixproj`:
 
 ```xml
-<InstallerVersion>1.1.2</InstallerVersion>
+<InstallerVersion>1.2.4</InstallerVersion>
 ```
 
-Update that value for each release. The MSI filename will include the version, for example `BPNV-Client-1.1.2.msi`.
+Update that value for each release. The MSI filename will include the version, for example `BPNV-Client-1.2.4.msi`.
