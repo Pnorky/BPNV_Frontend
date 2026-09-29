@@ -5,6 +5,7 @@ namespace AvaloniaApp.Services;
 public partial class CashierShiftState(StoreApiClient api) : ObservableObject
 {
     private ClockInRequest? _pendingClockIn;
+    private EmergencySelfOpenRequest? _pendingEmergencySelfOpen;
     private Guid? _clockOutKey;
 
     [ObservableProperty] private CashierClockStatusResponse? _clockStatus;
@@ -14,15 +15,18 @@ public partial class CashierShiftState(StoreApiClient api) : ObservableObject
     public CashierShiftSessionResponse? OpenSession => ClockStatus?.OpenSession;
     public decimal? PendingClockInOpeningFloat => _pendingClockIn?.OpeningCashFloat;
     public ResolvedCashierShiftAssignmentResponse? Assignment => ClockStatus?.Assignment;
+    public EmergencyShiftAvailabilityResponse? EmergencyShift => ClockStatus?.EmergencyShift;
     public CashierTerminalOccupancyResponse? OccupiedTerminal => ClockStatus?.OccupiedTerminal;
     public bool IsClockedIn => OpenSession?.Status == ApiCashierShiftSessionStatus.Open;
     public bool CanCheckout => IsClockedIn && !IsLoading;
     public bool CanClockIn => ClockStatus?.CanClockIn == true && !IsLoading;
+    public bool CanEmergencySelfOpen => ClockStatus?.CanEmergencySelfOpen == true && !IsLoading;
     public string StatusDisplay => OpenSession is not null
         ? $"{OpenSession.ShiftName} active"
         : OccupiedTerminal is not null
             ? $"Terminal: {OccupiedTerminal.CashierName}"
-            : Assignment is not null ? $"{Assignment.ShiftName} ready" : "Not clocked in";
+            : Assignment is not null ? $"{Assignment.ShiftName} ready"
+            : EmergencyShift is not null ? $"{EmergencyShift.ShiftName} emergency coverage available" : "Not clocked in";
 
     partial void OnClockStatusChanged(CashierClockStatusResponse? value) => NotifyDerived();
     partial void OnIsLoadingChanged(bool value) => NotifyDerived();
@@ -116,9 +120,44 @@ public partial class CashierShiftState(StoreApiClient api) : ObservableObject
         }
     }
 
+    public async Task<CashierShiftSessionResponse> EmergencySelfOpenAsync(decimal openingCashFloat, string reason, bool physicalFloatReceived, CancellationToken cancellationToken = default)
+    {
+        if (openingCashFloat < 0 || decimal.Round(openingCashFloat, 2) != openingCashFloat)
+            throw new ArgumentOutOfRangeException(nameof(openingCashFloat), "Opening cash must be non-negative and use at most two decimal places.");
+        if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length > 1000)
+            throw new ArgumentException("An emergency reason of at most 1,000 characters is required.", nameof(reason));
+        if (!physicalFloatReceived)
+            throw new ArgumentException("Confirm that the physical opening cash was received.", nameof(physicalFloatReceived));
+        _pendingEmergencySelfOpen ??= new(Guid.NewGuid(), openingCashFloat, reason.Trim(), true);
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            var session = await api.EmergencySelfOpenAsync(_pendingEmergencySelfOpen, cancellationToken);
+            _pendingEmergencySelfOpen = null;
+            var previous = ClockStatus;
+            ClockStatus = previous is null
+                ? new(DateTime.UtcNow, DateTimeOffset.Now, null, session, null, null, false, null)
+                : previous with { OpenSession = session, OccupiedTerminal = null, CanClockIn = false, BlockReason = null,
+                    EmergencyShift = null, CanEmergencySelfOpen = false, EmergencySelfOpenBlockReason = null };
+            return session;
+        }
+        catch (Exception exception) when (IsApiFailure(exception))
+        {
+            ErrorMessage = FailureMessage(exception);
+            if (exception is ApiClientException) _pendingEmergencySelfOpen = null;
+            throw;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     public void Reset()
     {
         _pendingClockIn = null;
+        _pendingEmergencySelfOpen = null;
         OnPropertyChanged(nameof(PendingClockInOpeningFloat));
         _clockOutKey = null;
         ClockStatus = null;
@@ -130,10 +169,12 @@ public partial class CashierShiftState(StoreApiClient api) : ObservableObject
     {
         OnPropertyChanged(nameof(OpenSession));
         OnPropertyChanged(nameof(Assignment));
+        OnPropertyChanged(nameof(EmergencyShift));
         OnPropertyChanged(nameof(OccupiedTerminal));
         OnPropertyChanged(nameof(IsClockedIn));
         OnPropertyChanged(nameof(CanCheckout));
         OnPropertyChanged(nameof(CanClockIn));
+        OnPropertyChanged(nameof(CanEmergencySelfOpen));
         OnPropertyChanged(nameof(StatusDisplay));
     }
 

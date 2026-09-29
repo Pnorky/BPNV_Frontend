@@ -7,6 +7,8 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Styling;
 using AvaloniaApp.ViewModels;
 using Lucide.Avalonia;
@@ -18,6 +20,7 @@ public class MainWindow : Window
     public MainWindow()
     {
         Title = "Login - BPNV Convenience Store";
+        Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri("avares://AvaloniaApp/Assets/icon.png"))));
         Width = 440;
         Height = 440;
         MinWidth = 400;

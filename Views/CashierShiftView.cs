@@ -26,6 +26,9 @@ public sealed class CashierShiftView : UserControl
         var clockIn = new ActionButton("Clock in", ActionButtonVariant.Primary);
         clockIn.Bind(Button.CommandProperty, new Binding("ClockInCommand"));
         clockIn.Bind(Visual.IsVisibleProperty, new Binding("CanClockIn"));
+        var emergency = new ActionButton("Open emergency shift", ActionButtonVariant.Secondary);
+        emergency.Bind(Button.CommandProperty, new Binding("OpenEmergencyShiftCommand"));
+        emergency.Bind(Visual.IsVisibleProperty, new Binding("CanOpenEmergencyShift"));
         var clockOut = new ActionButton("Clock out", ActionButtonVariant.Danger);
         clockOut.Bind(Button.CommandProperty, new Binding("ClockOutCommand"));
         // Keep the action visible for an open session; pending adjustments should disable it,
@@ -37,7 +40,7 @@ public sealed class CashierShiftView : UserControl
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 10,
-            Children = { refresh, clockIn, clockOut }
+            Children = { refresh, clockIn, emergency, clockOut }
         };
 
         var assignment = Detail("ASSIGNED WINDOW", "AssignmentWindow", 0, 0);
@@ -60,6 +63,8 @@ public sealed class CashierShiftView : UserControl
         blockHost.BindResource(Border.BackgroundProperty, "Muted");
         blockHost.CornerRadius = new CornerRadius(7);
 
+        var emergencyCard = EmergencyCard();
+
         var card = new Border
         {
             Padding = new Thickness(22),
@@ -72,6 +77,7 @@ public sealed class CashierShiftView : UserControl
                     statusHost,
                     details,
                     blockHost,
+                    emergencyCard,
                     actions
                 }
             }
@@ -92,6 +98,46 @@ public sealed class CashierShiftView : UserControl
                 Children = { card, adjustmentCard }
             }
         };
+    }
+
+    private static Border EmergencyCard()
+    {
+        var amount = new AmountInput { PlaceholderText = "0.00" };
+        amount.Bind(AmountInput.ValueProperty, new Binding("EmergencyOpeningCashFloat") { Mode = BindingMode.TwoWay });
+        var reason = new TextBox { PlaceholderText = "Why is emergency coverage needed?", AcceptsReturn = true, MinHeight = 76, MaxLength = 1000, TextWrapping = TextWrapping.Wrap };
+        reason.Classes.Add("form-input");
+        reason.Bind(TextBox.TextProperty, new Binding("EmergencyReason") { Mode = BindingMode.TwoWay });
+        var confirmed = new CheckBox { Content = "I received the physical opening cash for change." };
+        confirmed.Bind(ToggleButton.IsCheckedProperty, new Binding("EmergencyFloatConfirmed") { Mode = BindingMode.TwoWay });
+        var submit = new ActionButton("Start emergency shift", ActionButtonVariant.Primary);
+        submit.Bind(Button.CommandProperty, new Binding("SubmitEmergencyShiftCommand"));
+        var cancel = new ActionButton("Cancel", ActionButtonVariant.Secondary);
+        cancel.Bind(Button.CommandProperty, new Binding("CancelEmergencyShiftCommand"));
+        var validation = Text("EmergencyValidationMessage", "Destructive");
+        validation.TextWrapping = TextWrapping.Wrap;
+        var card = new Border
+        {
+            Padding = new Thickness(16),
+            CornerRadius = new CornerRadius(7),
+            Child = new StackPanel
+            {
+                Spacing = 12,
+                Children =
+                {
+                    Heading("Emergency coverage"),
+                    Muted("This starts an emergency shift under your account. It is recorded for Admin review and does not create a daily replacement."),
+                    Detail("SERVER-SELECTED SHIFT", "EmergencyShiftWindow", 0, 0),
+                    Field("OPENING CASH FOR CHANGE", amount),
+                    Field("EMERGENCY REASON", reason),
+                    confirmed,
+                    validation,
+                    new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { cancel, submit } }
+                }
+            }
+        };
+        card.Bind(Visual.IsVisibleProperty, new Binding("IsEmergencyFormOpen"));
+        card.BindResource(Border.BackgroundProperty, "Muted");
+        return card;
     }
 
     private static Border AdjustmentCard()

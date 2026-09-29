@@ -10,6 +10,8 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using AvaloniaApp.Converters;
@@ -41,6 +43,7 @@ public class DashboardWindow : Window
 
     public DashboardWindow()
     {
+        Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri("avares://AvaloniaApp/Assets/icon.png"))));
         Title = "BPNV Convenience Store - Sales & Inventory";
         WindowState = WindowState.Maximized;
         Width = 1280;

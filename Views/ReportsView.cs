@@ -383,6 +383,8 @@ public class ReportsView : UserControl
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("DATE", row => row.BusinessDate.ToString("MMMM d, yyyy"), new GridLength(2.0, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("CASHIER", row => row.CashierName, new GridLength(1.3, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("SHIFT", row => row.ShiftName, new GridLength(1.1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("ORIGIN", row => row.Origin == ApiCashierShiftSessionOrigin.EmergencySelfOpened ? "Emergency self-opened" : row.Origin == ApiCashierShiftSessionOrigin.DailyReplacement ? "Daily replacement" : "Scheduled", new GridLength(1.3, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("EMERGENCY REASON", row => row.EmergencyReason ?? "-", new GridLength(1.5, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("STATUS", row => row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString(), new GridLength(1.2, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("SALES", row => CashierShiftFormatting.Money(row.TotalSales), new GridLength(1, GridUnitType.Star)));
         table.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>("EXPECTED", row => CashierShiftFormatting.Money(row.ExpectedRemittance), new GridLength(1, GridUnitType.Star)));

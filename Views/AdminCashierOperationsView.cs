@@ -80,6 +80,9 @@ public sealed class AdminCashierOperationsView : UserControl
         var status = new ComboBox { Classes = { "form-select" }, MinWidth = 180 };
         status.Bind(ItemsControl.ItemsSourceProperty, new Binding("StatusFilters"));
         status.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedStatusFilter") { Mode = BindingMode.TwoWay });
+        var origin = new ComboBox { Classes = { "form-select" }, MinWidth = 180 };
+        origin.Bind(ItemsControl.ItemsSourceProperty, new Binding("OriginFilters"));
+        origin.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedOriginFilter") { Mode = BindingMode.TwoWay });
         var cashier = new ComboBox { Classes = { "form-select" }, MinWidth = 190, PlaceholderText = "All cashiers" };
         cashier.Bind(ItemsControl.ItemsSourceProperty, new Binding("Cashiers"));
         cashier.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedCashier") { Mode = BindingMode.TwoWay });
@@ -104,7 +107,7 @@ public sealed class AdminCashierOperationsView : UserControl
 
         return Card(new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.45*,*,*,*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("1.45*,*,*,*,*,Auto"),
             ColumnSpacing = 24,
             Children =
             {
@@ -112,7 +115,8 @@ public sealed class AdminCashierOperationsView : UserControl
                 At(Field("SESSION STATUS", status), column: 1),
                 At(Field("CASHIER", cashier), column: 2),
                 At(Field("SHIFT", shift), column: 3),
-                At(actions, column: 4)
+                At(Field("ORIGIN", origin), column: 4),
+                At(actions, column: 5)
             }
         }, new Thickness(16));
     }
@@ -237,7 +241,8 @@ public sealed class AdminCashierOperationsView : UserControl
                     Children =
                     {
                         new TextBlock { Text = session.ShiftName, FontWeight = FontWeight.SemiBold },
-                        Muted(session.CashierName, 11)
+                        Muted(session.CashierName, 11),
+                        Muted(session.OriginDisplay, 11)
                     }
                 },
                 At(Cell($"{session.BusinessDate:MMM d, yyyy}"), column: 1),
@@ -333,6 +338,10 @@ public sealed class AdminCashierOperationsView : UserControl
                     ("ACTUAL", "Detail.Session.ActualDisplay", null),
                     ("WORKED", "Detail.Session.WorkedDisplay", null),
                     ("CLOSE TYPE", "Detail.Session.CloseType", null))),
+                Section("Assignment origin", "How this work period was opened.", MetadataGrid(
+                    ("ORIGIN", "Detail.Session.OriginDisplay", null),
+                    ("EMERGENCY REASON", "Detail.Session.EmergencyReason", null),
+                    ("EMERGENCY OPENED", "Detail.Session.EmergencyOpenedAtUtc", "{0:g}"))),
                 Section("Cash position", "Expected and actual cash movement for this work period.", MetadataGrid(
                     ("OPENING FLOAT", "Detail.Session.OpeningCashFloat", "₱{0:N2}"),
                     ("EXPECTED TERMINAL CASH", "Detail.Session.ExpectedTerminalCash", "₱{0:N2}"),
@@ -577,6 +586,10 @@ public sealed class AdminCashierOperationsView : UserControl
             "DATE / SHIFT", row => $"{row.BusinessDate:MMM d, yyyy} | {row.ShiftName}", new GridLength(1.5, GridUnitType.Star)));
         rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
             "CASHIER", row => row.CashierName, new GridLength(1.15, GridUnitType.Star)));
+        rows.Columns.Add(PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
+            "ORIGIN", row => row.Origin == ApiCashierShiftSessionOrigin.EmergencySelfOpened ? "Emergency self-opened"
+                : row.Origin == ApiCashierShiftSessionOrigin.DailyReplacement ? "Daily replacement" : "Scheduled",
+            new GridLength(1.15, GridUnitType.Star)));
         var statusColumn = PagedTableColumn.Create<CashierShiftReportRowResponse, string>(
             "STATUS", row => row.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : row.Status.ToString(), new GridLength(1.05, GridUnitType.Star));
         statusColumn.CellTemplate = new FuncDataTemplate<CashierShiftReportRowResponse>((row, _) => new TextBlock

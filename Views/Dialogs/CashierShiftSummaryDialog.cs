@@ -36,7 +36,7 @@ public sealed class CashierShiftSummaryDialog : Window
          var details = new Grid
          {
              ColumnDefinitions = new ColumnDefinitions("180,*"),
-             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto"),
+             RowDefinitions = new RowDefinitions(session.IsEmergencySelfOpened ? "Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" : "Auto,Auto,Auto,Auto,Auto,Auto,Auto"),
             RowSpacing = 10
         };
          AddRow(details, 0, "Scheduled", session.ScheduledDisplay);
@@ -45,6 +45,9 @@ public sealed class CashierShiftSummaryDialog : Window
          AddRow(details, 3, "Transactions", (session.TransactionCount ?? 0).ToString("N0"));
          AddRow(details, 4, "Total sales", CashierShiftFormatting.Money(session.TotalSales));
          AddRow(details, 5, "Cash refunds / payouts", $"{CashierShiftFormatting.Money(session.CashRefunds)} / {CashierShiftFormatting.Money(session.CashPayouts)}");
+         AddRow(details, 6, "Assignment origin", session.OriginDisplay);
+         if (session.IsEmergencySelfOpened)
+             AddRow(details, 7, "Emergency reason", session.EmergencyReason ?? "-");
 
          var regularTable = new Grid
          {

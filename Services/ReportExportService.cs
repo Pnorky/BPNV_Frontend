@@ -327,15 +327,16 @@ public static class ReportExportService
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(1.2f); columns.RelativeColumn(1.4f); columns.RelativeColumn(1.4f); columns.RelativeColumn(1.1f);
+                                columns.RelativeColumn(1.2f); columns.RelativeColumn(1.4f); columns.RelativeColumn(1.4f); columns.RelativeColumn(1.3f); columns.RelativeColumn(1.5f); columns.RelativeColumn(1.1f);
                                 columns.RelativeColumn(1f); columns.RelativeColumn(1.1f); columns.RelativeColumn(1.1f); columns.RelativeColumn(1.1f);
                                 columns.RelativeColumn(1f); columns.RelativeColumn(0.9f); columns.RelativeColumn(0.9f); columns.RelativeColumn(0.9f);
                                 columns.RelativeColumn(1.3f); columns.RelativeColumn(1.3f); columns.RelativeColumn(0.9f); columns.RelativeColumn(1.1f);
                             });
-                            table.Header(header => { PdfHeader(header.Cell(), "Date"); PdfHeader(header.Cell(), "Cashier"); PdfHeader(header.Cell(), "Shift"); PdfHeader(header.Cell(), "Status"); PdfHeader(header.Cell(), "Sales"); PdfHeader(header.Cell(), "Expected cash"); PdfHeader(header.Cell(), "Actual cash"); PdfHeader(header.Cell(), "Difference"); PdfHeader(header.Cell(), "Starting cash"); PdfHeader(header.Cell(), "Refunds"); PdfHeader(header.Cell(), "Payouts"); PdfHeader(header.Cell(), "Sales count"); PdfHeader(header.Cell(), "Clock in"); PdfHeader(header.Cell(), "Clock out"); PdfHeader(header.Cell(), "Length"); PdfHeader(header.Cell(), "Cash returned"); });
+                            table.Header(header => { PdfHeader(header.Cell(), "Date"); PdfHeader(header.Cell(), "Cashier"); PdfHeader(header.Cell(), "Shift"); PdfHeader(header.Cell(), "Origin"); PdfHeader(header.Cell(), "Emergency reason"); PdfHeader(header.Cell(), "Status"); PdfHeader(header.Cell(), "Sales"); PdfHeader(header.Cell(), "Expected cash"); PdfHeader(header.Cell(), "Actual cash"); PdfHeader(header.Cell(), "Difference"); PdfHeader(header.Cell(), "Starting cash"); PdfHeader(header.Cell(), "Refunds"); PdfHeader(header.Cell(), "Payouts"); PdfHeader(header.Cell(), "Sales count"); PdfHeader(header.Cell(), "Clock in"); PdfHeader(header.Cell(), "Clock out"); PdfHeader(header.Cell(), "Length"); PdfHeader(header.Cell(), "Cash returned"); });
                             foreach (var session in cashier.Sessions.OrderByDescending(session => session.BusinessDate))
                             {
                                 PdfCell(table.Cell(), session.BusinessDate.ToString("MMMM d, yyyy")); PdfCell(table.Cell(), session.CashierName); PdfCell(table.Cell(), session.ShiftName);
+                                PdfCell(table.Cell(), session.Origin == ApiCashierShiftSessionOrigin.EmergencySelfOpened ? "Emergency self-opened" : session.Origin == ApiCashierShiftSessionOrigin.DailyReplacement ? "Daily replacement" : "Scheduled"); PdfCell(table.Cell(), session.EmergencyReason ?? "-");
                                 PdfCell(table.Cell(), session.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending" : session.Status.ToString());
                                 PdfCell(table.Cell(), CashierShiftFormatting.Money(session.TotalSales)); PdfCell(table.Cell(), CashierShiftFormatting.Money(session.ExpectedRemittance)); PdfCell(table.Cell(), CashierShiftFormatting.Money(session.ActualRemittance)); PdfCell(table.Cell(), CashierShiftFormatting.SignedMoney(session.Variance));
                                 PdfCell(table.Cell(), CashierShiftFormatting.Money(session.OpeningCashFloat)); PdfCell(table.Cell(), CashierShiftFormatting.Money(session.CashRefunds)); PdfCell(table.Cell(), CashierShiftFormatting.Money(session.CashPayouts)); PdfCell(table.Cell(), (session.TransactionCount ?? 0).ToString());
@@ -740,7 +741,7 @@ public static class ReportExportService
     private static void CreateCashierRemittanceSheet(XLWorkbook workbook, CashierShiftReportResponse report)
     {
         var sheet = workbook.Worksheets.Add("Cashier Remittance");
-        string[] headers = ["Business date", "Cashier", "Shift", "Status", "Sales", "Cash collected", "Expected cash", "Actual cash", "Remittance difference", "Starting cash", "Cash refunds", "Cash payouts", "Sales count", "Shift start", "Shift end", "Shift length", "Cash returned"];
+        string[] headers = ["Business date", "Cashier", "Shift", "Origin", "Emergency reason", "Status", "Sales", "Cash collected", "Expected cash", "Actual cash", "Remittance difference", "Starting cash", "Cash refunds", "Cash payouts", "Sales count", "Shift start", "Shift end", "Shift length", "Cash returned"];
         WriteHeaders(sheet, headers);
         var row = 2;
         foreach (var session in report.Sessions.OrderByDescending(session => session.BusinessDate).ThenBy(session => session.CashierName))
@@ -748,35 +749,37 @@ public static class ReportExportService
             sheet.Cell(row, 1).Value = session.BusinessDate.ToDateTime(TimeOnly.MinValue);
             sheet.Cell(row, 2).Value = session.CashierName;
             sheet.Cell(row, 3).Value = session.ShiftName;
-            sheet.Cell(row, 4).Value = session.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : session.Status.ToString();
-            sheet.Cell(row, 5).Value = session.TotalSales ?? 0;
-            sheet.Cell(row, 6).Value = session.CashSales ?? 0;
-            sheet.Cell(row, 7).Value = session.ExpectedRemittance ?? 0;
-            sheet.Cell(row, 8).Value = session.ActualRemittance ?? 0;
-            sheet.Cell(row, 9).Value = session.Variance ?? 0;
-            sheet.Cell(row, 10).Value = session.OpeningCashFloat;
-            sheet.Cell(row, 11).Value = session.CashRefunds ?? 0;
-            sheet.Cell(row, 12).Value = session.CashPayouts ?? 0;
-            sheet.Cell(row, 13).Value = session.TransactionCount ?? 0;
-            sheet.Cell(row, 14).Value = StoreDateTime.ToStoreTimeFromUtc(session.ClockedInAtUtc);
+            sheet.Cell(row, 4).Value = session.Origin == ApiCashierShiftSessionOrigin.EmergencySelfOpened ? "Emergency self-opened" : session.Origin == ApiCashierShiftSessionOrigin.DailyReplacement ? "Daily replacement" : "Scheduled";
+            sheet.Cell(row, 5).Value = session.EmergencyReason ?? "-";
+            sheet.Cell(row, 6).Value = session.Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : session.Status.ToString();
+            sheet.Cell(row, 7).Value = session.TotalSales ?? 0;
+            sheet.Cell(row, 8).Value = session.CashSales ?? 0;
+            sheet.Cell(row, 9).Value = session.ExpectedRemittance ?? 0;
+            sheet.Cell(row, 10).Value = session.ActualRemittance ?? 0;
+            sheet.Cell(row, 11).Value = session.Variance ?? 0;
+            sheet.Cell(row, 12).Value = session.OpeningCashFloat;
+            sheet.Cell(row, 13).Value = session.CashRefunds ?? 0;
+            sheet.Cell(row, 14).Value = session.CashPayouts ?? 0;
+            sheet.Cell(row, 15).Value = session.TransactionCount ?? 0;
+            sheet.Cell(row, 16).Value = StoreDateTime.ToStoreTimeFromUtc(session.ClockedInAtUtc);
             if (session.ClockedOutAtUtc is { } clockedOut)
-                sheet.Cell(row, 15).Value = StoreDateTime.ToStoreTimeFromUtc(clockedOut);
-            sheet.Cell(row, 16).Value = session.WorkedMinutes is { } minutes
+                sheet.Cell(row, 17).Value = StoreDateTime.ToStoreTimeFromUtc(clockedOut);
+            sheet.Cell(row, 18).Value = session.WorkedMinutes is { } minutes
                 ? $"{minutes / 60}h {minutes % 60}m"
                 : "-";
-            sheet.Cell(row, 17).Value = session.CashFloatReturned == true ? "Yes" : "No";
+            sheet.Cell(row, 19).Value = session.CashFloatReturned == true ? "Yes" : "No";
             row++;
         }
         sheet.Column(1).Style.DateFormat.Format = "mmmm d, yyyy";
-        sheet.Columns(5, 12).Style.NumberFormat.Format = "₱#,##0.00";
+        sheet.Columns(7, 14).Style.NumberFormat.Format = "₱#,##0.00";
         StyleDataSheet(sheet, headers.Length, row - 1);
-        var widths = new[] { 18, 24, 22, 20, 16, 16, 20, 16, 16, 16, 14, 14, 14, 24, 24, 16, 20 };
+        var widths = new[] { 18, 24, 22, 22, 34, 20, 16, 16, 20, 16, 16, 16, 14, 14, 14, 24, 24, 16, 20 };
         for (var column = 1; column <= widths.Length; column++)
             sheet.Column(column).Width = widths[column - 1];
         sheet.Range(1, 1, row - 1, headers.Length).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
         sheet.Range(1, 1, 1, headers.Length).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
         sheet.Column(1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
-        sheet.Columns(14, 15).Style.DateFormat.Format = "h:mm AM/PM";
+        sheet.Columns(16, 17).Style.DateFormat.Format = "h:mm AM/PM";
         sheet.SheetView.FreezeRows(0);
     }
 

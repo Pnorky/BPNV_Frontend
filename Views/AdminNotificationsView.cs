@@ -182,6 +182,7 @@ public sealed class AdminNotificationsView : UserControl
         "CashierLateClockIn" => "Late clock-in",
         "CashierLateClockOut" => "Late clock-out",
         "CashierShiftClosed" => "Shift completed",
+        "EmergencyCashierShiftOpened" => "Emergency self-opened shift",
         _ => type
     };
 

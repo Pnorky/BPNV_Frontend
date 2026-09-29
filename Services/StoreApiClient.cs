@@ -377,18 +377,21 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task<CashierShiftSessionResponse> ClockInAsync(ClockInRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<CashierShiftSessionResponse, ClockInRequest>(HttpMethod.Post, "api/cashier-shifts/clock-in", request, cancellationToken);
 
+    public Task<CashierShiftSessionResponse> EmergencySelfOpenAsync(EmergencySelfOpenRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CashierShiftSessionResponse, EmergencySelfOpenRequest>(HttpMethod.Post, "api/cashier-shifts/emergency-self-open", request, cancellationToken);
+
     public Task<CashierShiftSessionResponse> ClockOutAsync(ClockOutRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<CashierShiftSessionResponse, ClockOutRequest>(HttpMethod.Post, "api/cashier-shifts/clock-out", request, cancellationToken);
 
     public Task<PagedResponse<CashierShiftSessionResponse>> GetCashierShiftSessionsAsync(
         DateOnly? fromDate = null, DateOnly? toDateExclusive = null, Guid? cashierUserId = null,
-        Guid? shiftDefinitionId = null, ApiCashierShiftSessionStatus? status = null,
+        Guid? shiftDefinitionId = null, ApiCashierShiftSessionStatus? status = null, ApiCashierShiftSessionOrigin? origin = null,
         int page = 1, int pageSize = 20, CancellationToken cancellationToken = default) =>
         SendAsync<PagedResponse<CashierShiftSessionResponse>>(
             () => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/cashier-shifts/sessions",
                 ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)),
                 ("cashierUserId", cashierUserId?.ToString()), ("shiftDefinitionId", shiftDefinitionId?.ToString()),
-                ("status", status?.ToString()), ("page", page.ToString(CultureInfo.InvariantCulture)),
+                ("status", status?.ToString()), ("origin", origin?.ToString()), ("page", page.ToString(CultureInfo.InvariantCulture)),
                 ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
 
     public Task<CashierShiftSessionDetailResponse> GetCashierShiftSessionAsync(Guid id, CancellationToken cancellationToken = default) =>
@@ -431,10 +434,11 @@ public sealed class StoreApiClient(AuthApiClient authClient)
 
     public Task<CashierShiftReportResponse> GetCashierShiftReportAsync(
         DateOnly fromDate, DateOnly toDateExclusive, Guid? cashierUserId = null,
-        Guid? shiftDefinitionId = null, CancellationToken cancellationToken = default) =>
+        Guid? shiftDefinitionId = null, ApiCashierShiftSessionOrigin? origin = null, CancellationToken cancellationToken = default) =>
         SendAsync<CashierShiftReportResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/reports/cashier-shifts",
             ("fromDate", Date(fromDate)), ("toDateExclusive", Date(toDateExclusive)),
-            ("cashierUserId", cashierUserId?.ToString()), ("shiftDefinitionId", shiftDefinitionId?.ToString()))), cancellationToken);
+            ("cashierUserId", cashierUserId?.ToString()), ("shiftDefinitionId", shiftDefinitionId?.ToString()),
+            ("origin", origin?.ToString()))), cancellationToken);
 
     public Task<SalesAccountabilityReportResponse> GetSalesAccountabilityReportAsync(
         DateOnly fromDate, DateOnly toDateExclusive, Guid? cashierUserId = null,

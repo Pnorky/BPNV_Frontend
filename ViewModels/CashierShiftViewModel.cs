@@ -19,9 +19,26 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _adjustmentNote = "";
     [ObservableProperty] private string _adjustmentReference = "";
     [ObservableProperty] private IReadOnlyList<CashierCashAdjustmentResponse> _adjustments = [];
+    [ObservableProperty] private bool _isEmergencyFormOpen;
+    [ObservableProperty] private decimal? _emergencyOpeningCashFloat;
+    [ObservableProperty] private string _emergencyReason = "";
+    [ObservableProperty] private bool _emergencyFloatConfirmed;
 
     public CashierShiftState Shift { get; }
     public bool CanClockIn => Shift.CanClockIn;
+    public bool CanOpenEmergencyShift => Shift.CanEmergencySelfOpen && !IsEmergencyFormOpen;
+    public bool HasEmergencyShift => Shift.EmergencyShift is not null;
+    public string EmergencyShiftWindow => Shift.EmergencyShift is { } shift
+        ? $"{shift.ShiftName} | {shift.ScheduleDisplay}"
+        : "No active shift is available for emergency coverage.";
+    public bool CanSubmitEmergencyShift => IsEmergencyFormOpen && Shift.CanEmergencySelfOpen && EmergencyOpeningCashFloat is >= 0
+        && decimal.Round(EmergencyOpeningCashFloat.Value, 2) == EmergencyOpeningCashFloat.Value
+        && !string.IsNullOrWhiteSpace(EmergencyReason) && EmergencyReason.Trim().Length <= 1000 && EmergencyFloatConfirmed;
+    public string EmergencyValidationMessage => EmergencyOpeningCashFloat is null or < 0 ? "Enter a non-negative opening cash amount."
+        : decimal.Round(EmergencyOpeningCashFloat.Value, 2) != EmergencyOpeningCashFloat.Value ? "Opening cash can use at most two decimal places."
+        : string.IsNullOrWhiteSpace(EmergencyReason) ? "Explain why emergency coverage is required."
+        : EmergencyReason.Trim().Length > 1000 ? "The reason cannot exceed 1,000 characters."
+        : !EmergencyFloatConfirmed ? "Confirm that you received the physical opening cash." : "";
     public bool HasBlockingPendingAdjustments => Adjustments.Any(item =>
         item.Status == ApiCashAdjustmentStatus.Pending && item.Type is ApiCashAdjustmentType.CashRefund or ApiCashAdjustmentType.CashPayout);
     public bool CanClockOut => Shift.IsClockedIn && !Shift.IsLoading && !HasBlockingPendingAdjustments;
@@ -87,6 +104,43 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
                 ? $"{exception.Message} Retry will reuse the original ₱{pending:N2} starting cash and idempotency key."
                 : exception.Message;
             _notifications.ShowError("Cashier work period could not be started", FailureMessage(exception));
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpenEmergencyShift))]
+    private void OpenEmergencyShift()
+    {
+        IsEmergencyFormOpen = true;
+        StatusMessage = "Complete the emergency shift details. This will be recorded for Admin review.";
+    }
+
+    [RelayCommand]
+    private void CancelEmergencyShift()
+    {
+        IsEmergencyFormOpen = false;
+        UpdateStatus();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSubmitEmergencyShift))]
+    private async Task SubmitEmergencyShiftAsync()
+    {
+        if (!CanSubmitEmergencyShift || EmergencyOpeningCashFloat is null) return;
+        try
+        {
+            var session = await Shift.EmergencySelfOpenAsync(EmergencyOpeningCashFloat.Value, EmergencyReason, EmergencyFloatConfirmed);
+            IsEmergencyFormOpen = false;
+            EmergencyOpeningCashFloat = null;
+            EmergencyReason = "";
+            EmergencyFloatConfirmed = false;
+            StatusMessage = $"Emergency {session.ShiftName} opened at {StoreDateTime.FormatUtc(session.ClockedInAtUtc)}.";
+            _notifications.ShowSuccess("Emergency cashier shift started", StatusMessage);
+            await LoadAdjustmentsAsync();
+        }
+        catch (Exception exception) when (IsApiFailure(exception))
+        {
+            if (exception is ApiClientException) await Shift.RefreshAsync();
+            StatusMessage = exception.Message;
+            _notifications.ShowError("Emergency shift could not be started", FailureMessage(exception));
         }
     }
 
@@ -174,6 +228,10 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
     private void OnShiftChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         OnPropertyChanged(nameof(CanClockIn));
+        OnPropertyChanged(nameof(CanOpenEmergencyShift));
+        OnPropertyChanged(nameof(HasEmergencyShift));
+        OnPropertyChanged(nameof(EmergencyShiftWindow));
+        OnPropertyChanged(nameof(CanSubmitEmergencyShift));
         OnPropertyChanged(nameof(CanClockOut));
         OnPropertyChanged(nameof(HasAssignment));
         OnPropertyChanged(nameof(HasOpenSession));
@@ -186,6 +244,8 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(AdjustmentValidationMessage));
         RequestAdjustmentCommand.NotifyCanExecuteChanged();
         ClockInCommand.NotifyCanExecuteChanged();
+        OpenEmergencyShiftCommand.NotifyCanExecuteChanged();
+        SubmitEmergencyShiftCommand.NotifyCanExecuteChanged();
         ClockOutCommand.NotifyCanExecuteChanged();
         if (e.PropertyName == nameof(CashierShiftState.ErrorMessage) && Shift.ErrorMessage is not null)
             StatusMessage = Shift.ErrorMessage;
@@ -195,6 +255,10 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
     partial void OnAdjustmentAmountChanged(decimal? value) => NotifyAdjustmentState();
     partial void OnAdjustmentNoteChanged(string value) => NotifyAdjustmentState();
     partial void OnAdjustmentReferenceChanged(string value) => NotifyAdjustmentState();
+    partial void OnIsEmergencyFormOpenChanged(bool value) => NotifyEmergencyState();
+    partial void OnEmergencyOpeningCashFloatChanged(decimal? value) => NotifyEmergencyState();
+    partial void OnEmergencyReasonChanged(string value) => NotifyEmergencyState();
+    partial void OnEmergencyFloatConfirmedChanged(bool value) => NotifyEmergencyState();
     partial void OnAdjustmentsChanged(IReadOnlyList<CashierCashAdjustmentResponse> value)
     {
         OnPropertyChanged(nameof(HasBlockingPendingAdjustments));
@@ -206,6 +270,14 @@ public partial class CashierShiftViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanRequestAdjustment));
         OnPropertyChanged(nameof(AdjustmentValidationMessage));
         RequestAdjustmentCommand.NotifyCanExecuteChanged();
+    }
+    private void NotifyEmergencyState()
+    {
+        OnPropertyChanged(nameof(CanOpenEmergencyShift));
+        OnPropertyChanged(nameof(CanSubmitEmergencyShift));
+        OnPropertyChanged(nameof(EmergencyValidationMessage));
+        OpenEmergencyShiftCommand.NotifyCanExecuteChanged();
+        SubmitEmergencyShiftCommand.NotifyCanExecuteChanged();
     }
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;

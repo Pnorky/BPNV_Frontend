@@ -103,6 +103,47 @@ public sealed class CashierShiftTests
     }
 
     [TestMethod]
+    public async Task EmergencySelfOpenUsesServerShiftAndEnablesCheckout()
+    {
+        var open = Session(ApiCashierShiftSessionStatus.Open) with
+        {
+            ScheduleId = null,
+            Origin = ApiCashierShiftSessionOrigin.EmergencySelfOpened,
+            EmergencyReason = "Admin unavailable"
+        };
+        var requestBodies = new List<string>();
+        var (api, _) = await CreateApiAsync(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/clock-status"))
+                return Json(new CashierClockStatusResponse(DateTime.UtcNow, DateTimeOffset.Now, null, null, null, null, false,
+                    "No unused assigned shift is available.",
+                    new(open.ShiftDefinitionId, open.ShiftName, open.BusinessDate, open.ScheduledStartAtUtc, open.ScheduledEndAtUtc), true, null));
+            if (request.RequestUri.AbsolutePath.EndsWith("/emergency-self-open"))
+            {
+                requestBodies.Add(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+                return Json(open);
+            }
+            throw new InvalidOperationException(request.RequestUri.AbsolutePath);
+        });
+        var state = new CashierShiftState(api);
+        Assert.IsTrue(await state.RefreshAsync());
+        Assert.IsTrue(state.CanEmergencySelfOpen);
+
+        var session = await state.EmergencySelfOpenAsync(800m, "Admin unavailable", true);
+
+        Assert.AreEqual(ApiCashierShiftSessionOrigin.EmergencySelfOpened, session.Origin);
+        Assert.IsTrue(state.CanCheckout);
+        Assert.HasCount(1, requestBodies);
+        var body = JsonDocument.Parse(requestBodies[0]).RootElement;
+        Assert.AreEqual(800m, body.GetProperty("openingCashFloat").GetDecimal());
+        Assert.AreEqual("Admin unavailable", body.GetProperty("reason").GetString());
+        Assert.IsTrue(body.GetProperty("physicalFloatReceived").GetBoolean());
+        Assert.IsFalse(body.TryGetProperty("cashierUserId", out _));
+        Assert.IsFalse(body.TryGetProperty("shiftDefinitionId", out _));
+        Assert.IsFalse(body.TryGetProperty("assignmentId", out _));
+    }
+
+    [TestMethod]
     public async Task SalesCheckoutTracksSharedOpenSessionState()
     {
         var open = Session(ApiCashierShiftSessionStatus.Open);

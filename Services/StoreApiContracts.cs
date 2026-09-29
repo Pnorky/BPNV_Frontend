@@ -54,6 +54,13 @@ public enum ApiCashierShiftSessionStatus
     Reconciled
 }
 
+public enum ApiCashierShiftSessionOrigin
+{
+    Scheduled,
+    DailyReplacement,
+    EmergencySelfOpened
+}
+
 public enum ApiCashierShiftCloseType
 {
     CashierClockOut,
@@ -1068,6 +1075,7 @@ public sealed record ResolvedCashierShiftAssignmentResponse(
 }
 
 public sealed record ClockInRequest(Guid IdempotencyKey, decimal OpeningCashFloat);
+public sealed record EmergencySelfOpenRequest(Guid IdempotencyKey, decimal OpeningCashFloat, string Reason, bool PhysicalFloatReceived);
 public sealed record ClockOutRequest(Guid IdempotencyKey);
 public sealed record AdministrativeClockOutRequest(Guid IdempotencyKey, string Reason);
 public sealed record RecordRemittanceRequest(decimal ActualRemittance, bool CashFloatReturned, string? Note);
@@ -1090,7 +1098,11 @@ public sealed record CashierShiftSessionResponse(
      decimal? ActualRemittance, decimal? Variance, bool? CashFloatReturned, string? RemittanceNote,
     DateTime? RemittanceRecordedAtUtc, Guid? RemittanceRecordedByUserId,
     DateTime? CashFloatConfirmedAtUtc, Guid? CashFloatConfirmedByUserId,
-    bool IsIdempotentReplay = false)
+    bool IsIdempotentReplay = false,
+    ApiCashierShiftSessionOrigin Origin = ApiCashierShiftSessionOrigin.Scheduled,
+    string? EmergencyReason = null,
+    Guid? EmergencyOpenedByUserId = null,
+    DateTime? EmergencyOpenedAtUtc = null)
 {
     public string StatusDisplay => Status == ApiCashierShiftSessionStatus.ClosedPendingRemittance ? "Pending Remittance" : Status.ToString();
     public string ScheduledDisplay => $"{StoreDateTime.FormatUtc(ScheduledStartAtUtc)} - {StoreDateTime.FormatUtc(ScheduledEndAtUtc)}";
@@ -1102,13 +1114,27 @@ public sealed record CashierShiftSessionResponse(
     public string ExpectedRemittanceDisplay => CashierShiftFormatting.Money(ExpectedRemittance);
     public string ActualRemittanceDisplay => CashierShiftFormatting.Money(ActualRemittance);
     public string VarianceDisplay => CashierShiftFormatting.SignedMoney(Variance);
+    public bool IsEmergencySelfOpened => Origin == ApiCashierShiftSessionOrigin.EmergencySelfOpened;
+    public string OriginDisplay => Origin switch
+    {
+        ApiCashierShiftSessionOrigin.DailyReplacement => "Daily replacement",
+        ApiCashierShiftSessionOrigin.EmergencySelfOpened => "Emergency self-opened",
+        _ => "Scheduled"
+    };
 }
 
 public sealed record CashierTerminalOccupancyResponse(Guid SessionId, string CashierName, string ShiftName, DateTime ClockedInAtUtc);
+public sealed record EmergencyShiftAvailabilityResponse(
+    Guid ShiftDefinitionId, string ShiftName, DateOnly BusinessDate, DateTime ScheduledStartAtUtc, DateTime ScheduledEndAtUtc)
+{
+    public string ScheduleDisplay => $"{StoreDateTime.FormatUtc(ScheduledStartAtUtc)} - {StoreDateTime.FormatUtc(ScheduledEndAtUtc)}";
+}
 public sealed record CashierClockStatusResponse(
     DateTime ServerTimeUtc, DateTimeOffset StoreLocalTime, ResolvedCashierShiftAssignmentResponse? Assignment,
     CashierShiftSessionResponse? OpenSession, CashierTerminalOccupancyResponse? OccupiedTerminal,
-    int? AssignmentVarianceMinutes, bool CanClockIn, string? BlockReason);
+    int? AssignmentVarianceMinutes, bool CanClockIn, string? BlockReason,
+    EmergencyShiftAvailabilityResponse? EmergencyShift = null, bool CanEmergencySelfOpen = false,
+    string? EmergencySelfOpenBlockReason = null);
 
 public sealed record CashierCashAdjustmentResponse(
     Guid Id, Guid ShiftSessionId, ApiCashAdjustmentType Type, decimal Amount, ApiCashAdjustmentStatus Status,
@@ -1154,7 +1180,9 @@ public sealed record CashierShiftReportRowResponse(
     DateTime? ClockedOutAtUtc, int? WorkedMinutes, int ClockInVarianceMinutes, int? ClockOutVarianceMinutes,
     decimal OpeningCashFloat, decimal? TotalSales, decimal? CashSales, decimal? GCashSales,
     decimal? CashRefunds, decimal? CashPayouts, int? TransactionCount, decimal? ExpectedRemittance,
-    decimal? ActualRemittance, decimal? Variance, bool? CashFloatReturned);
+    decimal? ActualRemittance, decimal? Variance, bool? CashFloatReturned,
+    ApiCashierShiftSessionOrigin Origin = ApiCashierShiftSessionOrigin.Scheduled,
+    string? EmergencyReason = null);
 
 public sealed record CashierShiftReportSummaryResponse(
     int Sessions, decimal TotalSales, decimal CashSales, decimal GCashSales,

@@ -9,6 +9,11 @@ public sealed record CashierShiftStatusFilter(string Label, ApiCashierShiftSessi
     public override string ToString() => Label;
 }
 
+public sealed record CashierShiftOriginFilter(string Label, ApiCashierShiftSessionOrigin? Value)
+{
+    public override string ToString() => Label;
+}
+
 public sealed record TransactionDateRangeOption(string Label)
 {
     public override string ToString() => Label;
@@ -18,6 +23,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
 {
     public event Action<CashierShiftSessionDetailResponse>? SessionDetailLoaded;
     private static readonly CashierShiftStatusFilter AllStatuses = new("All statuses", null);
+    private static readonly CashierShiftOriginFilter AllOrigins = new("All origins", null);
     private readonly StoreApiClient _api;
     private readonly INotificationService _notifications;
     private CancellationTokenSource? _loadCancellation;
@@ -38,7 +44,8 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         _transactionFromDate = _fromDate;
         _transactionToDate = _toDate;
         _selectedStatusFilter = AllStatuses;
-        _appliedFilters = new(ToDateOnly(_fromDate.Value), ToDateOnly(_toDate.Value).AddDays(1), null, null, null);
+        _selectedOriginFilter = AllOrigins;
+        _appliedFilters = new(ToDateOnly(_fromDate.Value), ToDateOnly(_toDate.Value).AddDays(1), null, null, null, null);
         _ = LoadAsync();
     }
 
@@ -48,6 +55,13 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         new("Open", ApiCashierShiftSessionStatus.Open),
         new("Pending remittance", ApiCashierShiftSessionStatus.ClosedPendingRemittance),
         new("Reconciled", ApiCashierShiftSessionStatus.Reconciled)
+    ];
+    public IReadOnlyList<CashierShiftOriginFilter> OriginFilters { get; } =
+    [
+        AllOrigins,
+        new("Scheduled", ApiCashierShiftSessionOrigin.Scheduled),
+        new("Daily replacements", ApiCashierShiftSessionOrigin.DailyReplacement),
+        new("Emergency self-opened", ApiCashierShiftSessionOrigin.EmergencySelfOpened)
     ];
 
     public IReadOnlyList<int> PageSizeOptions { get; } = [10, 20, 50];
@@ -60,6 +74,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
     [ObservableProperty] private DateTimeOffset? _toDate;
     [ObservableProperty] private TransactionDateRangeOption _selectedHistoryDateRange = new("Today");
     [ObservableProperty] private CashierShiftStatusFilter _selectedStatusFilter;
+    [ObservableProperty] private CashierShiftOriginFilter _selectedOriginFilter;
     [ObservableProperty] private IReadOnlyList<UserResponse> _cashiers = [];
     [ObservableProperty] private UserResponse? _selectedCashier;
     [ObservableProperty] private IReadOnlyList<ShiftDefinitionResponse> _shiftDefinitions = [];
@@ -215,7 +230,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         }
 
         _appliedFilters = new(ToDateOnly(FromDate.Value), ToDateOnly(ToDate.Value).AddDays(1),
-            SelectedCashier?.Id, SelectedShiftDefinition?.Id, SelectedStatusFilter.Value);
+            SelectedCashier?.Id, SelectedShiftDefinition?.Id, SelectedStatusFilter.Value, SelectedOriginFilter.Value);
         Page = 1;
         await LoadPageAndReportAsync();
     }
@@ -229,6 +244,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
         SelectedCashier = null;
         SelectedShiftDefinition = null;
         SelectedStatusFilter = AllStatuses;
+        SelectedOriginFilter = AllOrigins;
         SelectedHistoryDateRange = HistoryDateRanges[0];
         await ApplyFiltersAsync();
     }
@@ -490,6 +506,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
                 _appliedFilters.CashierUserId,
                 _appliedFilters.ShiftDefinitionId,
                 status: _appliedFilters.Status,
+                origin: _appliedFilters.Origin,
                 page: Page,
                 pageSize: PageSize,
                 cancellationToken: cancellationToken);
@@ -498,6 +515,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
                 _appliedFilters.ToDateExclusive,
                 _appliedFilters.CashierUserId,
                 _appliedFilters.ShiftDefinitionId,
+                origin: _appliedFilters.Origin,
                 cancellationToken: cancellationToken);
             var usersTask = _api.GetUsersAsync(includeInactive: true, cancellationToken);
             var definitionsTask = _api.GetShiftDefinitionsAsync(includeInactive: true, cancellationToken);
@@ -783,7 +801,7 @@ public partial class AdminCashierOperationsViewModel : ObservableObject, IDispos
 
     private sealed record AppliedFilters(
         DateOnly FromDate, DateOnly ToDateExclusive, Guid? CashierUserId,
-        Guid? ShiftDefinitionId, ApiCashierShiftSessionStatus? Status);
+        Guid? ShiftDefinitionId, ApiCashierShiftSessionStatus? Status, ApiCashierShiftSessionOrigin? Origin);
 
     public void Dispose()
     {
