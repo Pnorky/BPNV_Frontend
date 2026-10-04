@@ -129,6 +129,35 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task<EmployeeDebtPaymentResponse> CreateEmployeeDebtPaymentAsync(Guid employeeId, CreateEmployeeDebtPaymentRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<EmployeeDebtPaymentResponse, CreateEmployeeDebtPaymentRequest>(HttpMethod.Post, $"api/employee-balances/{employeeId}/payments", request, cancellationToken);
 
+    public Task<CustomerPageResponse> GetCustomersAsync(string? search = null, bool includeInactive = false,
+        int page = 1, int pageSize = 100, CancellationToken cancellationToken = default) =>
+        SendAsync<CustomerPageResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/customers",
+            ("search", search), ("includeInactive", includeInactive ? "true" : "false"),
+            ("page", page.ToString(CultureInfo.InvariantCulture)), ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+
+    public Task<CustomerResponse> CreateCustomerAsync(SaveCustomerRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CustomerResponse, SaveCustomerRequest>(HttpMethod.Post, "api/customers", request, cancellationToken);
+
+    public Task<CustomerResponse> UpdateCustomerAsync(Guid id, SaveCustomerRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CustomerResponse, SaveCustomerRequest>(HttpMethod.Put, $"api/customers/{id}", request, cancellationToken);
+
+    public Task<IReadOnlyList<CustomerVehicleResponse>> GetCustomerVehiclesAsync(Guid customerId, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<CustomerVehicleResponse>>(() => new HttpRequestMessage(HttpMethod.Get, $"api/customers/{customerId}/vehicles"), cancellationToken);
+
+    public Task<CustomerVehicleResponse> CreateCustomerVehicleAsync(Guid customerId, SaveCustomerVehicleRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CustomerVehicleResponse, SaveCustomerVehicleRequest>(HttpMethod.Post, $"api/customers/{customerId}/vehicles", request, cancellationToken);
+
+    public Task<IReadOnlyList<CustomerPaymentResponse>> GetCustomerPaymentsAsync(Guid customerId, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<CustomerPaymentResponse>>(() => new HttpRequestMessage(HttpMethod.Get, $"api/customers/{customerId}/payments"), cancellationToken);
+
+    public Task<CustomerPaymentResponse> CreateCustomerPaymentAsync(Guid customerId, CreateCustomerPaymentRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CustomerPaymentResponse, CreateCustomerPaymentRequest>(HttpMethod.Post, $"api/customers/{customerId}/payments", request, cancellationToken);
+
+    public Task<CustomerStatementResponse> GetCustomerStatementAsync(Guid customerId, DateOnly fromDate, DateOnly toDate, CancellationToken cancellationToken = default) =>
+        SendAsync<CustomerStatementResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery($"api/customers/{customerId}/statement",
+            ("fromDate", fromDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+            ("toDate", toDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)))), cancellationToken);
+
     public Task<ProductResponse> CreateProductAsync(
         CreateProductRequest request,
         CancellationToken cancellationToken = default) =>

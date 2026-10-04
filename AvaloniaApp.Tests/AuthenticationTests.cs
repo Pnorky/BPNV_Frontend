@@ -104,9 +104,9 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
-    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,EmployeeBalances,Reports")]
-    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports,Employees,Categories")]
-    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports,CashierShiftManagement,CashierOperations,AdminNotifications,Employees,Categories,Users")]
+    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,EmployeeBalances,CustomerAccounts,StatementOfAccount,CustomerPayment,Reports")]
+    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,CustomerAccounts,StatementOfAccount,Reports,Employees,Categories")]
+    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,CustomerAccounts,StatementOfAccount,Reports,CashierShiftManagement,CashierOperations,AdminNotifications,Employees,Categories,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));
@@ -129,6 +129,9 @@ public sealed class AuthenticationTests
             if (item.Tag == "InventoryDeliveryHistory") Assert.IsInstanceOfType<DeliveryHistoryViewModel>(viewModel.CurrentPage);
             if (item.Tag == "Employees") Assert.IsInstanceOfType<EmployeesViewModel>(viewModel.CurrentPage);
             if (item.Tag == "EmployeeBalances") Assert.IsInstanceOfType<EmployeeBalancesViewModel>(viewModel.CurrentPage);
+            if (item.Tag == "CustomerAccounts") Assert.IsInstanceOfType<CustomerAccountsViewModel>(viewModel.CurrentPage);
+            if (item.Tag == "StatementOfAccount") Assert.IsInstanceOfType<StatementOfAccountViewModel>(viewModel.CurrentPage);
+            if (item.Tag == "CustomerPayment") Assert.IsInstanceOfType<CustomerPaymentViewModel>(viewModel.CurrentPage);
             if (item.Tag == "Categories") Assert.IsInstanceOfType<CategoriesViewModel>(viewModel.CurrentPage);
         }
     }
@@ -146,7 +149,7 @@ public sealed class AuthenticationTests
 
         inventoryViewModel.ToggleSidebarCommand.Execute(null);
         CollectionAssert.AreEqual(
-            new[] { "Dashboard", "InventoryProducts", "EmployeeBalances", "Reports", "Employees", "Categories" },
+            new[] { "Dashboard", "InventoryProducts", "EmployeeBalances", "CustomerAccounts", "StatementOfAccount", "Reports", "Employees", "Categories" },
             inventoryViewModel.NavItems.Select(item => item.Tag).ToArray());
         inventoryViewModel.OpenInventorySection("InventoryDeliveryHistory");
 

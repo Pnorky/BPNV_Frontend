@@ -38,7 +38,14 @@ public enum ApiPaymentMethod
 {
     Cash,
     GCash,
-    EmployeeOwed
+    EmployeeOwed,
+    Charge
+}
+
+public enum ApiCustomerPaymentMethod
+{
+    Cash,
+    GCash
 }
 
 public enum ApiEmployeeDebtPaymentMethod
@@ -216,6 +223,44 @@ public sealed record EmployeeOwedPurchaseResponse(
 public sealed record CreateEmployeeDebtPaymentRequest(
     Guid IdempotencyKey, decimal Amount, ApiEmployeeDebtPaymentMethod PaymentMethod,
     string? ReferenceNumber, string? Note);
+
+public sealed record CustomerResponse(Guid Id, string AccountNumber, string Name, string? BillingAddress,
+    string? ContactPerson, string? Phone, string? Email, bool IsActive, ulong Version,
+    decimal OutstandingBalance, DateTime? LastPaymentAtUtc)
+{
+    public string SearchText => $"{AccountNumber} {Name} {ContactPerson}";
+    public string OutstandingDisplay => $"₱{OutstandingBalance:N2}";
+    public string LastPaymentDisplay => LastPaymentAtUtc.HasValue ? StoreDateTime.FormatUtc(LastPaymentAtUtc.Value) : "No payments";
+    public string Status => IsActive ? "Active" : "Inactive";
+    public override string ToString() => $"{AccountNumber} · {Name}";
+}
+
+public sealed record CustomerPageResponse(IReadOnlyList<CustomerResponse> Items, int Page, int PageSize, int TotalCount);
+public sealed record SaveCustomerRequest(string AccountNumber, string Name, string? BillingAddress,
+    string? ContactPerson, string? Phone, string? Email, ulong? ExpectedVersion = null);
+public sealed record CustomerVehicleResponse(Guid Id, Guid CustomerId, string PlateOrUnitNumber,
+    string? Description, bool IsActive, ulong Version)
+{
+    public string SearchText => $"{PlateOrUnitNumber} {Description}";
+    public override string ToString() => string.IsNullOrWhiteSpace(Description) ? PlateOrUnitNumber : $"{PlateOrUnitNumber} · {Description}";
+}
+public sealed record SaveCustomerVehicleRequest(string PlateOrUnitNumber, string? Description, ulong? ExpectedVersion = null);
+public sealed record CreateCustomerPaymentRequest(Guid IdempotencyKey, decimal Amount,
+    ApiCustomerPaymentMethod PaymentMethod, string? ReferenceNumber, string? Note);
+public sealed record CustomerPaymentResponse(Guid Id, string PaymentNumber, Guid CustomerId, decimal Amount,
+    ApiCustomerPaymentMethod PaymentMethod, string? ReferenceNumber, string? Note, Guid RecordedByUserId,
+    string RecordedByName, Guid? CashierShiftId, DateTime PaidAtUtc, bool IsIdempotentReplay = false)
+{
+    public string AmountDisplay => $"₱{Amount:N2}";
+    public string PaidAtDisplay => StoreDateTime.FormatUtc(PaidAtUtc);
+}
+public sealed record CustomerStatementLineResponse(Guid SaleId, Guid SaleLineId, DateTime SoldAtUtc,
+    string Particular, string InvoiceOrReference, string? PlateOrUnitNumber, decimal Quantity,
+    decimal UnitPrice, decimal DiscountAmount, decimal NetAmount);
+public sealed record CustomerStatementResponse(CustomerResponse Customer, DateOnly FromDate, DateOnly ToDate,
+    DateTime GeneratedAtUtc, decimal PreviousBalance, decimal TotalCurrentCharges,
+    decimal TotalPeriodPayments, decimal TotalBalance, IReadOnlyList<CustomerStatementLineResponse> Charges,
+    IReadOnlyList<CustomerPaymentResponse> Payments);
 
 public sealed record UserResponse(
     Guid Id,
@@ -814,7 +859,10 @@ public sealed record CreateSaleRequest(
     IReadOnlyList<CreateSaleLineRequest> Lines,
     Guid? EmployeeId = null,
     string? Reference = null,
-    string? EmployeePin = null);
+    string? EmployeePin = null,
+    Guid? CustomerId = null,
+    Guid? CustomerVehicleId = null,
+    string? PlateOrUnitNumber = null);
 
 public sealed record SaleLineResponse(
     Guid Id,
@@ -845,7 +893,13 @@ public sealed record SaleResponse(
     Guid? EmployeeId = null,
     string? EmployeeNumber = null,
     string? EmployeeName = null,
-     Guid? ShiftSessionId = null)
+     Guid? ShiftSessionId = null,
+    string? Reference = null,
+    Guid? CustomerId = null,
+    string? CustomerAccountNumber = null,
+    string? CustomerName = null,
+    Guid? CustomerVehicleId = null,
+    string? PlateOrUnitNumber = null)
 {
     public string SoldAtDisplay => StoreDateTime.FormatUtc(SoldAtUtc);
 }
@@ -892,6 +946,7 @@ public sealed record ReportSaleResponse(
     {
         ApiPaymentMethod.EmployeeOwed => "Employee purchase (owed)",
         ApiPaymentMethod.GCash => "GCash",
+        ApiPaymentMethod.Charge => "Customer charge",
         _ => "Cash"
     };
     public string TotalDisplay => $"₱{Total:N2}";

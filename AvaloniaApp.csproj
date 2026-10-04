@@ -34,6 +34,8 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\icon.png" />
     <AvaloniaResource Include="Assets\index.css" />
+    <AvaloniaResource Include="Assets\petron-corporation-logo-png_seeklogo-472322.png" />
+    <EmbeddedResource Include="Assets\petron-corporation-logo-png_seeklogo-472322.png" />
   </ItemGroup>
 
   <ItemGroup>

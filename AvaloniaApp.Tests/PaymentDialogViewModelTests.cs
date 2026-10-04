@@ -122,4 +122,25 @@ public sealed class PaymentDialogViewModelTests
 
         Assert.IsNull(viewModel.CreateResult()!.EmployeePin);
     }
+
+    [TestMethod]
+    public void ChargeRequiresAndTrimsInvoiceReference()
+    {
+        var viewModel = new PaymentDialogViewModel(125.50m) { SelectedPaymentMethod = ApiPaymentMethod.Charge };
+        Assert.IsFalse(viewModel.CanConfirm);
+        viewModel.Reference = " INV-100 ";
+        Assert.IsTrue(viewModel.CanConfirm);
+        Assert.AreEqual("INV-100", viewModel.CreateResult()!.Reference);
+    }
+
+    [TestMethod]
+    public void EmployeeSaleCannotUseCustomerCharge()
+    {
+        var viewModel = new PaymentDialogViewModel(125.50m, true)
+        {
+            SelectedPaymentMethod = ApiPaymentMethod.Charge,
+            Reference = "INV-100"
+        };
+        Assert.IsFalse(viewModel.CanConfirm);
+    }
 }

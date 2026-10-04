@@ -134,6 +134,9 @@ public class App : Application
         DataTemplates.Add(new FuncDataTemplate<SuppliersViewModel>((_, _) => new SuppliersView(), true));
         DataTemplates.Add(new FuncDataTemplate<EmployeesViewModel>((_, _) => new EmployeesView(), true));
         DataTemplates.Add(new FuncDataTemplate<EmployeeBalancesViewModel>((_, _) => new EmployeeBalancesView(), true));
+        DataTemplates.Add(new FuncDataTemplate<CustomerAccountsViewModel>((_, _) => new CustomerAccountsView(), true));
+        DataTemplates.Add(new FuncDataTemplate<StatementOfAccountViewModel>((_, _) => new StatementOfAccountView(), true));
+        DataTemplates.Add(new FuncDataTemplate<CustomerPaymentViewModel>((_, _) => new CustomerPaymentView(), true));
         DataTemplates.Add(new FuncDataTemplate<ApiStockMovementsViewModel>((_, _) => new ApiStockMovementsView(), true));
          DataTemplates.Add(new FuncDataTemplate<ReportsViewModel>((_, _) => new ReportsView(), true));
          DataTemplates.Add(new FuncDataTemplate<UsersViewModel>((_, _) => new UsersView(), true));

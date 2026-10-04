@@ -60,12 +60,17 @@ public partial class SalesViewModel : ObservableObject, IDisposable
     [ObservableProperty] private ApiCustomerType _selectedCustomerType = ApiCustomerType.Regular;
     [ObservableProperty] private EmployeeResponse? _selectedEmployee;
     [ObservableProperty] private IReadOnlyList<EmployeeResponse> _employees = [];
+    [ObservableProperty] private IReadOnlyList<CustomerResponse> _customers = [];
+    [ObservableProperty] private CustomerResponse? _selectedCustomer;
+    [ObservableProperty] private IReadOnlyList<CustomerVehicleResponse> _customerVehicles = [];
+    [ObservableProperty] private CustomerVehicleResponse? _selectedCustomerVehicle;
     [ObservableProperty] private IReadOnlyList<PosProductResponse> _filteredProducts = [];
     [ObservableProperty] private string _statusMessage = "Loading the current POS catalog...";
     [ObservableProperty] private bool _isBusy;
 
     public IReadOnlyList<ApiCustomerType> CustomerTypes { get; } = Enum.GetValues<ApiCustomerType>();
     public bool IsEmployeeSale => SelectedCustomerType == ApiCustomerType.Employee;
+    public bool IsRegularSale => !IsEmployeeSale;
     public ObservableCollection<ApiCartLine> Cart { get; } = [];
     public string CartSummary => Cart.Count == 0 ? "No units added" : $"{Cart.Sum(line => line.Count)} units / {Cart.Sum(line => line.BasePieceQuantity)} pieces";
     public string TotalDisplay => $"₱{Cart.Sum(line => line.Amount):N2}";
@@ -89,13 +94,22 @@ public partial class SalesViewModel : ObservableObject, IDisposable
     partial void OnSelectedCustomerTypeChanged(ApiCustomerType value)
     {
         if (value != ApiCustomerType.Employee) SelectedEmployee = null;
+        if (value == ApiCustomerType.Employee) { SelectedCustomer = null; SelectedCustomerVehicle = null; CustomerVehicles = []; }
         foreach (var line in Cart) line.ApplyCustomerType(value);
         OnPropertyChanged(nameof(IsEmployeeSale));
+        OnPropertyChanged(nameof(IsRegularSale));
         NotifyCartTotals();
         MarkCartChanged();
     }
 
     partial void OnSelectedEmployeeChanged(EmployeeResponse? value) => MarkCartChanged();
+    partial void OnSelectedCustomerChanged(CustomerResponse? value)
+    {
+        SelectedCustomerVehicle = null;
+        _ = LoadCustomerVehiclesAsync(value);
+        MarkCartChanged();
+    }
+    partial void OnSelectedCustomerVehicleChanged(CustomerVehicleResponse? value) => MarkCartChanged();
 
     [RelayCommand]
     public async Task LoadCatalogAsync()
@@ -107,10 +121,12 @@ public partial class SalesViewModel : ObservableObject, IDisposable
         {
             var productsTask = _api.GetPosProductsAsync(pageSize: 200);
             var employeesTask = _api.GetEmployeesAsync();
-            await Task.WhenAll(productsTask, employeesTask);
+            var customersTask = _api.GetCustomersAsync(pageSize: 100);
+            await Task.WhenAll(productsTask, employeesTask, customersTask);
             var page = await productsTask;
             _products = page.Items;
             Employees = (await employeesTask).Where(employee => employee.IsActive).OrderBy(employee => employee.Name).ToArray();
+            Customers = (await customersTask).Items.Where(customer => customer.IsActive).OrderBy(customer => customer.Name).ToArray();
             ApplyFilter();
             StatusMessage = $"Loaded {_products.Count} sellable database products. Scan a barcode or add a base piece.";
         }
@@ -254,6 +270,12 @@ public partial class SalesViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (payment.PaymentMethod == ApiPaymentMethod.Charge && SelectedCustomer is null)
+        {
+            ShowError("Customer required", "Select the customer account before completing a charge sale.");
+            return;
+        }
+
         _idempotencyKey ??= Guid.NewGuid();
             StatusMessage = "Checking prices and stock, then completing the sale...";
         IsBusy = true;
@@ -266,16 +288,22 @@ public partial class SalesViewModel : ObservableObject, IDisposable
                 Cart.Select(line => new CreateSaleLineRequest(line.UnitId, line.Count)).ToArray(),
                 IsEmployeeSale ? SelectedEmployee?.Id : null,
                 payment.Reference,
-                payment.EmployeePin));
+                payment.EmployeePin,
+                payment.PaymentMethod == ApiPaymentMethod.Charge ? SelectedCustomer?.Id : null,
+                payment.PaymentMethod == ApiPaymentMethod.Charge ? SelectedCustomerVehicle?.Id : null,
+                payment.PaymentMethod == ApiPaymentMethod.Charge ? SelectedCustomerVehicle?.PlateOrUnitNumber : null));
             _suppressCartMutation = true;
             Cart.Clear();
             _suppressCartMutation = false;
             _idempotencyKey = null;
             SelectedEmployee = null;
+            SelectedCustomer = null;
+            SelectedCustomerVehicle = null;
             var paymentDescription = sale.PaymentMethod switch
             {
                 ApiPaymentMethod.Cash => "cash payment",
                 ApiPaymentMethod.GCash => "GCash payment",
+                ApiPaymentMethod.Charge => "customer account charge",
                 _ => "employee purchase owed"
             };
             StatusMessage = sale.PaymentMethod == ApiPaymentMethod.EmployeeOwed
@@ -355,12 +383,21 @@ public partial class SalesViewModel : ObservableObject, IDisposable
         var selectedEmployeeId = SelectedEmployee?.Id;
         var productsTask = _api.GetPosProductsAsync(pageSize: 200);
         var employeesTask = _api.GetEmployeesAsync();
-        await Task.WhenAll(productsTask, employeesTask);
+        var customersTask = _api.GetCustomersAsync(pageSize: 100);
+        await Task.WhenAll(productsTask, employeesTask, customersTask);
         var page = await productsTask;
         _products = page.Items;
         Employees = (await employeesTask).Where(employee => employee.IsActive).OrderBy(employee => employee.Name).ToArray();
+        Customers = (await customersTask).Items.Where(customer => customer.IsActive).OrderBy(customer => customer.Name).ToArray();
         SelectedEmployee = Employees.FirstOrDefault(employee => employee.Id == selectedEmployeeId);
         ApplyFilter();
+    }
+
+    private async Task LoadCustomerVehiclesAsync(CustomerResponse? customer)
+    {
+        if (customer is null) { CustomerVehicles = []; return; }
+        try { CustomerVehicles = (await _api.GetCustomerVehiclesAsync(customer.Id)).Where(vehicle => vehicle.IsActive).ToArray(); }
+        catch (Exception exception) when (IsApiFailure(exception)) { StatusMessage = FailureMessage(exception); CustomerVehicles = []; }
     }
 
     private async Task TryRefreshCatalogAsync()
