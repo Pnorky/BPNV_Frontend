@@ -77,17 +77,17 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control Filters()
     {
-        var status = new ComboBox { Classes = { "form-select" }, MinWidth = 180 };
+        var status = new ComboBox { Classes = { "form-select" }, MinWidth = 150 };
         status.Bind(ItemsControl.ItemsSourceProperty, new Binding("StatusFilters"));
         status.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedStatusFilter") { Mode = BindingMode.TwoWay });
-        var origin = new ComboBox { Classes = { "form-select" }, MinWidth = 180 };
+        var origin = new ComboBox { Classes = { "form-select" }, MinWidth = 160 };
         origin.Bind(ItemsControl.ItemsSourceProperty, new Binding("OriginFilters"));
         origin.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedOriginFilter") { Mode = BindingMode.TwoWay });
-        var cashier = new ComboBox { Classes = { "form-select" }, MinWidth = 190, PlaceholderText = "All cashiers" };
+        var cashier = new ComboBox { Classes = { "form-select" }, MinWidth = 170, PlaceholderText = "All cashiers" };
         cashier.Bind(ItemsControl.ItemsSourceProperty, new Binding("Cashiers"));
         cashier.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedCashier") { Mode = BindingMode.TwoWay });
         cashier.DisplayMemberBinding = new Binding(nameof(UserResponse.DisplayName));
-        var shift = new ComboBox { Classes = { "form-select" }, MinWidth = 170, PlaceholderText = "All shifts" };
+        var shift = new ComboBox { Classes = { "form-select" }, MinWidth = 150, PlaceholderText = "All shifts" };
         shift.Bind(ItemsControl.ItemsSourceProperty, new Binding("ShiftDefinitions"));
         shift.Bind(SelectingItemsControl.SelectedItemProperty, new Binding("SelectedShiftDefinition") { Mode = BindingMode.TwoWay });
         shift.DisplayMemberBinding = new Binding(nameof(ShiftDefinitionResponse.Name));
@@ -105,20 +105,28 @@ public sealed class AdminCashierOperationsView : UserControl
             }
         };
 
-        return Card(new Grid
+        var dateField = Field("DATE RANGE", DateRangeFilter("HistoryDateRanges", "SelectedHistoryDateRange", "FromDate", "ToDate", "IsHistoryCustomDateRange"));
+        var statusField = Field("SESSION STATUS", status);
+        var cashierField = Field("CASHIER", cashier);
+        var shiftField = Field("SHIFT", shift);
+        var originField = Field("ORIGIN", origin);
+        var filters = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.45*,*,*,*,*,Auto"),
-            ColumnSpacing = 24,
+            ColumnDefinitions = new ColumnDefinitions("210,150,170,150,160,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto"),
+            ColumnSpacing = 10,
             Children =
             {
-                Field("DATE RANGE", DateRangeFilter("HistoryDateRanges", "SelectedHistoryDateRange", "FromDate", "ToDate", "IsHistoryCustomDateRange")),
-                At(Field("SESSION STATUS", status), column: 1),
-                At(Field("CASHIER", cashier), column: 2),
-                At(Field("SHIFT", shift), column: 3),
-                At(Field("ORIGIN", origin), column: 4),
-                At(actions, column: 5)
+                dateField,
+                At(statusField, column: 1),
+                At(cashierField, column: 2),
+                At(shiftField, column: 3),
+                At(originField, column: 4),
+                At(actions, column: 6)
             }
-        }, new Thickness(16));
+        };
+
+        return Card(filters, new Thickness(16));
     }
 
     private static Control SessionHistory()
@@ -719,12 +727,11 @@ public sealed class AdminCashierOperationsView : UserControl
 
     private static Control DateRangeFilter(string items, string selected, string from, string to, string customVisibility)
     {
-        var range = new SearchableSelect { PlaceholderText = "Select date range", Width = 275, HorizontalAlignment = HorizontalAlignment.Left };
+        var range = new SearchableSelect { PlaceholderText = "Select date range", HorizontalAlignment = HorizontalAlignment.Stretch };
         range.Bind(SearchableSelect.ItemsSourceProperty, new Binding(items));
         range.Bind(SearchableSelect.SelectedItemProperty, new Binding(selected) { Mode = BindingMode.TwoWay });
         var custom = DateRange(from, to);
-        custom.Width = 440;
-        custom.HorizontalAlignment = HorizontalAlignment.Left;
+        custom.HorizontalAlignment = HorizontalAlignment.Stretch;
         custom.Bind(Visual.IsVisibleProperty, new Binding(customVisibility));
         return new StackPanel { Spacing = 8, Children = { range, custom } };
     }

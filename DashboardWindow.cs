@@ -397,6 +397,7 @@ public class DashboardWindow : Window
     {
         if (DataContext is DashboardViewModel vm)
         {
+            UpdateSidebar(vm.SidebarCollapsed);
             vm.PropertyChanged += (_, args) =>
             {
                 if (args.PropertyName == nameof(DashboardViewModel.SidebarCollapsed))
