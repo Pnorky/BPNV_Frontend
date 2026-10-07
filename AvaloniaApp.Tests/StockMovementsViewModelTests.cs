@@ -103,8 +103,11 @@ public sealed class StockMovementsViewModelTests
         var productId = Guid.NewGuid();
         var product = new ProductResponse(
             productId, Guid.NewGuid(), "Supplier", ApiInventoryItemType.Merchandise, "SKU", "0001", "Coffee", "Drinks", "piece",
-            8, 10, 10, 1, 1, 2, 2, 4, 12, 16, false, false, 0, 7, true,
-            [new ProductUnitResponse(Guid.NewGuid(), "0001", "piece", 1, 8, 10, true, true)]);
+            8, 10, 10, 1, 1, 2, 2, 4, 0, 4, false, false, 0, 7, true,
+            [new ProductUnitResponse(Guid.NewGuid(), "0001", "piece", 1, 8, 10, true, true)])
+        {
+            CanSetInitialBodegaBalance = true
+        };
         var handler = new StubHttpMessageHandler(request =>
         {
             var path = request.RequestUri!.AbsolutePath;
@@ -131,7 +134,7 @@ public sealed class StockMovementsViewModelTests
         Assert.AreEqual(25, request.CountedQuantity);
         Assert.AreEqual(7UL, request.ExpectedProductVersion);
         Assert.AreEqual("Forwarded stock", request.Notes);
-        Assert.AreEqual(13, viewModel.BodegaVariance);
+        Assert.AreEqual(25, viewModel.BodegaVariance);
     }
 
     private static async Task WaitUntilIdle(ApiStockMovementsViewModel viewModel)

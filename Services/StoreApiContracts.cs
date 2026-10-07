@@ -119,7 +119,8 @@ public sealed record ProductResponse(
     IReadOnlyList<ProductUnitResponse> Units,
     bool IsSellable = true,
     bool IsPerishable = false,
-    string SalesReportCategory = SalesReportCategories.Other)
+    string SalesReportCategory = SalesReportCategories.Other,
+    bool CanSetInitialBodegaBalance = false)
 {
     public string ActivityStatus => IsActive ? "Active" : "Inactive";
     public bool IsInactive => !IsActive;
@@ -408,7 +409,9 @@ public sealed record RecordStockCountRequest(
     ApiInventoryStockLocation Location,
     int CountedQuantity,
     ulong ExpectedProductVersion,
-    string? Notes);
+    string? Notes,
+    DateTimeOffset? ProductionAtUtc = null,
+    DateTimeOffset? ExpiresAtUtc = null);
 
 public sealed record StockReceiptResponse(
     Guid MovementId,
@@ -797,11 +800,11 @@ public sealed record InventoryLotBalanceResponse(
     int Quantity,
     DateTimeOffset ReceivedAtUtc,
     DateTimeOffset? ProductionAtUtc,
-    DateTimeOffset ExpiresAtUtc,
+    DateTimeOffset? ExpiresAtUtc,
     bool IsExpired,
     bool IsClosed)
 {
-    public string Display => $"{(string.IsNullOrWhiteSpace(LotCode) ? "Uncoded lot" : LotCode)} · {Quantity:N0} pcs · expires {StoreDateTime.FormatUtc(ExpiresAtUtc.UtcDateTime)}";
+    public string Display => $"{(string.IsNullOrWhiteSpace(LotCode) ? "Uncoded lot" : LotCode)} · {Quantity:N0} pcs · {(ExpiresAtUtc is { } expiry ? $"expires {StoreDateTime.FormatUtc(expiry.UtcDateTime)}" : "No stated expiration")}";
     public override string ToString() => Display;
 }
 
