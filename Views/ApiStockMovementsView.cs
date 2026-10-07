@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Markup.Xaml.MarkupExtensions;
@@ -16,7 +17,7 @@ public sealed class ApiStockMovementsView : UserControl
     public ApiStockMovementsView()
     {
         var product = new SearchableSelect { PlaceholderText = "Select product" };
-        product.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Products"));
+        product.Bind(SearchableSelect.ItemsSourceProperty, new Binding("BodegaBalanceProducts"));
         product.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedProduct"));
         product.ItemTemplate = new FuncDataTemplate<ProductResponse>((_, _) =>
             new StackPanel { Children = { Text("Name"), Text("StockDisplay", true) } }, true);
@@ -68,11 +69,12 @@ public sealed class ApiStockMovementsView : UserControl
         var currentDisplay = Bound("BodegaDisplayBalanceDisplay");
         currentDisplay.FontWeight = FontWeight.SemiBold;
         currentDisplay.VerticalAlignment = VerticalAlignment.Center;
-        var actual = new NumberField { Minimum = 0, Maximum = int.MaxValue, Increment = 1, FormatString = "0" };
+        var actual = new NumberField { Minimum = 1, Maximum = int.MaxValue, Increment = 1, FormatString = "0" };
         actual.Bind(NumberField.ValueProperty, new Binding("BodegaCountedQuantity"));
-        var notes = Input("BodegaCountNotes", "Opening balance or correction note");
-        var submit = new ActionButton("Set Bodega Balance", ActionButtonVariant.Primary);
+        var notes = Input("BodegaCountNotes", "Opening balance note");
+        var submit = new ActionButton("Set Opening Bodega Balance", ActionButtonVariant.Primary);
         submit.Bind(Button.CommandProperty, new Binding("SetBodegaBalanceCommand"));
+        submit.Bind(InputElement.IsEnabledProperty, new Binding("CanSetBodegaBalance"));
         submit.VerticalAlignment = VerticalAlignment.Bottom;
 
         var fields = new Grid
@@ -89,18 +91,28 @@ public sealed class ApiStockMovementsView : UserControl
                 At(submit, 5)
             }
         };
-        var variance = Bound("BodegaVarianceDisplay");
-        variance.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground"));
+        var perishableDates = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 12,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Children =
+            {
+                DateOnlyPicker("PRODUCTION DATE (REQUIRED)", "BodegaProductionDate"),
+                DateOnlyPicker("EXPIRATION DATE (OPTIONAL)", "BodegaExpirationDate")
+            }
+        };
+        perishableDates.Bind(Visual.IsVisibleProperty, new Binding("ShowPerishableOpeningFields"));
 
         return Card(new StackPanel
         {
             Spacing = 12,
             Children =
             {
-                Heading("Set actual Bodega balance"),
-                Muted("Enter the physical quantity currently stored in the Bodega. This replaces the balance; it does not receive or add stock."),
+                Heading("Set opening Bodega balance"),
+                MutedBound("BodegaBalanceEligibilityText"),
                 fields,
-                variance
+                perishableDates
             }
         });
     }
@@ -266,6 +278,13 @@ public sealed class ApiStockMovementsView : UserControl
     private static Border Status() { var value = new Border { Padding = new Thickness(12, 8), Child = Bound("StatusMessage") }; value.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return value; }
     private static TextBlock Heading(string text) { var value = new TextBlock { Text = text }; value.Classes.Add("h2"); return value; }
     private static TextBlock Muted(string text) { var value = new TextBlock { Text = text }; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
+    private static TextBlock MutedBound(string path) { var value = Bound(path); value.TextWrapping = TextWrapping.Wrap; value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
+    private static ShadcnDateTimePicker DateOnlyPicker(string label, string path)
+    {
+        var value = new ShadcnDateTimePicker { DateLabel = label, ShowTime = false, Width = 250 };
+        value.Bind(ShadcnDateTimePicker.SelectedDateProperty, new Binding(path) { Mode = BindingMode.TwoWay });
+        return value;
+    }
     private static TextBlock Bound(string path) { var value = new TextBlock(); value.Bind(TextBlock.TextProperty, new Binding(path)); return value; }
     private static TextBlock Text(string path, bool muted = false) { var value = Bound(path); if (muted) value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground")); return value; }
     private static string SpoilageReasonLabel(ApiSpoilageReason reason) => reason switch

@@ -1,6 +1,6 @@
 <Project Sdk="WixToolset.Sdk/6.0.2">
   <PropertyGroup>
-    <InstallerVersion>1.2.5</InstallerVersion>
+    <InstallerVersion>1.2.6</InstallerVersion>
     <OutputName>BPNV-Client-$(InstallerVersion)</OutputName>
     <PublishDir>$(MSBuildProjectDirectory)\..\publish\win-x64</PublishDir>
     <DefineConstants>PublishDir=$(PublishDir);InstallerVersion=$(InstallerVersion)</DefineConstants>

@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using AvaloniaApp.Views.Dialogs;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Net;
 
 namespace AvaloniaApp.ViewModels;
 
@@ -27,8 +28,10 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     private readonly StoreApiClient _api;
     private readonly INotificationService _notifications;
     private bool _historyErrorNotificationShown;
+    private Guid? _bodegaDateProductId;
     private IReadOnlyList<ProductResponse> _allProducts = [];
     [ObservableProperty] private IReadOnlyList<ProductResponse> _products = [];
+    [ObservableProperty] private IReadOnlyList<ProductResponse> _bodegaBalanceProducts = [];
     [ObservableProperty] private ProductResponse? _selectedProduct;
     [ObservableProperty] private int _quantity = 1;
     [ObservableProperty] private string _reference = "";
@@ -36,6 +39,8 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     [ObservableProperty] private ProductResponse? _bodegaBalanceProduct;
     [ObservableProperty] private decimal _bodegaCountedQuantity;
     [ObservableProperty] private string _bodegaCountNotes = "";
+    [ObservableProperty] private DateTimeOffset? _bodegaProductionDate;
+    [ObservableProperty] private DateTimeOffset? _bodegaExpirationDate;
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private string _statusMessage = "Loading products...";
     [ObservableProperty] private bool _isBusy;
@@ -98,6 +103,15 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     public IReadOnlyList<ApiSpoilageReason> SpoilageReasons { get; } = Enum.GetValues<ApiSpoilageReason>();
     public bool SpoilageProductIsPerishable => SpoilageProduct?.IsPerishable == true;
     public bool RequiresSpoilageNotes => SpoilageReason == ApiSpoilageReason.Other;
+    public bool BodegaProductIsPerishable => BodegaBalanceProduct?.IsPerishable == true;
+    public bool ShowPerishableOpeningFields => BodegaProductIsPerishable && BodegaBalanceProduct?.CanSetInitialBodegaBalance == true;
+    public bool CanSetBodegaBalance => BodegaBalanceProduct is { IsActive: true, BodegaStock: 0, CanSetInitialBodegaBalance: true } product;
+    public string BodegaBalanceEligibilityText => BodegaBalanceProduct switch
+    {
+        null => "Select an active product with zero Bodega stock and no movement history for initial opening balance.",
+        { IsPerishable: true } => "This one-time opening creates an uncoded perishable inventory lot. Production date is required; expiration date is optional.",
+        _ => "This sets the initial Bodega balance. The product must have zero Bodega stock and no prior stock movements."
+    };
     public int? BodegaVariance => WholeBodegaCount(out var counted) && BodegaBalanceProduct is not null
         ? counted - BodegaBalanceProduct.BodegaStock
         : null;
@@ -139,7 +153,7 @@ public partial class ApiStockMovementsViewModel : ObservableObject
             if (SelectedProduct is not null)
                 SelectedProduct = _allProducts.FirstOrDefault(product => product.Id == SelectedProduct.Id);
             if (BodegaBalanceProduct is not null)
-                BodegaBalanceProduct = _allProducts.FirstOrDefault(product => product.Id == BodegaBalanceProduct.Id);
+                BodegaBalanceProduct = BodegaBalanceProducts.FirstOrDefault(product => product.Id == BodegaBalanceProduct.Id);
             if (SpoilageProduct is not null)
                 SpoilageProduct = _allProducts.FirstOrDefault(product => product.Id == SpoilageProduct.Id);
             StatusMessage = $"Loaded {_allProducts.Count} products from the database.";
@@ -192,7 +206,9 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         var confirmation = new ConfirmDialog();
         confirmation.SetConfirmation(
             "Replace the Bodega balance?",
-            $"Set {productName} Bodega stock from {previous:N0} to {request.CountedQuantity:N0}? This records an audited {variance:+#;-#;0} stock movement and does not receive additional stock.",
+            BodegaProductIsPerishable
+                ? $"Set {productName} Bodega stock to {request.CountedQuantity:N0}? This creates an initial uncoded perishable inventory lot and records an audited +{request.CountedQuantity:N0} opening movement. It does not receive additional stock."
+                : $"Set {productName} Bodega stock from {previous:N0} to {request.CountedQuantity:N0}? This records an audited {variance:+#;-#;0} stock movement and does not receive additional stock.",
             "Set balance");
         await confirmation.ShowDialog(owner);
         if (!confirmation.Confirmed) return;
@@ -205,16 +221,23 @@ public partial class ApiStockMovementsViewModel : ObservableObject
             await LoadAsync();
             await LoadHistoryAsync();
             BodegaCountNotes = "";
+            BodegaProductionDate = null;
+            BodegaExpirationDate = null;
             StatusMessage = $"{productName} Bodega balance changed from {result.PreviousQuantity:N0} to {result.CountedQuantity:N0}.";
             _notifications.ShowSuccess("Bodega balance recorded", StatusMessage);
         }
+        catch (ApiClientException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            var wasPerishable = BodegaProductIsPerishable;
+            IsBusy = false;
+            await LoadAsync();
+            var message = wasPerishable && BodegaBalanceProduct is null
+                ? "The perishable opening balance has already been recorded or is no longer eligible. Review the refreshed product before continuing."
+                : $"{FailureMessage(exception)} Product balances and eligibility were refreshed; review them before trying again.";
+            ShowError("Bodega balance not recorded", message);
+        }
         catch (Exception exception) when (exception is ApiClientException or HttpRequestException or TaskCanceledException)
         {
-            if (exception is ApiClientException)
-            {
-                IsBusy = false;
-                await LoadAsync();
-            }
             ShowError("Bodega balance not recorded", FailureMessage(exception));
         }
         finally { IsBusy = false; }
@@ -224,9 +247,9 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     {
         request = null;
         error = "";
-        if (BodegaBalanceProduct?.CanRecordStockCount != true)
+        if (!CanSetBodegaBalance)
         {
-            error = "Select an active non-perishable product.";
+            error = "Select an active non-perishable product or an opening-eligible perishable product.";
             return false;
         }
         if (!WholeBodegaCount(out var counted))
@@ -234,10 +257,44 @@ public partial class ApiStockMovementsViewModel : ObservableObject
             error = "The actual Bodega quantity must be a whole number from zero to 2,147,483,647.";
             return false;
         }
+        if (BodegaBalanceProduct is null)
+        {
+            error = "Select an active non-perishable product or an opening-eligible perishable product.";
+            return false;
+        }
         if (counted == BodegaBalanceProduct.BodegaStock)
         {
             error = "The entered quantity already matches the current Bodega balance.";
             return false;
+        }
+        DateTimeOffset? productionAtUtc = null;
+        DateTimeOffset? expiresAtUtc = null;
+        if (BodegaProductIsPerishable)
+        {
+            if (counted <= 0)
+            {
+                error = "The perishable opening Bodega quantity must be a positive whole number.";
+                return false;
+            }
+            if (BodegaProductionDate is null)
+            {
+                error = "Production date is required for a perishable opening balance.";
+                return false;
+            }
+            if (BodegaProductionDate.Value.Date > StoreDateTime.StoreToday)
+            {
+                error = "Production date cannot be in the future in Philippine store time.";
+                return false;
+            }
+            if (BodegaExpirationDate is { } expiration && expiration.Date < StoreDateTime.StoreToday)
+            {
+                error = "Expiration date must remain valid through the opening date in Philippine store time.";
+                return false;
+            }
+            productionAtUtc = StoreDateTime.StoreDateStartToUtc(BodegaProductionDate.Value);
+            expiresAtUtc = BodegaExpirationDate is { } expiry
+                ? StoreDateTime.StoreDateEndToUtc(expiry)
+                : null;
         }
         if (BodegaCountNotes.Trim().Length > 500)
         {
@@ -250,14 +307,26 @@ public partial class ApiStockMovementsViewModel : ObservableObject
             ApiInventoryStockLocation.Bodega,
             counted,
             BodegaBalanceProduct.Version,
-            NullIfWhiteSpace(BodegaCountNotes));
+            NullIfWhiteSpace(BodegaCountNotes),
+            productionAtUtc,
+            expiresAtUtc);
         return true;
     }
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
     partial void OnBodegaBalanceProductChanged(ProductResponse? value)
     {
+        if (_bodegaDateProductId != value?.Id)
+        {
+            BodegaProductionDate = null;
+            BodegaExpirationDate = null;
+        }
+        _bodegaDateProductId = value?.Id;
         BodegaCountedQuantity = value?.BodegaStock ?? 0;
+        OnPropertyChanged(nameof(BodegaProductIsPerishable));
+        OnPropertyChanged(nameof(ShowPerishableOpeningFields));
+        OnPropertyChanged(nameof(CanSetBodegaBalance));
+        OnPropertyChanged(nameof(BodegaBalanceEligibilityText));
         NotifyBodegaBalancePreview();
     }
     partial void OnBodegaCountedQuantityChanged(decimal value) => NotifyBodegaBalancePreview();
@@ -451,6 +520,9 @@ public partial class ApiStockMovementsViewModel : ObservableObject
             : _allProducts.Where(product =>
                 $"{product.Name} {product.Sku} {product.SupplierName} {product.Barcode} {string.Join(' ', product.Units.Select(unit => unit.Barcode))}"
                     .Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
+        BodegaBalanceProducts = Products
+            .Where(product => product.IsActive && (!product.IsPerishable || product.CanSetInitialBodegaBalance))
+            .ToArray();
         if (SelectedProduct is not null && !Products.Contains(SelectedProduct)) SelectedProduct = null;
     }
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

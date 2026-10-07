@@ -61,6 +61,12 @@ public static class StoreDateTime
         return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(wallTime, StoreTimeZone));
     }
 
+    public static DateTimeOffset StoreDateStartToUtc(DateTimeOffset date) =>
+        AtStoreMidnight(date.Date).ToUniversalTime();
+
+    public static DateTimeOffset StoreDateEndToUtc(DateTimeOffset date) =>
+        AtStoreMidnight(date.Date.AddDays(1)).ToUniversalTime().AddTicks(-1);
+
     public static (DateTimeOffset? FromUtc, DateTimeOffset? ToUtcExclusive) GetUtcDateRange(
         DateTimeOffset? start,
         DateTimeOffset? end)
