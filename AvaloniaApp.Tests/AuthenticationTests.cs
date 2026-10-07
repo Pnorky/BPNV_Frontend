@@ -116,6 +116,8 @@ public sealed class AuthenticationTests
             seedPrototypeData: false);
 
         var viewModel = new DashboardViewModel(store, client, new StoreApiClient(client), session, new TestNotificationService());
+        Assert.IsTrue(viewModel.SidebarCollapsed);
+        viewModel.ToggleSidebarCommand.Execute(null);
 
         CollectionAssert.AreEqual(
             expectedTags.Split(','),
@@ -144,7 +146,7 @@ public sealed class AuthenticationTests
         var inventoryViewModel = new DashboardViewModel(
             store, inventoryClient, new StoreApiClient(inventoryClient), inventorySession, new TestNotificationService());
 
-        inventoryViewModel.ToggleSidebarCommand.Execute(null);
+        Assert.IsTrue(inventoryViewModel.SidebarCollapsed);
         CollectionAssert.AreEqual(
             new[] { "Dashboard", "InventoryProducts", "EmployeeBalances", "Reports", "Employees", "Categories" },
             inventoryViewModel.NavItems.Select(item => item.Tag).ToArray());

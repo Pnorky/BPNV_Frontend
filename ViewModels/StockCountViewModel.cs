@@ -71,7 +71,7 @@ public partial class StockCountViewModel : ObservableObject
         request = null;
         error = "";
         ValidationMessage = "";
-        if (SelectedProduct is null) return Fail("Select a Supply or Consumable.", out error);
+        if (SelectedProduct is null) return Fail("Select an active non-perishable product.", out error);
         if (SelectedLocation is null) return Fail("Select a stock location.", out error);
         if (!WholeCount(out var counted)) return Fail("Remaining quantity must be a whole number from zero to 2,147,483,647.", out error);
         if (counted == CurrentQuantity) return Fail("The remaining quantity already matches the current balance.", out error);

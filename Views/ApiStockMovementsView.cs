@@ -41,6 +41,7 @@ public sealed class ApiStockMovementsView : UserControl
             {
                 Status(),
                 Field("SEARCH PRODUCTS", search),
+                BodegaBalanceSection(),
                 Card(form),
                 new TextBlock { Text = "Select a product above to view its current Bodega balance before transferring stock." },
                 SpoilageSection(),
@@ -48,6 +49,60 @@ public sealed class ApiStockMovementsView : UserControl
             }
         };
         Content = new ScrollViewer { Content = root };
+    }
+
+    private static Control BodegaBalanceSection()
+    {
+        var product = new SearchableSelect
+        {
+            PlaceholderText = "Select product",
+            ItemTemplate = new FuncDataTemplate<ProductResponse>((_, _) =>
+                new StackPanel { Children = { Text("Name"), Text("StockDisplay", true) } }, true)
+        };
+        product.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Products"));
+        product.Bind(SearchableSelect.SelectedItemProperty, new Binding("BodegaBalanceProduct"));
+
+        var currentBodega = Bound("BodegaCurrentBalanceDisplay");
+        currentBodega.FontWeight = FontWeight.SemiBold;
+        currentBodega.VerticalAlignment = VerticalAlignment.Center;
+        var currentDisplay = Bound("BodegaDisplayBalanceDisplay");
+        currentDisplay.FontWeight = FontWeight.SemiBold;
+        currentDisplay.VerticalAlignment = VerticalAlignment.Center;
+        var actual = new NumberField { Minimum = 0, Maximum = int.MaxValue, Increment = 1, FormatString = "0" };
+        actual.Bind(NumberField.ValueProperty, new Binding("BodegaCountedQuantity"));
+        var notes = Input("BodegaCountNotes", "Opening balance or correction note");
+        var submit = new ActionButton("Set Bodega Balance", ActionButtonVariant.Primary);
+        submit.Bind(Button.CommandProperty, new Binding("SetBodegaBalanceCommand"));
+        submit.VerticalAlignment = VerticalAlignment.Bottom;
+
+        var fields = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("1.7*,0.7*,0.7*,1*,1.4*,Auto"),
+            ColumnSpacing = 12,
+            Children =
+            {
+                Field("PRODUCT", product),
+                At(Field("CURRENT BODEGA", currentBodega), 1),
+                At(Field("CURRENT DISPLAY", currentDisplay), 2),
+                At(Field("ACTUAL BODEGA QUANTITY", actual), 3),
+                At(Field("NOTES", notes), 4),
+                At(submit, 5)
+            }
+        };
+        var variance = Bound("BodegaVarianceDisplay");
+        variance.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground"));
+
+        return Card(new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                Heading("Set actual Bodega balance"),
+                Muted("Enter the physical quantity currently stored in the Bodega. This replaces the balance; it does not receive or add stock."),
+                fields,
+                variance
+            }
+        });
     }
 
     private static Control SpoilageSection()
@@ -173,7 +228,7 @@ public sealed class ApiStockMovementsView : UserControl
         // Keep the full local timestamp visible; the table truncates non-wrapping cells.
         table.Columns.Add(Column("Date & time", item => item.OccurredAtDisplay, 1.8));
         table.Columns.Add(Column("Product", item => item.ProductName, 1.35));
-        table.Columns.Add(Column("Movement", item => item.MovementTypeDisplay, 1.15));
+        table.Columns.Add(Column("Movement", item => item.MovementTypeDisplay, 1.35, wrapText: true));
         table.Columns.Add(Column("Quantity", item => item.QuantityDisplay, 0.7, HorizontalAlignment.Right));
         table.Columns.Add(Column("Stock update", item => item.ChangeDisplay, 1.2));
         table.Columns.Add(Column("Balances after", item => item.BalanceDisplay, 1.05));

@@ -97,6 +97,43 @@ public sealed class StockMovementsViewModelTests
         StringAssert.Contains(notifications.Notifications[^1].Message, "Notes are required");
     }
 
+    [TestMethod]
+    public async Task BuildsAbsoluteBodegaBalanceRequestForMerchandise()
+    {
+        var productId = Guid.NewGuid();
+        var product = new ProductResponse(
+            productId, Guid.NewGuid(), "Supplier", ApiInventoryItemType.Merchandise, "SKU", "0001", "Coffee", "Drinks", "piece",
+            8, 10, 10, 1, 1, 2, 2, 4, 12, 16, false, false, 0, 7, true,
+            [new ProductUnitResponse(Guid.NewGuid(), "0001", "piece", 1, 8, 10, true, true)]);
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/login"))
+                return Json(new TokenResponse("access", DateTime.UtcNow.AddMinutes(15), "refresh", DateTime.UtcNow.AddDays(7),
+                    new AuthenticatedUser(Guid.NewGuid(), "inventory", "Inventory", ["Inventory"], false)));
+            if (path.EndsWith("/products")) return Json(new PagedResponse<ProductResponse>([product], 1, 200, 1));
+            if (path.EndsWith("/stock-movements")) return Json(new PagedResponse<StockMovementResponse>([], 1, 20, 0));
+            throw new InvalidOperationException(path);
+        });
+        var auth = new AuthApiClient(new HttpClient(handler) { BaseAddress = new Uri("https://test/") }, new AuthSession());
+        await auth.LoginAsync("inventory", "password");
+        var viewModel = new ApiStockMovementsViewModel(new StoreApiClient(auth), new TestNotificationService());
+        await WaitUntilIdle(viewModel);
+
+        viewModel.BodegaBalanceProduct = product;
+        viewModel.BodegaCountedQuantity = 25;
+        viewModel.BodegaCountNotes = " Forwarded stock ";
+
+        Assert.IsTrue(viewModel.TryBuildBodegaBalanceRequest(out var request, out var error), error);
+        Assert.IsNotNull(request);
+        Assert.AreEqual(productId, request.ProductId);
+        Assert.AreEqual(ApiInventoryStockLocation.Bodega, request.Location);
+        Assert.AreEqual(25, request.CountedQuantity);
+        Assert.AreEqual(7UL, request.ExpectedProductVersion);
+        Assert.AreEqual("Forwarded stock", request.Notes);
+        Assert.AreEqual(13, viewModel.BodegaVariance);
+    }
+
     private static async Task WaitUntilIdle(ApiStockMovementsViewModel viewModel)
     {
         while (viewModel.IsBusy || viewModel.IsHistoryLoading) await Task.Delay(5);

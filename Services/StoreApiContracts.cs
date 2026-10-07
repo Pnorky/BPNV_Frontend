@@ -133,7 +133,7 @@ public sealed record ProductResponse(
     public string EmployeePriceDisplay => $"₱{(EmployeePrice > 0 ? EmployeePrice : RegularPrice):N2}";
     public string StockDisplay => $"{DisplayStock} display / {BodegaStock} bodega";
     public string BarcodeDisplay => string.IsNullOrWhiteSpace(Barcode) ? "No barcode (optional)" : Barcode;
-    public bool CanRecordStockCount => IsActive && !IsPerishable && ItemType != ApiInventoryItemType.Merchandise;
+    public bool CanRecordStockCount => IsActive && !IsPerishable;
     public string HandlingDisplay => string.Join(" · ", new[]
     {
         IsSellable ? "Sellable" : "Internal",

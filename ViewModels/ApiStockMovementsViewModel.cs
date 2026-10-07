@@ -33,6 +33,9 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     [ObservableProperty] private int _quantity = 1;
     [ObservableProperty] private string _reference = "";
     [ObservableProperty] private string _notes = "";
+    [ObservableProperty] private ProductResponse? _bodegaBalanceProduct;
+    [ObservableProperty] private decimal _bodegaCountedQuantity;
+    [ObservableProperty] private string _bodegaCountNotes = "";
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private string _statusMessage = "Loading products...";
     [ObservableProperty] private bool _isBusy;
@@ -95,6 +98,22 @@ public partial class ApiStockMovementsViewModel : ObservableObject
     public IReadOnlyList<ApiSpoilageReason> SpoilageReasons { get; } = Enum.GetValues<ApiSpoilageReason>();
     public bool SpoilageProductIsPerishable => SpoilageProduct?.IsPerishable == true;
     public bool RequiresSpoilageNotes => SpoilageReason == ApiSpoilageReason.Other;
+    public int? BodegaVariance => WholeBodegaCount(out var counted) && BodegaBalanceProduct is not null
+        ? counted - BodegaBalanceProduct.BodegaStock
+        : null;
+    public string BodegaCurrentBalanceDisplay => BodegaBalanceProduct is null
+        ? "Select a product"
+        : $"{BodegaBalanceProduct.BodegaStock:N0} {BodegaBalanceProduct.Unit}";
+    public string BodegaDisplayBalanceDisplay => BodegaBalanceProduct is null
+        ? "Select a product"
+        : $"{BodegaBalanceProduct.DisplayStock:N0} {BodegaBalanceProduct.Unit}";
+    public string BodegaVarianceDisplay => BodegaVariance is not int variance
+        ? "Enter a whole physical quantity"
+        : variance == 0
+            ? "The entered quantity matches the current Bodega balance."
+            : variance > 0
+                ? $"Bodega will increase by {variance:N0} {BodegaBalanceProduct?.Unit}."
+                : $"Bodega will decrease by {Math.Abs(variance):N0} {BodegaBalanceProduct?.Unit}.";
 
     public ApiStockMovementsViewModel(StoreApiClient api, INotificationService notifications)
     {
@@ -117,6 +136,10 @@ public partial class ApiStockMovementsViewModel : ObservableObject
             var page = await _api.GetProductsAsync(page: 1, pageSize: 200);
             _allProducts = page.Items;
             ApplyFilter();
+            if (SelectedProduct is not null)
+                SelectedProduct = _allProducts.FirstOrDefault(product => product.Id == SelectedProduct.Id);
+            if (BodegaBalanceProduct is not null)
+                BodegaBalanceProduct = _allProducts.FirstOrDefault(product => product.Id == BodegaBalanceProduct.Id);
             if (SpoilageProduct is not null)
                 SpoilageProduct = _allProducts.FirstOrDefault(product => product.Id == SpoilageProduct.Id);
             StatusMessage = $"Loaded {_allProducts.Count} products from the database.";
@@ -148,7 +171,96 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    [RelayCommand]
+    private async Task SetBodegaBalanceAsync()
+    {
+        if (IsBusy) return;
+        if (!TryBuildBodegaBalanceRequest(out var request, out var error) || request is null || BodegaBalanceProduct is null)
+        {
+            ShowError("Bodega balance not recorded", error);
+            return;
+        }
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner })
+        {
+            ShowError("Bodega balance not recorded", "The confirmation dialog could not be opened.");
+            return;
+        }
+
+        var productName = BodegaBalanceProduct.Name;
+        var previous = BodegaBalanceProduct.BodegaStock;
+        var variance = request.CountedQuantity - previous;
+        var confirmation = new ConfirmDialog();
+        confirmation.SetConfirmation(
+            "Replace the Bodega balance?",
+            $"Set {productName} Bodega stock from {previous:N0} to {request.CountedQuantity:N0}? This records an audited {variance:+#;-#;0} stock movement and does not receive additional stock.",
+            "Set balance");
+        await confirmation.ShowDialog(owner);
+        if (!confirmation.Confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            var result = await _api.RecordStockCountAsync(request);
+            IsBusy = false;
+            await LoadAsync();
+            await LoadHistoryAsync();
+            BodegaCountNotes = "";
+            StatusMessage = $"{productName} Bodega balance changed from {result.PreviousQuantity:N0} to {result.CountedQuantity:N0}.";
+            _notifications.ShowSuccess("Bodega balance recorded", StatusMessage);
+        }
+        catch (Exception exception) when (exception is ApiClientException or HttpRequestException or TaskCanceledException)
+        {
+            if (exception is ApiClientException)
+            {
+                IsBusy = false;
+                await LoadAsync();
+            }
+            ShowError("Bodega balance not recorded", FailureMessage(exception));
+        }
+        finally { IsBusy = false; }
+    }
+
+    public bool TryBuildBodegaBalanceRequest(out RecordStockCountRequest? request, out string error)
+    {
+        request = null;
+        error = "";
+        if (BodegaBalanceProduct?.CanRecordStockCount != true)
+        {
+            error = "Select an active non-perishable product.";
+            return false;
+        }
+        if (!WholeBodegaCount(out var counted))
+        {
+            error = "The actual Bodega quantity must be a whole number from zero to 2,147,483,647.";
+            return false;
+        }
+        if (counted == BodegaBalanceProduct.BodegaStock)
+        {
+            error = "The entered quantity already matches the current Bodega balance.";
+            return false;
+        }
+        if (BodegaCountNotes.Trim().Length > 500)
+        {
+            error = "Notes must not exceed 500 characters.";
+            return false;
+        }
+
+        request = new RecordStockCountRequest(
+            BodegaBalanceProduct.Id,
+            ApiInventoryStockLocation.Bodega,
+            counted,
+            BodegaBalanceProduct.Version,
+            NullIfWhiteSpace(BodegaCountNotes));
+        return true;
+    }
+
     partial void OnSearchTextChanged(string value) => ApplyFilter();
+    partial void OnBodegaBalanceProductChanged(ProductResponse? value)
+    {
+        BodegaCountedQuantity = value?.BodegaStock ?? 0;
+        NotifyBodegaBalancePreview();
+    }
+    partial void OnBodegaCountedQuantityChanged(decimal value) => NotifyBodegaBalancePreview();
     partial void OnSpoilageProductChanged(ProductResponse? value)
     {
         SpoilageUnits = value?.Units.Where(unit => unit.IsActive).ToArray() ?? [];
@@ -342,6 +454,23 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         if (SelectedProduct is not null && !Products.Contains(SelectedProduct)) SelectedProduct = null;
     }
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private bool WholeBodegaCount(out int value)
+    {
+        if (BodegaCountedQuantity != decimal.Truncate(BodegaCountedQuantity) || BodegaCountedQuantity is < 0 or > int.MaxValue)
+        {
+            value = 0;
+            return false;
+        }
+        value = decimal.ToInt32(BodegaCountedQuantity);
+        return true;
+    }
+    private void NotifyBodegaBalancePreview()
+    {
+        OnPropertyChanged(nameof(BodegaVariance));
+        OnPropertyChanged(nameof(BodegaCurrentBalanceDisplay));
+        OnPropertyChanged(nameof(BodegaDisplayBalanceDisplay));
+        OnPropertyChanged(nameof(BodegaVarianceDisplay));
+    }
     private void ShowError(string title, string message)
     {
         StatusMessage = message;

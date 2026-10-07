@@ -38,14 +38,14 @@ public sealed class StockCountViewModelTests
     }
 
     [TestMethod]
-    public void MerchandiseIsNotAvailableForPeriodicStockCount()
+    public void NonPerishableMerchandiseIsAvailableForPhysicalStockCount()
     {
         var merchandise = Product(ApiInventoryItemType.Merchandise, display: 5, bodega: 10);
 
         var viewModel = new StockCountViewModel([merchandise], merchandise);
 
-        Assert.IsEmpty(viewModel.Products);
-        Assert.IsNull(viewModel.SelectedProduct);
+        Assert.HasCount(1, viewModel.Products);
+        Assert.AreEqual(merchandise.Id, viewModel.SelectedProduct?.Id);
     }
 
     private static ProductResponse Product(ApiInventoryItemType itemType, int display, int bodega)

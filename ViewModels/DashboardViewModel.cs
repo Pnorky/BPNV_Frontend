@@ -34,7 +34,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
     private bool _disposed;
 
     [ObservableProperty]
-    private bool _sidebarCollapsed;
+    private bool _sidebarCollapsed = true;
 
     [ObservableProperty]
     private object? _currentPage;
@@ -119,7 +119,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             application.ActualThemeVariantChanged += OnActualThemeVariantChanged;
         }
         _allowedNavItems = _allNavItems.Where(item => CanNavigateTo(item.Tag)).ToArray();
-        foreach (var item in _allowedNavItems) NavItems.Add(item);
+        foreach (var item in _allowedNavItems.Where(item => !item.IsChild)) NavItems.Add(item);
         SelectedNavItem = NavItems[0];
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _clockTimer.Tick += OnClockTimerTick;
