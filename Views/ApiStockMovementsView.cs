@@ -17,7 +17,7 @@ public sealed class ApiStockMovementsView : UserControl
     public ApiStockMovementsView()
     {
         var product = new SearchableSelect { PlaceholderText = "Select product" };
-        product.Bind(SearchableSelect.ItemsSourceProperty, new Binding("BodegaBalanceProducts"));
+        product.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Products"));
         product.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedProduct"));
         product.ItemTemplate = new FuncDataTemplate<ProductResponse>((_, _) =>
             new StackPanel { Children = { Text("Name"), Text("StockDisplay", true) } }, true);
@@ -60,7 +60,7 @@ public sealed class ApiStockMovementsView : UserControl
             ItemTemplate = new FuncDataTemplate<ProductResponse>((_, _) =>
                 new StackPanel { Children = { Text("Name"), Text("StockDisplay", true) } }, true)
         };
-        product.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Products"));
+        product.Bind(SearchableSelect.ItemsSourceProperty, new Binding("BodegaBalanceProducts"));
         product.Bind(SearchableSelect.SelectedItemProperty, new Binding("BodegaBalanceProduct"));
 
         var currentBodega = Bound("BodegaCurrentBalanceDisplay");

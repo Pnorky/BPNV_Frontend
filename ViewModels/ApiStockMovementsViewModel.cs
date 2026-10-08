@@ -521,7 +521,7 @@ public partial class ApiStockMovementsViewModel : ObservableObject
                 $"{product.Name} {product.Sku} {product.SupplierName} {product.Barcode} {string.Join(' ', product.Units.Select(unit => unit.Barcode))}"
                     .Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
         BodegaBalanceProducts = Products
-            .Where(product => product.IsActive && (!product.IsPerishable || product.CanSetInitialBodegaBalance))
+            .Where(product => product.IsActive && product.CanSetInitialBodegaBalance)
             .ToArray();
         if (SelectedProduct is not null && !Products.Contains(SelectedProduct)) SelectedProduct = null;
     }

@@ -108,13 +108,19 @@ public sealed class StockMovementsViewModelTests
         {
             CanSetInitialBodegaBalance = true
         };
+        var ineligibleProduct = product with
+        {
+            Id = Guid.NewGuid(),
+            Sku = "SKU-USED",
+            CanSetInitialBodegaBalance = false
+        };
         var handler = new StubHttpMessageHandler(request =>
         {
             var path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/login"))
                 return Json(new TokenResponse("access", DateTime.UtcNow.AddMinutes(15), "refresh", DateTime.UtcNow.AddDays(7),
                     new AuthenticatedUser(Guid.NewGuid(), "inventory", "Inventory", ["Inventory"], false)));
-            if (path.EndsWith("/products")) return Json(new PagedResponse<ProductResponse>([product], 1, 200, 1));
+            if (path.EndsWith("/products")) return Json(new PagedResponse<ProductResponse>([product, ineligibleProduct], 1, 200, 2));
             if (path.EndsWith("/stock-movements")) return Json(new PagedResponse<StockMovementResponse>([], 1, 20, 0));
             throw new InvalidOperationException(path);
         });
@@ -123,6 +129,8 @@ public sealed class StockMovementsViewModelTests
         var viewModel = new ApiStockMovementsViewModel(new StoreApiClient(auth), new TestNotificationService());
         await WaitUntilIdle(viewModel);
 
+        Assert.AreEqual(1, viewModel.BodegaBalanceProducts.Count);
+        Assert.AreEqual(productId, viewModel.BodegaBalanceProducts[0].Id);
         viewModel.BodegaBalanceProduct = product;
         viewModel.BodegaCountedQuantity = 25;
         viewModel.BodegaCountNotes = " Forwarded stock ";
