@@ -36,7 +36,7 @@ public static class StatementOfAccountPdfService
                 content.Item().Element(container => Totals(container, statement));
                 content.Item().Element(container => Payments(container, statement.Payments));
                 content.Item().PaddingTop(8).Element(Signatures);
-                content.Item().PaddingTop(12).Text("NOTE: CHECK must be payable to Bayombong Petro-NV Fuel Station").Bold().FontSize(11);
+                content.Item().PaddingTop(12).Text("NOTE: CHECK must be payable to PETROLUBS ENTERPRISES").Bold().FontSize(11);
             });
             page.Footer().Row(row =>
             {
@@ -54,8 +54,8 @@ public static class StatementOfAccountPdfService
         row.ConstantItem(105).Height(105).Image(Logo.Value).FitArea();
         row.RelativeItem().PaddingLeft(10).PaddingTop(10).Column(column =>
         {
-            column.Item().Text("Bayombong Petro-NV Fuel Station").Bold().FontSize(16);
-            column.Item().Text("By-Pass Road, Brgy. Bonfal East, Bayombong, Nueva Vizcaya").Bold().FontSize(11);
+            column.Item().Text("PETROLUBS ENTERPRISES").Bold().FontSize(16);
+            column.Item().Text("National Highway, cor. Dupan St., Quirino, Solano, Nueva Vizcaya").Bold().FontSize(11);
             column.Item().PaddingTop(5).Text($"Generated {StoreDateTime.FormatUtc(statement.GeneratedAtUtc)}").FontSize(7).FontColor(Colors.Grey.Darken1);
         });
     });
