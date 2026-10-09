@@ -64,6 +64,23 @@ public sealed class PageTopBar : UserControl
             HorizontalAlignment = HorizontalAlignment.Right
         };
         storeClock.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.StoreClockDisplay)));
+        var shiftElapsed = new TextBlock
+        {
+            FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            Margin = new Thickness(10, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        shiftElapsed.Bind(TextBlock.TextProperty, new Binding(nameof(DashboardViewModel.ShiftElapsedDisplay)));
+        shiftElapsed.Bind(Visual.IsVisibleProperty, new Binding("CashierShift.IsClockedIn"));
+        shiftElapsed.BindResource(TextBlock.ForegroundProperty, "Primary");
+        ToolTip.SetTip(shiftElapsed, "Time clocked in");
+        Grid.SetColumn(shiftElapsed, 1);
+        var clockRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Children = { storeClock, shiftElapsed }
+        };
         var shiftStatus = new TextBlock
         {
             Width = 330,
@@ -127,7 +144,7 @@ public sealed class PageTopBar : UserControl
         {
             Width = 330,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { storeClock, shiftStatus }
+            Children = { clockRow, shiftStatus }
         };
         var clockPanel = new StackPanel
         {

@@ -62,7 +62,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
         get
         {
             if (CashierShift.OpenSession is null) return CashierShift.StatusDisplay;
-            return $"{ShiftContextDisplay}{ShiftElapsedDisplay}";
+            return ShiftContextDisplay;
         }
     }
     public string ShiftContextDisplay
@@ -73,8 +73,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             var start = StoreDateTime.ToStoreTimeFromUtc(session.ScheduledStartAtUtc);
             var end = StoreDateTime.ToStoreTimeFromUtc(session.ScheduledEndAtUtc);
             var clockedIn = StoreDateTime.ToStoreTimeFromUtc(session.ClockedInAtUtc);
-            var lateState = DateTime.UtcNow > session.ScheduledEndAtUtc.ToUniversalTime() ? " | Past scheduled end" : "";
-            return $"{session.ShiftName} | {start:h:mm tt}-{end:h:mm tt} | In {clockedIn:h:mm tt}{lateState} | ";
+            var lateState = DateTime.UtcNow > session.ScheduledEndAtUtc.ToUniversalTime() ? " | Overdue" : "";
+            return $"{session.ShiftName} | {start:h:mm tt}-{end:h:mm tt} | In {clockedIn:h:mm tt}{lateState}";
         }
     }
     public string ShiftElapsedDisplay
