@@ -21,13 +21,13 @@ public sealed class CustomerAccountsView : UserControl
         table.Bind(PagedTable.IsFilteredProperty, new Binding(nameof(CustomerAccountsViewModel.IsFiltered)));
         table.Bind(PagedTable.RetryCommandProperty, new Binding(nameof(CustomerAccountsViewModel.LoadCommand)));
         table.Bind(PagedTable.ClearFiltersCommandProperty, new Binding(nameof(CustomerAccountsViewModel.ClearFiltersCommand)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("ACCOUNT", item => item.AccountNumber, new GridLength(120)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("CUSTOMER", item => item.Name, new GridLength(230)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("CONTACT", item => item.ContactPerson ?? "-", new GridLength(180)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("PHONE", item => item.Phone ?? "-", new GridLength(130)));
-        var money = PagedTableColumn.Create<CustomerResponse, string>("BALANCE", item => item.OutstandingDisplay, new GridLength(130)); money.HorizontalAlignment = HorizontalAlignment.Right; table.Columns.Add(money);
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("LAST PAYMENT", item => item.LastPaymentDisplay, new GridLength(180)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("STATUS", item => item.Status, new GridLength(100)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("ACCOUNT", item => item.AccountNumber, Star(1)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("CUSTOMER", item => item.Name, Star(1.8)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("CONTACT", item => item.ContactPerson ?? "-", Star(1.4)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("PHONE", item => item.Phone ?? "-", Star(1.1)));
+        var money = PagedTableColumn.Create<CustomerResponse, string>("BALANCE", item => item.OutstandingDisplay, Star(1)); money.HorizontalAlignment = HorizontalAlignment.Right; table.Columns.Add(money);
+        var lastPayment = PagedTableColumn.Create<CustomerResponse, string>("LAST PAYMENT", item => item.LastPaymentDisplay, Star(1.8)); lastPayment.WrapText = true; table.Columns.Add(lastPayment);
+        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("STATUS", item => item.Status, Star(0.8)));
 
         var customerForm = FormCard("Create customer", new Grid
         {
@@ -66,8 +66,9 @@ public sealed class CustomerAccountsView : UserControl
         card.Classes.Add("theme-card"); card.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return card;
     }
     private static Control Field(string label, Control control, int column) { var panel = new StackPanel { Spacing = 4, Children = { new TextBlock { Text = label, FontSize = 11 }, control } }; Grid.SetColumn(panel, column); return panel; }
-    private static TextBox Text(string path, string placeholder) { var control = new TextBox { PlaceholderText = placeholder, MinHeight = 38 }; control.Bind(TextBox.TextProperty, new Binding(path) { Mode = BindingMode.TwoWay }); return control; }
+    private static TextBox Text(string path, string placeholder) { var control = new TextBox { PlaceholderText = placeholder, Classes = { "form-input" } }; control.Bind(TextBox.TextProperty, new Binding(path) { Mode = BindingMode.TwoWay }); return control; }
     private static Button Button(string text, string command, int column) { var button = new ActionButton(text, ActionButtonVariant.Primary) { VerticalAlignment = VerticalAlignment.Bottom }; button.Bind(Avalonia.Controls.Button.CommandProperty, new Binding(command)); Grid.SetColumn(button, column); return button; }
     private static Border Status() { var text = new TextBlock(); text.Bind(TextBlock.TextProperty, new Binding("StatusMessage")); var border = new Border { Padding = new Thickness(12, 8), Child = text }; border.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return border; }
+    private static GridLength Star(double value) => new(value, GridUnitType.Star);
     private static T At<T>(T value, int row) where T : Control { Grid.SetRow(value, row); return value; }
 }

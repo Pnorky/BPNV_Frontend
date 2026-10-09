@@ -45,7 +45,10 @@ public enum ApiPaymentMethod
 public enum ApiCustomerPaymentMethod
 {
     Cash,
-    GCash
+    GCash,
+    Check,
+    BankTransfer,
+    Card
 }
 
 public enum ApiEmployeeDebtPaymentMethod
@@ -246,18 +249,50 @@ public sealed record CustomerVehicleResponse(Guid Id, Guid CustomerId, string Pl
     public override string ToString() => string.IsNullOrWhiteSpace(Description) ? PlateOrUnitNumber : $"{PlateOrUnitNumber} · {Description}";
 }
 public sealed record SaveCustomerVehicleRequest(string PlateOrUnitNumber, string? Description, ulong? ExpectedVersion = null);
+public enum ApiCustomerAccountChargeStatus { Posted, Voided }
+public enum ApiCustomerStatementSourceType { PosCharge, ManualCharge }
+public sealed record CreateCustomerAccountChargeLineRequest(string Particular, decimal Quantity, string Unit, decimal UnitPrice);
+public sealed record CreateCustomerAccountChargeRequest(Guid IdempotencyKey, DateOnly ChargeDate,
+    string InvoiceReference, Guid? CustomerVehicleId, string? Note,
+    IReadOnlyList<CreateCustomerAccountChargeLineRequest> Lines);
+public sealed record VoidCustomerAccountChargeRequest(string Reason);
+public sealed record CustomerAccountChargeLineResponse(Guid Id, int LineNumber, string Particular,
+    decimal Quantity, string Unit, decimal UnitPrice, decimal LineTotal)
+{
+    public string QuantityDisplay => $"{Quantity:N3} {Unit}";
+    public string UnitPriceDisplay => $"₱{UnitPrice:N4}";
+    public string LineTotalDisplay => $"₱{LineTotal:N2}";
+}
+public sealed record CustomerAccountChargeResponse(Guid Id, string ChargeNumber, Guid CustomerId,
+    string CustomerAccountNumber, string CustomerName, Guid? CustomerVehicleId, string? PlateOrUnitNumber,
+    DateOnly ChargeDate, string InvoiceReference, string? Note, decimal Total,
+    ApiCustomerAccountChargeStatus Status, Guid CreatedByUserId, string CreatedByName, DateTime CreatedAtUtc,
+    Guid? VoidedByUserId, string? VoidedByName, DateTime? VoidedAtUtc, string? VoidReason,
+    IReadOnlyList<CustomerAccountChargeLineResponse> Lines, decimal AllocatedAmount, decimal OutstandingAmount,
+    bool CanVoid, bool IsIdempotentReplay = false)
+{
+    public string ChargeDateDisplay => StoreDateTime.FormatDateOnly(ChargeDate);
+    public string TotalDisplay => $"₱{Total:N2}";
+    public string StatusDisplay => Status.ToString();
+}
+public sealed record CustomerAccountChargePageResponse(IReadOnlyList<CustomerAccountChargeResponse> Items,
+    int Page, int PageSize, int TotalCount);
 public sealed record CreateCustomerPaymentRequest(Guid IdempotencyKey, decimal Amount,
-    ApiCustomerPaymentMethod PaymentMethod, string? ReferenceNumber, string? Note);
+    ApiCustomerPaymentMethod PaymentMethod, string? ReceiptNumber, string? ReferenceNumber, string? CheckBank,
+    string? CheckNumber, string? Note);
 public sealed record CustomerPaymentResponse(Guid Id, string PaymentNumber, Guid CustomerId, decimal Amount,
-    ApiCustomerPaymentMethod PaymentMethod, string? ReferenceNumber, string? Note, Guid RecordedByUserId,
+    ApiCustomerPaymentMethod PaymentMethod, string? ReceiptNumber, string? ReferenceNumber,
+    string? CheckBank, string? CheckNumber,
+    string? Note, Guid RecordedByUserId,
     string RecordedByName, Guid? CashierShiftId, DateTime PaidAtUtc, bool IsIdempotentReplay = false)
 {
     public string AmountDisplay => $"₱{Amount:N2}";
     public string PaidAtDisplay => StoreDateTime.FormatUtc(PaidAtUtc);
 }
-public sealed record CustomerStatementLineResponse(Guid SaleId, Guid SaleLineId, DateTime SoldAtUtc,
+public sealed record CustomerStatementLineResponse(ApiCustomerStatementSourceType SourceType, Guid SourceId, Guid LineId,
+    DateTime ChargedAtUtc,
     string Particular, string InvoiceOrReference, string? PlateOrUnitNumber, decimal Quantity,
-    decimal UnitPrice, decimal DiscountAmount, decimal NetAmount);
+    string Unit, decimal UnitPrice, decimal DiscountAmount, decimal NetAmount);
 public sealed record CustomerStatementResponse(CustomerResponse Customer, DateOnly FromDate, DateOnly ToDate,
     DateTime GeneratedAtUtc, decimal PreviousBalance, decimal TotalCurrentCharges,
     decimal TotalPeriodPayments, decimal TotalBalance, IReadOnlyList<CustomerStatementLineResponse> Charges,

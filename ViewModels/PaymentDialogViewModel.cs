@@ -28,22 +28,18 @@ public partial class PaymentDialogViewModel : ObservableObject
     public decimal Total { get; }
     public bool IsEmployeeSale { get; }
     public bool IsEmployeeOwed => SelectedPaymentMethod == ApiPaymentMethod.EmployeeOwed;
-    public bool IsCharge => SelectedPaymentMethod == ApiPaymentMethod.Charge;
     public bool IsCash => SelectedPaymentMethod == ApiPaymentMethod.Cash;
     public bool IsGCash => SelectedPaymentMethod == ApiPaymentMethod.GCash;
     public decimal Change => IsCash ? Math.Max(0m, (AmountTendered ?? 0m) - Total) : 0m;
-    public bool CanConfirm => IsCharge
-        ? !IsEmployeeSale && !string.IsNullOrWhiteSpace(Reference)
-        : IsEmployeeOwed
+    public bool CanConfirm => IsEmployeeOwed
         ? IsEmployeeSale && IsValidPin(EmployeePin)
         : IsCash
         ? AmountTendered is >= 0m && AmountTendered >= Total
         : IsGcashConfirmed;
     public string TotalDisplay => $"₱{Total:N2}";
     public string ChangeDisplay => $"₱{Change:N2}";
-    public string ValidationMessage => IsCharge
-        ? IsEmployeeSale ? "Employee purchases cannot be charged to a customer account."
-        : string.IsNullOrWhiteSpace(Reference) ? "Enter the invoice or reference number." : ""
+    public string ValidationMessage => SelectedPaymentMethod == ApiPaymentMethod.Charge
+        ? "Account charges must be recorded through Accounts Receivable."
         : IsEmployeeOwed
         ? !IsEmployeeSale ? "Only employee purchases can be recorded as owed."
         : IsValidPin(EmployeePin) ? "" : "The employee must enter their 4-digit PIN."
@@ -63,7 +59,7 @@ public partial class PaymentDialogViewModel : ObservableObject
             SelectedPaymentMethod,
             IsCash ? AmountTendered : null,
             Change,
-            IsGCash || IsCharge ? Reference.Trim() : null,
+            IsGCash ? Reference.Trim() : null,
             IsEmployeeOwed ? EmployeePin : null)
         : null;
 
@@ -77,7 +73,6 @@ public partial class PaymentDialogViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCash));
         OnPropertyChanged(nameof(IsGCash));
         OnPropertyChanged(nameof(IsEmployeeOwed));
-        OnPropertyChanged(nameof(IsCharge));
         OnPropertyChanged(nameof(Change));
         OnPropertyChanged(nameof(ChangeDisplay));
         OnPropertyChanged(nameof(CanConfirm));

@@ -67,13 +67,12 @@ public sealed class PaymentDialog : Window
         totalCard.BorderThickness = new Thickness(1);
         totalCard.CornerRadius = new CornerRadius(0);
 
-        var paymentMethod = new SegmentSwitch(isEmployeeSale ? ["Cash", "GCash", "Owed"] : ["Cash", "GCash", "Charge"], 0, selectedIndex =>
+        var paymentMethod = new SegmentSwitch(isEmployeeSale ? ["Cash", "GCash", "Owed"] : ["Cash", "GCash"], 0, selectedIndex =>
         {
             if (DataContext is PaymentDialogViewModel viewModel)
                 viewModel.SelectedPaymentMethod = selectedIndex == 0
                     ? ApiPaymentMethod.Cash
-                    : selectedIndex == 1 ? ApiPaymentMethod.GCash
-                    : isEmployeeSale ? ApiPaymentMethod.EmployeeOwed : ApiPaymentMethod.Charge;
+                    : selectedIndex == 1 ? ApiPaymentMethod.GCash : ApiPaymentMethod.EmployeeOwed;
         });
 
         var amountTendered = new AmountInput
@@ -139,17 +138,6 @@ public sealed class PaymentDialog : Window
         gcashPanel.CornerRadius = new CornerRadius(0);
         gcashPanel.Bind(Visual.IsVisibleProperty, new Binding(nameof(PaymentDialogViewModel.IsGCash)));
 
-        var chargeReference = new TextBox { PlaceholderText = "Invoice or reference number", MinHeight = 42, MaxLength = 100 };
-        chargeReference.Bind(TextBox.TextProperty, new Binding(nameof(PaymentDialogViewModel.Reference)) { Mode = BindingMode.TwoWay });
-        var chargePanel = new Border
-        {
-            Padding = new Thickness(14),
-            Child = new StackPanel { Spacing = 8, Children = { Label("Invoice / Reference No."), chargeReference,
-                new TextBlock { Text = "The full sale total will be added to the selected customer account.", FontSize = 11, TextWrapping = TextWrapping.Wrap } } }
-        };
-        chargePanel.BindResource(Border.BackgroundProperty, "Card");
-        chargePanel.Bind(Visual.IsVisibleProperty, new Binding(nameof(PaymentDialogViewModel.IsCharge)));
-
         var employeePin = new TextBox
         {
             PlaceholderText = "Employee enters 4-digit PIN",
@@ -191,7 +179,6 @@ public sealed class PaymentDialog : Window
                 paymentMethod,
                 cashPanel,
                 gcashPanel,
-                chargePanel,
                 owedPanel,
                 validation
             }

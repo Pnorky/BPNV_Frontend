@@ -124,13 +124,13 @@ public sealed class PaymentDialogViewModelTests
     }
 
     [TestMethod]
-    public void ChargeRequiresAndTrimsInvoiceReference()
+    public void PosChargeIsRejected()
     {
         var viewModel = new PaymentDialogViewModel(125.50m) { SelectedPaymentMethod = ApiPaymentMethod.Charge };
         Assert.IsFalse(viewModel.CanConfirm);
         viewModel.Reference = " INV-100 ";
-        Assert.IsTrue(viewModel.CanConfirm);
-        Assert.AreEqual("INV-100", viewModel.CreateResult()!.Reference);
+        Assert.IsFalse(viewModel.CanConfirm);
+        Assert.IsNull(viewModel.CreateResult());
     }
 
     [TestMethod]

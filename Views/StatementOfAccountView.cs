@@ -14,24 +14,31 @@ public sealed class StatementOfAccountView : UserControl
     {
         var customer = new SearchableSelect { PlaceholderText = "Select customer", SearchTextSelector = item => (item as CustomerResponse)?.SearchText ?? "" };
         customer.Bind(SearchableSelect.ItemsSourceProperty, new Binding("Customers")); customer.Bind(SearchableSelect.SelectedItemProperty, new Binding("SelectedCustomer") { Mode = BindingMode.TwoWay });
-        var from = new DatePicker(); from.Bind(DatePicker.SelectedDateProperty, new Binding("FromDate") { Mode = BindingMode.TwoWay });
-        var to = new DatePicker(); to.Bind(DatePicker.SelectedDateProperty, new Binding("ToDate") { Mode = BindingMode.TwoWay });
+        var period = new DateRangePicker
+        {
+            PlaceholderText = "Select statement period",
+            MinWidth = 380,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        period.Bind(DateRangePicker.StartDateProperty, new Binding("FromDate") { Mode = BindingMode.TwoWay });
+        period.Bind(DateRangePicker.EndDateProperty, new Binding("ToDate") { Mode = BindingMode.TwoWay });
         var preview = new ActionButton("Preview SOA", ActionButtonVariant.Primary); preview.Bind(Button.CommandProperty, new Binding("PreviewCommand"));
         var export = new ActionButton("Export PDF", ActionButtonVariant.Secondary); export.Bind(Button.CommandProperty, new Binding("ExportPdfCommand")); export.Bind(IsEnabledProperty, new Binding("HasStatement"));
-        var filters = Card(new Grid { ColumnDefinitions = new ColumnDefinitions("2*,*,*,Auto,Auto"), ColumnSpacing = 10, Children =
+        var filters = Card(new Grid { ColumnDefinitions = new ColumnDefinitions("2*,1.6*,Auto,Auto"), ColumnSpacing = 12, Children =
         {
-            Field("Customer", customer, 0), Field("From", from, 1), Field("To", to, 2), At(preview, 3), At(export, 4)
+            Field("Customer", customer, 0), Field("Statement period", period, 1), At(preview, 2), At(export, 3)
         } });
 
         var table = new PagedTable { ItemName = "charge line", ItemNamePlural = "charge lines", PageSize = 10, MinTableWidth = 1050 };
         table.Bind(PagedTable.ItemsSourceProperty, new Binding("Statement.Charges"));
-        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("DATE", item => StoreDateTime.ToStoreTimeFromUtc(item.SoldAtUtc).ToString("MM/dd/yyyy"), new GridLength(130)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("PARTICULAR", item => item.Particular, new GridLength(220)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("INVOICE / REF", item => item.InvoiceOrReference, new GridLength(160)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("PLATE / UNIT", item => item.PlateOrUnitNumber ?? "-", new GridLength(140)));
-        table.Columns.Add(Money("QTY / LITERS", item => item.Quantity.ToString("N2")));
-        table.Columns.Add(Money("UNIT PRICE", item => item.UnitPrice.ToString("N2")));
-        table.Columns.Add(Money("NET AMOUNT", item => $"₱{item.NetAmount:N2}"));
+        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("DATE", item => StoreDateTime.ToStoreTimeFromUtc(item.ChargedAtUtc).ToString("MMMM d, yyyy"), Star(1.4)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("PARTICULAR", item => item.Particular, Star(1.8)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("INVOICE / REF", item => item.InvoiceOrReference, Star(1.4)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("PLATE / UNIT", item => item.PlateOrUnitNumber ?? "-", Star(1.3)));
+        table.Columns.Add(Money("QUANTITY", item => item.Quantity.ToString("N3"), 1));
+        table.Columns.Add(PagedTableColumn.Create<CustomerStatementLineResponse, string>("UNIT", item => item.Unit, Star(0.7)));
+        table.Columns.Add(Money("UNIT PRICE", item => item.UnitPrice.ToString("N2"), 1));
+        table.Columns.Add(Money("NET AMOUNT", item => $"₱{item.NetAmount:N2}", 1.2));
         var tableCard = Card(table); Grid.SetRow(tableCard, 3);
         var status = new TextBlock(); status.Bind(TextBlock.TextProperty, new Binding("StatusMessage")); Grid.SetRow(status, 1);
         var metrics = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*,*"), ColumnSpacing = 10,
@@ -42,5 +49,6 @@ public sealed class StatementOfAccountView : UserControl
     private static Control Field(string label, Control control, int column) { var panel = new StackPanel { Spacing = 4, Children = { new TextBlock { Text = label, FontSize = 11 }, control } }; Grid.SetColumn(panel, column); return panel; }
     private static T At<T>(T control, int column) where T : Control { control.VerticalAlignment = VerticalAlignment.Bottom; Grid.SetColumn(control, column); return control; }
     private static Border Metric(string label, string path, int column) { var value = new TextBlock { FontSize = 19, FontWeight = Avalonia.Media.FontWeight.Bold }; value.Bind(TextBlock.TextProperty, new Binding(path)); var card = Card(new StackPanel { Spacing = 3, Children = { new TextBlock { Text = label, FontSize = 10 }, value } }); Grid.SetColumn(card, column); return card; }
-    private static PagedTableColumn Money(string header, Func<CustomerStatementLineResponse, string> selector) { var column = PagedTableColumn.Create(header, selector, new GridLength(120)); column.HorizontalAlignment = HorizontalAlignment.Right; return column; }
+    private static PagedTableColumn Money(string header, Func<CustomerStatementLineResponse, string> selector, double width) { var column = PagedTableColumn.Create(header, selector, Star(width)); column.HorizontalAlignment = HorizontalAlignment.Right; return column; }
+    private static GridLength Star(double value) => new(value, GridUnitType.Star);
 }

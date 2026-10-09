@@ -10,6 +10,36 @@ namespace AvaloniaApp.Tests;
 public sealed class StoreApiClientTests
 {
     [TestMethod]
+    public async Task CustomerAccountChargeUsesNestedEndpointAndPreservesOrderedManualLines()
+    {
+        Uri? requestedUri = null;
+        string? body = null;
+        var customerId = Guid.NewGuid();
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            requestedUri = request.RequestUri;
+            body = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            var line = new CustomerAccountChargeLineResponse(Guid.NewGuid(), 1, "Diesel", 1000, "L", 10, 10000);
+            return Json(new CustomerAccountChargeResponse(Guid.NewGuid(), "CCHG-000001", customerId, "ACCT-1",
+                "Maria Santos", null, null, new DateOnly(2026, 10, 10), "INV-1001", null, 10000,
+                ApiCustomerAccountChargeStatus.Posted, Guid.NewGuid(), "Admin", DateTime.UtcNow, null, null, null,
+                null, [line], 0, 10000, true));
+        });
+        await auth.LoginAsync("admin", "password");
+
+        var response = await new StoreApiClient(auth).CreateCustomerAccountChargeAsync(customerId,
+            new(Guid.NewGuid(), new DateOnly(2026, 10, 10), "INV-1001", null, null,
+                [new("Diesel", 1000, "L", 10), new("Lubricant", 6, "Can", 500)]));
+
+        Assert.AreEqual("CCHG-000001", response.ChargeNumber);
+        StringAssert.EndsWith(requestedUri!.AbsolutePath, $"/api/customers/{customerId}/account-charges");
+        StringAssert.Contains(body!, "\"particular\":\"Diesel\"");
+        StringAssert.Contains(body!, "\"particular\":\"Lubricant\"");
+        Assert.IsTrue(body!.IndexOf("Diesel", StringComparison.Ordinal) < body.IndexOf("Lubricant", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task SaleRetryCreatesFreshJsonRequestAndSerializesEnumAsString()
     {
         var saleCalls = 0;

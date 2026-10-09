@@ -12,28 +12,60 @@ public partial class CustomerPaymentViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<CustomerResponse> _customers = [];
     [ObservableProperty] private CustomerResponse? _selectedCustomer;
     [ObservableProperty] private decimal? _amount;
-    [ObservableProperty] private ApiCustomerPaymentMethod _selectedPaymentMethod = ApiCustomerPaymentMethod.Cash;
+    [ObservableProperty] private ApiCustomerPaymentMethod _selectedPaymentMethod;
+    [ObservableProperty] private string _receiptNumber = "";
     [ObservableProperty] private string _referenceNumber = "";
+    [ObservableProperty] private string _checkBank = "";
+    [ObservableProperty] private string _checkNumber = "";
     [ObservableProperty] private string _note = "";
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _statusMessage = "Select a customer and enter the payment details.";
 
-    public IReadOnlyList<ApiCustomerPaymentMethod> PaymentMethods { get; } = Enum.GetValues<ApiCustomerPaymentMethod>();
+    public IReadOnlyList<ApiCustomerPaymentMethod> PaymentMethods { get; }
+    public bool IsCashierCollection { get; }
     public string OutstandingDisplay => SelectedCustomer is null ? "₱0.00" : SelectedCustomer.OutstandingDisplay;
+    public string PaymentAmountDisplay => $"₱{Amount.GetValueOrDefault():N2}";
+    public string RemainingBalanceDisplay => $"₱{Math.Max(0, SelectedCustomer?.OutstandingBalance - Amount.GetValueOrDefault() ?? 0):N2}";
+    public string CashAvailabilityMessage => IsCashierCollection
+        ? "Cash requires an issued receipt number and an open cashier shift."
+        : "Admin cash collections require an issued receipt number and are not included in cashier shifts.";
+    public bool IsCash => SelectedPaymentMethod == ApiCustomerPaymentMethod.Cash;
+    public bool RequiresReference => SelectedPaymentMethod is ApiCustomerPaymentMethod.GCash or
+        ApiCustomerPaymentMethod.BankTransfer or ApiCustomerPaymentMethod.Card;
+    public bool IsCheck => SelectedPaymentMethod == ApiCustomerPaymentMethod.Check;
     public bool CanSubmit => !IsBusy && SelectedCustomer is { OutstandingBalance: > 0 } && Amount is > 0 &&
-        Amount <= SelectedCustomer.OutstandingBalance && (SelectedPaymentMethod != ApiCustomerPaymentMethod.GCash || !string.IsNullOrWhiteSpace(ReferenceNumber));
+        Amount <= SelectedCustomer.OutstandingBalance &&
+        (!IsCash || !string.IsNullOrWhiteSpace(ReceiptNumber)) &&
+        (!RequiresReference || !string.IsNullOrWhiteSpace(ReferenceNumber)) &&
+        (!IsCheck || !string.IsNullOrWhiteSpace(CheckBank) && !string.IsNullOrWhiteSpace(CheckNumber));
 
-    public CustomerPaymentViewModel(StoreApiClient api, INotificationService notifications)
+    public CustomerPaymentViewModel(StoreApiClient api, INotificationService notifications, bool isCashier)
     {
         _api = api;
         _notifications = notifications;
+        IsCashierCollection = isCashier;
+        PaymentMethods = Enum.GetValues<ApiCustomerPaymentMethod>();
+        _selectedPaymentMethod = PaymentMethods[0];
         _ = LoadAsync();
     }
 
     partial void OnSelectedCustomerChanged(CustomerResponse? value) => NotifyState();
     partial void OnAmountChanged(decimal? value) => NotifyState();
-    partial void OnSelectedPaymentMethodChanged(ApiCustomerPaymentMethod value) => NotifyState();
+    partial void OnSelectedPaymentMethodChanged(ApiCustomerPaymentMethod value)
+    {
+        ReceiptNumber = "";
+        ReferenceNumber = "";
+        CheckBank = "";
+        CheckNumber = "";
+        OnPropertyChanged(nameof(IsCash));
+        OnPropertyChanged(nameof(RequiresReference));
+        OnPropertyChanged(nameof(IsCheck));
+        NotifyState();
+    }
+    partial void OnReceiptNumberChanged(string value) => NotifyState();
     partial void OnReferenceNumberChanged(string value) => NotifyState();
+    partial void OnCheckBankChanged(string value) => NotifyState();
+    partial void OnCheckNumberChanged(string value) => NotifyState();
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(CanSubmit));
 
     [RelayCommand]
@@ -62,11 +94,11 @@ public partial class CustomerPaymentViewModel : ObservableObject
         try
         {
             var payment = await _api.CreateCustomerPaymentAsync(SelectedCustomer.Id, new(_idempotencyKey, Amount.Value,
-                SelectedPaymentMethod, Null(ReferenceNumber), Null(Note)));
+                SelectedPaymentMethod, Null(ReceiptNumber), Null(ReferenceNumber), Null(CheckBank), Null(CheckNumber), Null(Note)));
             _idempotencyKey = Guid.NewGuid();
             StatusMessage = $"Recorded {payment.PaymentNumber} for {payment.AmountDisplay}.";
             _notifications.ShowSuccess("Customer payment recorded", StatusMessage);
-            Amount = null; ReferenceNumber = Note = "";
+            Amount = null; ReceiptNumber = ReferenceNumber = CheckBank = CheckNumber = Note = "";
             IsBusy = false;
             await LoadAsync();
             SelectedCustomer = Customers.FirstOrDefault(customer => customer.Id == payment.CustomerId);
@@ -82,6 +114,8 @@ public partial class CustomerPaymentViewModel : ObservableObject
     private void NotifyState()
     {
         OnPropertyChanged(nameof(OutstandingDisplay));
+        OnPropertyChanged(nameof(PaymentAmountDisplay));
+        OnPropertyChanged(nameof(RemainingBalanceDisplay));
         OnPropertyChanged(nameof(CanSubmit));
         SubmitCommand.NotifyCanExecuteChanged();
     }

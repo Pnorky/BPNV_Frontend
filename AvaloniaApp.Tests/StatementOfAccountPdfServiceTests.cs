@@ -14,8 +14,10 @@ public sealed class StatementOfAccountPdfServiceTests
             null, null, true, 1, 1250, null);
         var statement = new CustomerStatementResponse(customer, new DateOnly(2026, 1, 1), new DateOnly(2026, 3, 1),
             DateTime.UtcNow, 1000, 500, 250, 1250,
-            [new(Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow, "DIESEL", "001937", "TJN 800", 10, 50, 0, 500)],
-            [new(Guid.NewGuid(), "CPAY-000001", customerId, 250, ApiCustomerPaymentMethod.Cash, null, null,
+            [new(ApiCustomerStatementSourceType.ManualCharge, Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow,
+                "DIESEL", "001937", "TJN 800", 10, "L", 50, 0, 500)],
+            [new(Guid.NewGuid(), "CPAY-000001", customerId, 250, ApiCustomerPaymentMethod.Check, null, null,
+                "BDO", "CHK-1001", null,
                 Guid.NewGuid(), "Cashier", Guid.NewGuid(), DateTime.UtcNow)]);
         using var output = new MemoryStream();
 

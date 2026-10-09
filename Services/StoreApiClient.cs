@@ -147,6 +147,30 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task<CustomerVehicleResponse> CreateCustomerVehicleAsync(Guid customerId, SaveCustomerVehicleRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<CustomerVehicleResponse, SaveCustomerVehicleRequest>(HttpMethod.Post, $"api/customers/{customerId}/vehicles", request, cancellationToken);
 
+    public Task<CustomerAccountChargePageResponse> GetCustomerAccountChargesAsync(Guid? customerId = null,
+        DateOnly? fromDate = null, DateOnly? toDate = null, ApiCustomerAccountChargeStatus? status = null,
+        string? search = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default) =>
+        SendAsync<CustomerAccountChargePageResponse>(() => new HttpRequestMessage(HttpMethod.Get,
+            WithQuery("api/customer-account-charges", ("customerId", customerId?.ToString()),
+                ("fromDate", Date(fromDate)), ("toDate", Date(toDate)), ("status", status?.ToString()),
+                ("search", search), ("page", page.ToString(CultureInfo.InvariantCulture)),
+                ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+
+    public Task<CustomerAccountChargeResponse> GetCustomerAccountChargeAsync(Guid chargeId,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<CustomerAccountChargeResponse>(() => new HttpRequestMessage(HttpMethod.Get,
+            $"api/customer-account-charges/{chargeId}"), cancellationToken);
+
+    public Task<CustomerAccountChargeResponse> CreateCustomerAccountChargeAsync(Guid customerId,
+        CreateCustomerAccountChargeRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CustomerAccountChargeResponse, CreateCustomerAccountChargeRequest>(HttpMethod.Post,
+            $"api/customers/{customerId}/account-charges", request, cancellationToken);
+
+    public Task<CustomerAccountChargeResponse> VoidCustomerAccountChargeAsync(Guid chargeId,
+        VoidCustomerAccountChargeRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CustomerAccountChargeResponse, VoidCustomerAccountChargeRequest>(HttpMethod.Post,
+            $"api/customer-account-charges/{chargeId}/void", request, cancellationToken);
+
     public Task<IReadOnlyList<CustomerPaymentResponse>> GetCustomerPaymentsAsync(Guid customerId, CancellationToken cancellationToken = default) =>
         SendAsync<IReadOnlyList<CustomerPaymentResponse>>(() => new HttpRequestMessage(HttpMethod.Get, $"api/customers/{customerId}/payments"), cancellationToken);
 

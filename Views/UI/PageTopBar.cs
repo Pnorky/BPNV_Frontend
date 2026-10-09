@@ -205,18 +205,6 @@ public sealed class PageTopBar : UserControl
                 Bind(employee, SearchableSelect.SelectedItemProperty, "SelectedEmployee");
                 Bind(employee, Visual.IsVisibleProperty, "IsEmployeeSale");
                 yield return employee;
-                var customer = new SearchableSelect { PlaceholderText = "Charge customer (optional)", Width = 280 };
-                customer.SearchTextSelector = item => item is CustomerResponse value ? value.SearchText : item?.ToString() ?? "";
-                Bind(customer, SearchableSelect.ItemsSourceProperty, "Customers");
-                Bind(customer, SearchableSelect.SelectedItemProperty, "SelectedCustomer");
-                Bind(customer, Visual.IsVisibleProperty, "IsRegularSale");
-                yield return customer;
-                var vehicle = new SearchableSelect { PlaceholderText = "Plate / unit (optional)", Width = 220 };
-                vehicle.SearchTextSelector = item => item is CustomerVehicleResponse value ? value.SearchText : item?.ToString() ?? "";
-                Bind(vehicle, SearchableSelect.ItemsSourceProperty, "CustomerVehicles");
-                Bind(vehicle, SearchableSelect.SelectedItemProperty, "SelectedCustomerVehicle");
-                Bind(vehicle, Visual.IsVisibleProperty, "IsRegularSale");
-                yield return vehicle;
                 break;
             case CashierSalesViewModel:
                 var salesRange = new SearchableSelect { PlaceholderText = "Sales range", Width = 150 };

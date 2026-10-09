@@ -51,7 +51,7 @@ public static class StatementOfAccountPdfService
 
     private static void Header(IContainer container, CustomerStatementResponse statement) => container.Row(row =>
     {
-        row.ConstantItem(82).Height(88).Image(Logo.Value).FitArea();
+        row.ConstantItem(105).Height(105).Image(Logo.Value).FitArea();
         row.RelativeItem().PaddingLeft(10).PaddingTop(10).Column(column =>
         {
             column.Item().Text("Bayombong Petro-NV Fuel Station").Bold().FontSize(16);
@@ -65,28 +65,31 @@ public static class StatementOfAccountPdfService
         table.ColumnsDefinition(columns =>
         {
             columns.ConstantColumn(58); columns.RelativeColumn(2.2f); columns.ConstantColumn(70);
-            columns.ConstantColumn(65); columns.ConstantColumn(55); columns.ConstantColumn(57);
+            columns.ConstantColumn(65); columns.ConstantColumn(48); columns.ConstantColumn(32); columns.ConstantColumn(55);
             columns.ConstantColumn(55); columns.ConstantColumn(65);
         });
         table.Header(header =>
         {
             HeaderCell(header.Cell(), "Date"); HeaderCell(header.Cell(), "Particular");
             HeaderCell(header.Cell(), "Invoice/Ref No"); HeaderCell(header.Cell(), "Plate No.");
-            HeaderCell(header.Cell(), "Qty/Liters"); HeaderCell(header.Cell(), "Unit Price");
+            HeaderCell(header.Cell(), "Qty"); HeaderCell(header.Cell(), "Unit"); HeaderCell(header.Cell(), "Unit Price");
             HeaderCell(header.Cell(), "Disc Amt"); HeaderCell(header.Cell(), "Net Amount");
         });
         if (charges.Count == 0)
         {
-            table.Cell().ColumnSpan(8).BorderBottom(0.5f).Padding(7).AlignCenter().Text("No current charges for the selected period.").Italic();
+            table.Cell().ColumnSpan(9).BorderBottom(0.5f).Padding(7).AlignCenter().Text("No current charges for the selected period.").Italic();
             return;
         }
         foreach (var line in charges)
         {
-            Cell(table.Cell(), StoreDateTime.ToStoreTimeFromUtc(line.SoldAtUtc).ToString("MM/dd/yyyy"));
-            Cell(table.Cell(), line.Particular, false); Cell(table.Cell(), line.InvoiceOrReference);
-            Cell(table.Cell(), line.PlateOrUnitNumber ?? "-"); Cell(table.Cell(), line.Quantity.ToString("N2"), true);
-            Cell(table.Cell(), line.UnitPrice.ToString("N2"), true); Cell(table.Cell(), line.DiscountAmount.ToString("N2"), true);
-            Cell(table.Cell(), line.NetAmount.ToString("N2"), true);
+            Cell(table.Cell(), StoreDateTime.ToStoreTimeFromUtc(line.ChargedAtUtc).ToString("MM/dd/yyyy"), CellAlignment.Center);
+            Cell(table.Cell(), line.Particular); Cell(table.Cell(), line.InvoiceOrReference, CellAlignment.Center);
+            Cell(table.Cell(), line.PlateOrUnitNumber ?? "-", CellAlignment.Center);
+            Cell(table.Cell(), line.Quantity.ToString("N3"), CellAlignment.Right);
+            Cell(table.Cell(), line.Unit, CellAlignment.Center);
+            Cell(table.Cell(), line.UnitPrice.ToString("N2"), CellAlignment.Right);
+            Cell(table.Cell(), line.DiscountAmount.ToString("N2"), CellAlignment.Right);
+            Cell(table.Cell(), line.NetAmount.ToString("N2"), CellAlignment.Right);
         }
     });
 
@@ -107,18 +110,31 @@ public static class StatementOfAccountPdfService
             table.Header(header =>
             {
                 HeaderCell(header.Cell(), "Date"); HeaderCell(header.Cell(), "Payment No."); HeaderCell(header.Cell(), "Method");
-                HeaderCell(header.Cell(), "Reference"); HeaderCell(header.Cell(), "Amount");
+                HeaderCell(header.Cell(), "Receipt / Reference"); HeaderCell(header.Cell(), "Amount");
             });
             if (payments.Count == 0)
                 table.Cell().ColumnSpan(5).BorderBottom(0.5f).Padding(6).AlignCenter().Text("No payments recorded for the selected period.").Italic();
             foreach (var payment in payments)
             {
-                Cell(table.Cell(), StoreDateTime.ToStoreTimeFromUtc(payment.PaidAtUtc).ToString("MM/dd/yyyy"));
-                Cell(table.Cell(), payment.PaymentNumber); Cell(table.Cell(), payment.PaymentMethod.ToString());
-                Cell(table.Cell(), payment.ReferenceNumber ?? "-", false); Cell(table.Cell(), payment.Amount.ToString("N2"), true);
+                Cell(table.Cell(), StoreDateTime.ToStoreTimeFromUtc(payment.PaidAtUtc).ToString("MM/dd/yyyy"), CellAlignment.Center);
+                Cell(table.Cell(), payment.PaymentNumber, CellAlignment.Center);
+                Cell(table.Cell(), PaymentMethodDisplay(payment.PaymentMethod), CellAlignment.Center);
+                Cell(table.Cell(), PaymentDetails(payment));
+                Cell(table.Cell(), payment.Amount.ToString("N2"), CellAlignment.Right);
             }
         });
     });
+
+    private static string PaymentMethodDisplay(ApiCustomerPaymentMethod value) => value == ApiCustomerPaymentMethod.BankTransfer
+        ? "Bank Transfer"
+        : value.ToString();
+
+    private static string PaymentDetails(CustomerPaymentResponse payment) => payment.PaymentMethod switch
+    {
+        ApiCustomerPaymentMethod.Cash => payment.ReceiptNumber ?? "-",
+        ApiCustomerPaymentMethod.Check => $"{payment.CheckBank} / Check {payment.CheckNumber}",
+        _ => payment.ReferenceNumber ?? "-"
+    };
 
     private static void Signatures(IContainer container) => container.Column(column =>
     {
@@ -145,10 +161,14 @@ public static class StatementOfAccountPdfService
         else { left.SemiBold(); right.SemiBold(); }
     });
 
-    private static void HeaderCell(IContainer container, string text) => container.Border(0.6f).Padding(3).AlignCenter().Text(text).SemiBold().FontSize(8);
-    private static void Cell(IContainer container, string text, bool right = false)
+    private static void HeaderCell(IContainer container, string text) => container.Border(0.6f).MinHeight(18).PaddingHorizontal(3).AlignMiddle().AlignCenter().Text(text).SemiBold().FontSize(8);
+    private static void Cell(IContainer container, string text, CellAlignment alignment = CellAlignment.Left)
     {
-        var cell = container.BorderBottom(0.5f).PaddingVertical(3).PaddingHorizontal(2);
-        if (right) cell.AlignRight().Text(text).FontSize(8); else cell.Text(text).FontSize(8);
+        var cell = container.BorderBottom(0.5f).MinHeight(18).PaddingHorizontal(3).AlignMiddle();
+        if (alignment == CellAlignment.Right) cell.AlignRight().Text(text).FontSize(8);
+        else if (alignment == CellAlignment.Center) cell.AlignCenter().Text(text).FontSize(8);
+        else cell.Text(text).FontSize(8);
     }
+
+    private enum CellAlignment { Left, Center, Right }
 }

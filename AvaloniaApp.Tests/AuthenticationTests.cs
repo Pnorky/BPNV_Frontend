@@ -104,9 +104,9 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
-    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,EmployeeBalances,CustomerAccounts,StatementOfAccount,CustomerPayment,Reports")]
-    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,CustomerAccounts,StatementOfAccount,Reports,Employees,Categories")]
-    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,CustomerAccounts,StatementOfAccount,Reports,CashierShiftManagement,CashierOperations,AdminNotifications,Employees,Categories,Users")]
+    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,CustomerAccounts,StatementOfAccount,CustomerPayment,EmployeeBalances,Reports")]
+    [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,CustomerAccounts,StatementOfAccount,EmployeeBalances,Reports,Employees,Categories")]
+    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,CustomerAccounts,CustomerAccountCharges,StatementOfAccount,CustomerPayment,EmployeeBalances,Reports,AdminNotifications,CashierShiftManagement,CashierOperations,Employees,Categories,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));
@@ -132,8 +132,14 @@ public sealed class AuthenticationTests
             if (item.Tag == "Employees") Assert.IsInstanceOfType<EmployeesViewModel>(viewModel.CurrentPage);
             if (item.Tag == "EmployeeBalances") Assert.IsInstanceOfType<EmployeeBalancesViewModel>(viewModel.CurrentPage);
             if (item.Tag == "CustomerAccounts") Assert.IsInstanceOfType<CustomerAccountsViewModel>(viewModel.CurrentPage);
+            if (item.Tag == "CustomerAccountCharges") Assert.IsInstanceOfType<CustomerAccountChargesViewModel>(viewModel.CurrentPage);
             if (item.Tag == "StatementOfAccount") Assert.IsInstanceOfType<StatementOfAccountViewModel>(viewModel.CurrentPage);
-            if (item.Tag == "CustomerPayment") Assert.IsInstanceOfType<CustomerPaymentViewModel>(viewModel.CurrentPage);
+            if (item.Tag == "CustomerPayment")
+            {
+                var payment = Assert.IsInstanceOfType<CustomerPaymentViewModel>(viewModel.CurrentPage);
+                if (role is "Admin" or "Cashier") CollectionAssert.AreEqual(
+                    Enum.GetValues<ApiCustomerPaymentMethod>(), payment.PaymentMethods.ToArray());
+            }
             if (item.Tag == "Categories") Assert.IsInstanceOfType<CategoriesViewModel>(viewModel.CurrentPage);
         }
     }
@@ -151,7 +157,7 @@ public sealed class AuthenticationTests
 
         Assert.IsTrue(inventoryViewModel.SidebarCollapsed);
         CollectionAssert.AreEqual(
-            new[] { "Dashboard", "InventoryProducts", "EmployeeBalances", "CustomerAccounts", "StatementOfAccount", "Reports", "Employees", "Categories" },
+            new[] { "Dashboard", "InventoryProducts", "CustomerAccounts", "StatementOfAccount", "EmployeeBalances", "Reports", "Employees", "Categories" },
             inventoryViewModel.NavItems.Select(item => item.Tag).ToArray());
         inventoryViewModel.OpenInventorySection("InventoryDeliveryHistory");
 
