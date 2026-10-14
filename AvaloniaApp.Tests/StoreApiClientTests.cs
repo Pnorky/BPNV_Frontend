@@ -10,6 +10,52 @@ namespace AvaloniaApp.Tests;
 public sealed class StoreApiClientTests
 {
     [TestMethod]
+    public async Task FuelPricingUsesAdminCrudAndAppendOnlyPriceEndpoints()
+    {
+        var categoryId = Guid.NewGuid();
+        var fuelId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var requests = new List<(HttpMethod Method, string Path, string? Body)>();
+        var category = new FuelCategoryResponse(categoryId, "Diesel", 1, true, Guid.NewGuid(), now, Guid.NewGuid(), now);
+        var fuel = new FuelProductResponse(fuelId, categoryId, "Diesel", "Turbo Diesel", 1, true,
+            58.75m, now, Guid.NewGuid(), now, Guid.NewGuid(), now);
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            var body = request.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+            requests.Add((request.Method, request.RequestUri.AbsolutePath, body));
+            if (request.RequestUri.AbsolutePath.EndsWith("/prices") && request.Method == HttpMethod.Get)
+                return Json(new FuelPricePageResponse([
+                    new FuelPriceResponse(Guid.NewGuid(), fuelId, 59.10m, now, Guid.NewGuid(), "Admin", now)
+                ], 1, 100, 1));
+            if (request.RequestUri.AbsolutePath.EndsWith("/prices")) return Json(fuel with { CurrentPrice = 59.10m });
+            if (request.RequestUri.AbsolutePath.EndsWith("/fuel-categories")) return Json(category);
+            return Json(fuel);
+        });
+        await auth.LoginAsync("admin", "password");
+        var client = new StoreApiClient(auth);
+
+        await client.CreateFuelCategoryAsync(new("Diesel", 1));
+        await client.CreateFuelAsync(new(categoryId, "Turbo Diesel", 1, 58.75m));
+        var changed = await client.ChangeFuelPriceAsync(fuelId, new(59.10m));
+        var history = await client.GetFuelPriceHistoryAsync(fuelId);
+
+        Assert.AreEqual(59.10m, changed.CurrentPrice);
+        Assert.AreEqual(59.10m, history.Items.Single().PricePerLiter);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                (HttpMethod.Post, "/api/fuel-categories"),
+                (HttpMethod.Post, "/api/fuels"),
+                (HttpMethod.Post, $"/api/fuels/{fuelId}/prices"),
+                (HttpMethod.Get, $"/api/fuels/{fuelId}/prices")
+            },
+            requests.Select(request => (request.Method, request.Path)).ToArray());
+        StringAssert.Contains(requests[1].Body!, "\"initialPrice\":58.75");
+        StringAssert.Contains(requests[2].Body!, "\"pricePerLiter\":59.10");
+    }
+
+    [TestMethod]
     public async Task CustomerAccountChargeUsesNestedEndpointAndPreservesOrderedManualLines()
     {
         Uri? requestedUri = null;

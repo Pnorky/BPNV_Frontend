@@ -168,6 +168,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             "AdminNotifications" => "Admin Notifications",
             "Employees" => "Employees",
             "Categories" => "Categories",
+            "FuelPrices" => "Fuel Prices",
             "Users" => "Users",
             _ => "Overview"
         };
@@ -196,6 +197,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
             "AdminNotifications" => CreateAdminNotificationsPage(),
             "Employees" => new EmployeesViewModel(_storeClient, _notifications),
             "Categories" => new CategoriesViewModel(_storeClient, _notifications),
+            "FuelPrices" => new FuelPricesViewModel(_storeClient, _notifications),
             "Users" => new UsersViewModel(_storeClient, _notifications),
             _ => new DashboardPageViewModel(_storeClient, _notifications, IsCashier)
         };
@@ -341,6 +343,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
         "EmployeeBalances" => _session.HasRole("Admin") || _session.HasRole("Inventory") || _session.HasRole("Cashier"),
         "CustomerAccounts" or "StatementOfAccount" => _session.HasRole("Admin") || _session.HasRole("Inventory") || _session.HasRole("Cashier"),
         "CustomerAccountCharges" => _session.HasRole("Admin"),
+        "FuelPrices" => _session.HasRole("Admin"),
         "CustomerPayment" => _session.HasRole("Admin") || _session.HasRole("Cashier"),
         "CashierShiftManagement" or "CashierOperations" or "AdminNotifications" => _session.HasRole("Admin"),
         "Users" => _session.HasRole("Admin"),

@@ -125,6 +125,7 @@ public class App : Application
         DataTemplates.Add(new FuncDataTemplate<AdminNotificationsViewModel>((_, _) => new AdminNotificationsView(), true));
         DataTemplates.Add(new FuncDataTemplate<InventoryViewModel>((_, _) => new InventoryView(), true));
         DataTemplates.Add(new FuncDataTemplate<CategoriesViewModel>((_, _) => new CategoriesView(), true));
+        DataTemplates.Add(new FuncDataTemplate<FuelPricesViewModel>((_, _) => new FuelPricesView(), true));
         DataTemplates.Add(new FuncDataTemplate<ProductCatalogViewModel>((_, _) => new ProductCatalogView(), true));
         DataTemplates.Add(new FuncDataTemplate<AddProductViewModel>((_, _) => new AddProductView(), true));
         DataTemplates.Add(new FuncDataTemplate<StockReceivingViewModel>((_, _) => new StockReceivingView(), true));

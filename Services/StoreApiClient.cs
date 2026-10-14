@@ -108,6 +108,57 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task ReactivateManagedCategoryAsync(Guid id, CancellationToken cancellationToken = default) =>
         SendWithoutResponseAsync(HttpMethod.Post, $"api/categories/{id}/reactivate", cancellationToken);
 
+    public Task<IReadOnlyList<FuelCategoryResponse>> GetFuelCategoriesAsync(
+        bool includeInactive = false, CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<FuelCategoryResponse>>(() => new HttpRequestMessage(HttpMethod.Get,
+            WithQuery("api/fuel-categories", ("includeInactive", includeInactive ? "true" : null))), cancellationToken);
+
+    public Task<FuelCategoryResponse> CreateFuelCategoryAsync(
+        CreateFuelCategoryRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<FuelCategoryResponse, CreateFuelCategoryRequest>(HttpMethod.Post, "api/fuel-categories", request, cancellationToken);
+
+    public Task<FuelCategoryResponse> UpdateFuelCategoryAsync(Guid id,
+        UpdateFuelCategoryRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<FuelCategoryResponse, UpdateFuelCategoryRequest>(HttpMethod.Put, $"api/fuel-categories/{id}", request, cancellationToken);
+
+    public Task DeactivateFuelCategoryAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Delete, $"api/fuel-categories/{id}", cancellationToken);
+
+    public Task ReactivateFuelCategoryAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/fuel-categories/{id}/reactivate", cancellationToken);
+
+    public Task<FuelProductPageResponse> GetFuelsAsync(string? search = null, Guid? categoryId = null,
+        bool includeInactive = false, int page = 1, int pageSize = 100, CancellationToken cancellationToken = default) =>
+        SendAsync<FuelProductPageResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/fuels",
+            ("search", search), ("categoryId", categoryId?.ToString()),
+            ("includeInactive", includeInactive ? "true" : null),
+            ("page", page.ToString(CultureInfo.InvariantCulture)),
+            ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+
+    public Task<FuelProductResponse> CreateFuelAsync(
+        CreateFuelProductRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<FuelProductResponse, CreateFuelProductRequest>(HttpMethod.Post, "api/fuels", request, cancellationToken);
+
+    public Task<FuelProductResponse> UpdateFuelAsync(Guid id,
+        UpdateFuelProductRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<FuelProductResponse, UpdateFuelProductRequest>(HttpMethod.Put, $"api/fuels/{id}", request, cancellationToken);
+
+    public Task DeactivateFuelAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Delete, $"api/fuels/{id}", cancellationToken);
+
+    public Task ReactivateFuelAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/fuels/{id}/reactivate", cancellationToken);
+
+    public Task<FuelPricePageResponse> GetFuelPriceHistoryAsync(Guid id, int page = 1, int pageSize = 100,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<FuelPricePageResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery($"api/fuels/{id}/prices",
+            ("page", page.ToString(CultureInfo.InvariantCulture)),
+            ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+
+    public Task<FuelProductResponse> ChangeFuelPriceAsync(Guid id,
+        ChangeFuelPriceRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<FuelProductResponse, ChangeFuelPriceRequest>(HttpMethod.Post, $"api/fuels/{id}/prices", request, cancellationToken);
+
     public Task<EmployeeBalancePageResponse> GetEmployeeBalancesAsync(
         string? search = null, bool includeInactive = true, string sortBy = "employeeName",
         bool sortDescending = false, int page = 1, int pageSize = 100,

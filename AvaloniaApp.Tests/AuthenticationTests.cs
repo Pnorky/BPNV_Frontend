@@ -106,7 +106,7 @@ public sealed class AuthenticationTests
     [TestMethod]
     [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,CustomerAccounts,StatementOfAccount,CustomerPayment,EmployeeBalances,Reports")]
     [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,CustomerAccounts,StatementOfAccount,EmployeeBalances,Reports,Employees,Categories")]
-    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,CustomerAccounts,CustomerAccountCharges,StatementOfAccount,CustomerPayment,EmployeeBalances,Reports,AdminNotifications,CashierShiftManagement,CashierOperations,Employees,Categories,Users")]
+    [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,CustomerAccounts,CustomerAccountCharges,StatementOfAccount,CustomerPayment,EmployeeBalances,Reports,AdminNotifications,CashierShiftManagement,CashierOperations,Employees,Categories,FuelPrices,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
     {
         var (client, session) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", role)));
@@ -141,6 +141,7 @@ public sealed class AuthenticationTests
                     Enum.GetValues<ApiCustomerPaymentMethod>(), payment.PaymentMethods.ToArray());
             }
             if (item.Tag == "Categories") Assert.IsInstanceOfType<CategoriesViewModel>(viewModel.CurrentPage);
+            if (item.Tag == "FuelPrices") Assert.IsInstanceOfType<FuelPricesViewModel>(viewModel.CurrentPage);
         }
     }
 

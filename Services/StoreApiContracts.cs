@@ -185,6 +185,42 @@ public sealed record ManagedCategoryResponse(Guid Id, ApiManagedCategoryKind Kin
 public sealed record CreateManagedCategoryRequest(ApiManagedCategoryKind Kind, string Name, int SortOrder);
 public sealed record UpdateManagedCategoryRequest(string Name, int SortOrder);
 
+public sealed record FuelCategoryResponse(Guid Id, string Name, int SortOrder, bool IsActive,
+    Guid CreatedByUserId, DateTime CreatedAtUtc, Guid UpdatedByUserId, DateTime UpdatedAtUtc)
+{
+    public string Status => IsActive ? "Active" : "Inactive";
+    public override string ToString() => Name;
+}
+
+public sealed record CreateFuelCategoryRequest(string Name, int SortOrder);
+public sealed record UpdateFuelCategoryRequest(string Name, int SortOrder);
+
+public sealed record FuelProductResponse(Guid Id, Guid CategoryId, string CategoryName, string Name,
+    int SortOrder, bool IsActive, decimal CurrentPrice, DateTime CurrentPriceEffectiveAtUtc,
+    Guid CreatedByUserId, DateTime CreatedAtUtc, Guid UpdatedByUserId, DateTime UpdatedAtUtc)
+{
+    public string Status => IsActive ? "Active" : "Inactive";
+    public string CurrentPriceDisplay => $"₱{CurrentPrice:N2}/L";
+    public string LastChangedDisplay => StoreDateTime.FormatUtc(CurrentPriceEffectiveAtUtc);
+    public override string ToString() => Name;
+}
+
+public sealed record FuelProductPageResponse(IReadOnlyList<FuelProductResponse> Items,
+    int Page, int PageSize, int TotalCount);
+public sealed record CreateFuelProductRequest(Guid CategoryId, string Name, int SortOrder, decimal InitialPrice);
+public sealed record UpdateFuelProductRequest(Guid CategoryId, string Name, int SortOrder);
+public sealed record ChangeFuelPriceRequest(decimal PricePerLiter);
+
+public sealed record FuelPriceResponse(Guid Id, Guid FuelProductId, decimal PricePerLiter,
+    DateTime EffectiveAtUtc, Guid CreatedByUserId, string CreatedByName, DateTime CreatedAtUtc)
+{
+    public string PriceDisplay => $"₱{PricePerLiter:N2}/L";
+    public string EffectiveDisplay => StoreDateTime.FormatUtc(EffectiveAtUtc);
+}
+
+public sealed record FuelPricePageResponse(IReadOnlyList<FuelPriceResponse> Items,
+    int Page, int PageSize, int TotalCount);
+
 public sealed record EmployeeBalanceResponse(
     Guid EmployeeId, string EmployeeNumber, string EmployeeName, bool IsActive,
     decimal TotalPurchases, decimal PaidAtPurchase, decimal OriginallyOwed,
