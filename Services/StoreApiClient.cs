@@ -108,30 +108,10 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task ReactivateManagedCategoryAsync(Guid id, CancellationToken cancellationToken = default) =>
         SendWithoutResponseAsync(HttpMethod.Post, $"api/categories/{id}/reactivate", cancellationToken);
 
-    public Task<IReadOnlyList<FuelCategoryResponse>> GetFuelCategoriesAsync(
-        bool includeInactive = false, CancellationToken cancellationToken = default) =>
-        SendAsync<IReadOnlyList<FuelCategoryResponse>>(() => new HttpRequestMessage(HttpMethod.Get,
-            WithQuery("api/fuel-categories", ("includeInactive", includeInactive ? "true" : null))), cancellationToken);
-
-    public Task<FuelCategoryResponse> CreateFuelCategoryAsync(
-        CreateFuelCategoryRequest request, CancellationToken cancellationToken = default) =>
-        SendJsonAsync<FuelCategoryResponse, CreateFuelCategoryRequest>(HttpMethod.Post, "api/fuel-categories", request, cancellationToken);
-
-    public Task<FuelCategoryResponse> UpdateFuelCategoryAsync(Guid id,
-        UpdateFuelCategoryRequest request, CancellationToken cancellationToken = default) =>
-        SendJsonAsync<FuelCategoryResponse, UpdateFuelCategoryRequest>(HttpMethod.Put, $"api/fuel-categories/{id}", request, cancellationToken);
-
-    public Task DeactivateFuelCategoryAsync(Guid id, CancellationToken cancellationToken = default) =>
-        SendWithoutResponseAsync(HttpMethod.Delete, $"api/fuel-categories/{id}", cancellationToken);
-
-    public Task ReactivateFuelCategoryAsync(Guid id, CancellationToken cancellationToken = default) =>
-        SendWithoutResponseAsync(HttpMethod.Post, $"api/fuel-categories/{id}/reactivate", cancellationToken);
-
-    public Task<FuelProductPageResponse> GetFuelsAsync(string? search = null, Guid? categoryId = null,
+    public Task<FuelProductPageResponse> GetFuelsAsync(string? search = null,
         bool includeInactive = false, int page = 1, int pageSize = 100, CancellationToken cancellationToken = default) =>
         SendAsync<FuelProductPageResponse>(() => new HttpRequestMessage(HttpMethod.Get, WithQuery("api/fuels",
-            ("search", search), ("categoryId", categoryId?.ToString()),
-            ("includeInactive", includeInactive ? "true" : null),
+            ("search", search), ("includeInactive", includeInactive ? "true" : null),
             ("page", page.ToString(CultureInfo.InvariantCulture)),
             ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
 

@@ -12,12 +12,10 @@ public sealed class StoreApiClientTests
     [TestMethod]
     public async Task FuelPricingUsesAdminCrudAndAppendOnlyPriceEndpoints()
     {
-        var categoryId = Guid.NewGuid();
         var fuelId = Guid.NewGuid();
         var now = DateTime.UtcNow;
         var requests = new List<(HttpMethod Method, string Path, string? Body)>();
-        var category = new FuelCategoryResponse(categoryId, "Diesel", 1, true, Guid.NewGuid(), now, Guid.NewGuid(), now);
-        var fuel = new FuelProductResponse(fuelId, categoryId, "Diesel", "Turbo Diesel", 1, true,
+        var fuel = new FuelProductResponse(fuelId, "Diesel", 1, true,
             58.75m, now, Guid.NewGuid(), now, Guid.NewGuid(), now);
         var (auth, _) = Client(request =>
         {
@@ -29,14 +27,12 @@ public sealed class StoreApiClientTests
                     new FuelPriceResponse(Guid.NewGuid(), fuelId, 59.10m, now, Guid.NewGuid(), "Admin", now)
                 ], 1, 100, 1));
             if (request.RequestUri.AbsolutePath.EndsWith("/prices")) return Json(fuel with { CurrentPrice = 59.10m });
-            if (request.RequestUri.AbsolutePath.EndsWith("/fuel-categories")) return Json(category);
             return Json(fuel);
         });
         await auth.LoginAsync("admin", "password");
         var client = new StoreApiClient(auth);
 
-        await client.CreateFuelCategoryAsync(new("Diesel", 1));
-        await client.CreateFuelAsync(new(categoryId, "Turbo Diesel", 1, 58.75m));
+        await client.CreateFuelAsync(new("Diesel", 1, 58.75m));
         var changed = await client.ChangeFuelPriceAsync(fuelId, new(59.10m));
         var history = await client.GetFuelPriceHistoryAsync(fuelId);
 
@@ -45,14 +41,13 @@ public sealed class StoreApiClientTests
         CollectionAssert.AreEqual(
             new[]
             {
-                (HttpMethod.Post, "/api/fuel-categories"),
                 (HttpMethod.Post, "/api/fuels"),
                 (HttpMethod.Post, $"/api/fuels/{fuelId}/prices"),
                 (HttpMethod.Get, $"/api/fuels/{fuelId}/prices")
             },
             requests.Select(request => (request.Method, request.Path)).ToArray());
-        StringAssert.Contains(requests[1].Body!, "\"initialPrice\":58.75");
-        StringAssert.Contains(requests[2].Body!, "\"pricePerLiter\":59.10");
+        StringAssert.Contains(requests[0].Body!, "\"initialPrice\":58.75");
+        StringAssert.Contains(requests[1].Body!, "\"pricePerLiter\":59.10");
     }
 
     [TestMethod]

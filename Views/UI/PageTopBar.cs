@@ -293,6 +293,20 @@ public sealed class PageTopBar : UserControl
                 yield return Search("Search employee balances...", "SearchText", 300);
                 yield return Button("Refresh", "LoadCommand", ActionButtonVariant.Primary);
                 break;
+            case FuelPricesViewModel:
+                yield return Search("Search XCS, Premium, Diesel...", "SearchText", 260);
+                var includeInactiveFuels = new CheckBox
+                {
+                    Content = "Include inactive",
+                    Tag = "filter",
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Bind(includeInactiveFuels, ToggleButton.IsCheckedProperty, "IncludeInactive");
+                yield return includeInactiveFuels;
+                yield return Button("Search", "LoadFuelsCommand", ActionButtonVariant.Secondary);
+                yield return Button("Clear", "ClearFiltersCommand", ActionButtonVariant.Secondary);
+                yield return Button("Add Fuel Type", "NewFuelCommand", ActionButtonVariant.Primary);
+                break;
             case UsersViewModel:
                 yield return Search("Search users...", "SearchText", 250);
                 var status = new ComboBox { Width = 130, Tag = "filter" };

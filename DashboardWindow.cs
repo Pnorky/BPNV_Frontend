@@ -144,10 +144,19 @@ public class DashboardWindow : Window
         _navList.Bind(SelectingItemsControl.SelectedItemProperty,
             new Binding(nameof(DashboardViewModel.SelectedNavItem)) { Mode = BindingMode.TwoWay });
         _navList.BindResource(ForegroundProperty, "SidebarForeground");
+        _navList.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Disabled);
+        _navList.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+
+        var sidebarScroll = new ScrollViewer
+        {
+            Content = _navList,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Hidden
+        };
 
         var sidebarContent = new DockPanel
         {
-            Children = { header, _userFooter, new ScrollViewer { Content = _navList } }
+            Children = { header, _userFooter, sidebarScroll }
         };
         _sidebarBorder = new Border { Width = 230, Child = sidebarContent };
         _sidebarBorder.BindResource(BackgroundProperty, "Sidebar");

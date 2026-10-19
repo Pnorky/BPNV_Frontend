@@ -9,35 +9,27 @@ public partial class FuelPricesViewModel : ObservableObject
     private readonly StoreApiClient _api;
     private readonly INotificationService _notifications;
 
-    [ObservableProperty] private IReadOnlyList<FuelCategoryResponse> _categories = [];
     [ObservableProperty] private IReadOnlyList<FuelProductResponse> _fuels = [];
     [ObservableProperty] private IReadOnlyList<FuelPriceResponse> _priceHistory = [];
     [ObservableProperty] private FuelProductResponse? _selectedFuel;
-    [ObservableProperty] private FuelCategoryResponse? _filterCategory;
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _includeInactive;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _errorMessage;
     [ObservableProperty] private string _statusMessage = "Loading fuel prices...";
-
     [ObservableProperty] private string _fuelName = "";
-    [ObservableProperty] private FuelCategoryResponse? _fuelCategory;
     [ObservableProperty] private decimal _fuelSortOrder = 1;
     [ObservableProperty] private decimal _initialPrice;
     [ObservableProperty] private decimal _newPrice;
 
-    [ObservableProperty] private FuelCategoryResponse? _selectedCategory;
-    [ObservableProperty] private string _categoryName = "";
-    [ObservableProperty] private decimal _categorySortOrder = 1;
-
-    public IReadOnlyList<FuelCategoryResponse> ActiveCategories => Categories.Where(category => category.IsActive).ToArray();
-    public string FuelEditorTitle => SelectedFuel is null ? "Add fuel" : "Edit fuel";
-    public string FuelSaveText => SelectedFuel is null ? "Add fuel" : "Save fuel";
-    public string CategoryEditorTitle => SelectedCategory is null ? "Add category" : "Edit category";
-    public string CategorySaveText => SelectedCategory is null ? "Add category" : "Save category";
+    public string FuelSaveText => SelectedFuel is null ? "Add fuel type" : "Save fuel type";
     public bool IsNewFuel => SelectedFuel is null;
     public bool HasSelectedFuel => SelectedFuel is not null;
-    public bool IsFiltered => !string.IsNullOrWhiteSpace(SearchText) || FilterCategory is not null || IncludeInactive;
+    public bool HasNoPriceHistory => PriceHistory.Count == 0;
+    public string PriceHistoryEmptyMessage => SelectedFuel is null
+        ? "Select a fuel type to view its price history."
+        : "No price history is available for this fuel type.";
+    public bool IsFiltered => !string.IsNullOrWhiteSpace(SearchText) || IncludeInactive;
     public string PriceDifferenceDisplay => SelectedFuel is null || NewPrice <= 0
         ? "Enter a new price."
         : $"{(NewPrice - SelectedFuel.CurrentPrice >= 0 ? "+" : "-")}₱{Math.Abs(NewPrice - SelectedFuel.CurrentPrice):N2}/L";
@@ -51,27 +43,20 @@ public partial class FuelPricesViewModel : ObservableObject
 
     partial void OnSelectedFuelChanged(FuelProductResponse? value)
     {
-        NotifyFuelEditor();
+        NotifyEditor();
+        OnPropertyChanged(nameof(PriceHistoryEmptyMessage));
         if (value is null) return;
         FuelName = value.Name;
-        FuelCategory = Categories.FirstOrDefault(category => category.Id == value.CategoryId);
         FuelSortOrder = value.SortOrder;
         InitialPrice = value.CurrentPrice;
         NewPrice = value.CurrentPrice;
         _ = LoadHistoryAsync();
     }
 
-    partial void OnSelectedCategoryChanged(FuelCategoryResponse? value)
-    {
-        if (value is null) return;
-        CategoryName = value.Name;
-        CategorySortOrder = value.SortOrder;
-        NotifyCategoryEditor();
-    }
-
     partial void OnNewPriceChanged(decimal value) => OnPropertyChanged(nameof(PriceDifferenceDisplay));
+    partial void OnPriceHistoryChanged(IReadOnlyList<FuelPriceResponse> value) =>
+        OnPropertyChanged(nameof(HasNoPriceHistory));
     partial void OnSearchTextChanged(string value) => OnPropertyChanged(nameof(IsFiltered));
-    partial void OnFilterCategoryChanged(FuelCategoryResponse? value) { OnPropertyChanged(nameof(IsFiltered)); _ = LoadFuelsAsync(); }
     partial void OnIncludeInactiveChanged(bool value) { OnPropertyChanged(nameof(IsFiltered)); _ = LoadAsync(); }
 
     [RelayCommand]
@@ -82,12 +67,8 @@ public partial class FuelPricesViewModel : ObservableObject
         ErrorMessage = null;
         try
         {
-            Categories = await _api.GetFuelCategoriesAsync(includeInactive: true);
-            OnPropertyChanged(nameof(ActiveCategories));
-            if (FuelCategory is null || !FuelCategory.IsActive)
-                FuelCategory = ActiveCategories.FirstOrDefault();
             await LoadFuelsCoreAsync();
-            StatusMessage = $"Loaded {Fuels.Count} fuel product{(Fuels.Count == 1 ? "" : "s")}.";
+            StatusMessage = $"Loaded {Fuels.Count} fuel type{(Fuels.Count == 1 ? "" : "s")}.";
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
@@ -106,7 +87,7 @@ public partial class FuelPricesViewModel : ObservableObject
         try
         {
             await LoadFuelsCoreAsync();
-            StatusMessage = $"Loaded {Fuels.Count} fuel product{(Fuels.Count == 1 ? "" : "s")}.";
+            StatusMessage = $"Loaded {Fuels.Count} fuel type{(Fuels.Count == 1 ? "" : "s")}.";
         }
         catch (Exception exception) when (IsApiFailure(exception))
         {
@@ -120,7 +101,6 @@ public partial class FuelPricesViewModel : ObservableObject
     private void ClearFilters()
     {
         SearchText = "";
-        FilterCategory = null;
         if (IncludeInactive) IncludeInactive = false;
         else _ = LoadFuelsAsync();
     }
@@ -130,12 +110,11 @@ public partial class FuelPricesViewModel : ObservableObject
     {
         SelectedFuel = null;
         FuelName = "";
-        FuelCategory = ActiveCategories.FirstOrDefault();
         FuelSortOrder = Fuels.Count == 0 ? 1 : Fuels.Max(fuel => fuel.SortOrder) + 1;
         InitialPrice = 0;
         NewPrice = 0;
         PriceHistory = [];
-        NotifyFuelEditor();
+        NotifyEditor();
     }
 
     [RelayCommand]
@@ -146,14 +125,14 @@ public partial class FuelPricesViewModel : ObservableObject
         try
         {
             if (SelectedFuel is null)
-                await _api.CreateFuelAsync(new(FuelCategory!.Id, FuelName.Trim(), (int)FuelSortOrder, InitialPrice));
+                await _api.CreateFuelAsync(new(FuelName.Trim(), (int)FuelSortOrder, InitialPrice));
             else
-                await _api.UpdateFuelAsync(SelectedFuel.Id, new(FuelCategory!.Id, FuelName.Trim(), (int)FuelSortOrder));
+                await _api.UpdateFuelAsync(SelectedFuel.Id, new(FuelName.Trim(), (int)FuelSortOrder));
             var action = SelectedFuel is null ? "added" : "updated";
             IsBusy = false;
             NewFuel();
             await LoadFuelsAsync();
-            StatusMessage = $"Fuel {action}.";
+            StatusMessage = $"Fuel type {action}.";
             _notifications.ShowSuccess("Fuel saved", StatusMessage);
         }
         catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Fuel not saved", FailureMessage(exception)); }
@@ -182,65 +161,12 @@ public partial class FuelPricesViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task DeactivateFuelAsync(FuelProductResponse? fuel)
-    {
-        if (fuel is null || IsBusy) return;
-        await SetFuelActiveAsync(fuel, false);
-    }
+    private Task DeactivateFuelAsync(FuelProductResponse? fuel) =>
+        fuel is null || IsBusy ? Task.CompletedTask : SetFuelActiveAsync(fuel, false);
 
     [RelayCommand]
-    private async Task ReactivateFuelAsync(FuelProductResponse? fuel)
-    {
-        if (fuel is null || IsBusy) return;
-        await SetFuelActiveAsync(fuel, true);
-    }
-
-    [RelayCommand]
-    private void NewCategory()
-    {
-        SelectedCategory = null;
-        CategoryName = "";
-        CategorySortOrder = Categories.Count == 0 ? 1 : Categories.Max(category => category.SortOrder) + 1;
-        NotifyCategoryEditor();
-    }
-
-    [RelayCommand]
-    private async Task SaveCategoryAsync()
-    {
-        if (IsBusy) return;
-        if (string.IsNullOrWhiteSpace(CategoryName)) { ShowError("Category not saved", "Enter a category name."); return; }
-        if (!ValidSortOrder(CategorySortOrder)) { ShowError("Category not saved", "Sort order must be a whole number from 0 to 10000."); return; }
-        IsBusy = true;
-        try
-        {
-            if (SelectedCategory is null)
-                await _api.CreateFuelCategoryAsync(new(CategoryName.Trim(), (int)CategorySortOrder));
-            else
-                await _api.UpdateFuelCategoryAsync(SelectedCategory.Id, new(CategoryName.Trim(), (int)CategorySortOrder));
-            var action = SelectedCategory is null ? "added" : "updated";
-            NewCategory();
-            IsBusy = false;
-            await LoadAsync();
-            StatusMessage = $"Fuel category {action}.";
-            _notifications.ShowSuccess("Category saved", StatusMessage);
-        }
-        catch (Exception exception) when (IsApiFailure(exception)) { ShowError("Category not saved", FailureMessage(exception)); }
-        finally { IsBusy = false; }
-    }
-
-    [RelayCommand]
-    private async Task DeactivateCategoryAsync(FuelCategoryResponse? category)
-    {
-        if (category is null || IsBusy) return;
-        await SetCategoryActiveAsync(category, false);
-    }
-
-    [RelayCommand]
-    private async Task ReactivateCategoryAsync(FuelCategoryResponse? category)
-    {
-        if (category is null || IsBusy) return;
-        await SetCategoryActiveAsync(category, true);
-    }
+    private Task ReactivateFuelAsync(FuelProductResponse? fuel) =>
+        fuel is null || IsBusy ? Task.CompletedTask : SetFuelActiveAsync(fuel, true);
 
     [RelayCommand]
     private async Task LoadHistoryAsync()
@@ -253,7 +179,7 @@ public partial class FuelPricesViewModel : ObservableObject
     private async Task LoadFuelsCoreAsync()
     {
         var selectedId = SelectedFuel?.Id;
-        Fuels = (await _api.GetFuelsAsync(SearchText, FilterCategory?.Id, IncludeInactive)).Items;
+        Fuels = (await _api.GetFuelsAsync(SearchText, IncludeInactive)).Items;
         SelectedFuel = selectedId.HasValue ? Fuels.FirstOrDefault(fuel => fuel.Id == selectedId) : null;
     }
 
@@ -268,47 +194,27 @@ public partial class FuelPricesViewModel : ObservableObject
             await LoadFuelsAsync();
             StatusMessage = $"{fuel.Name} {(active ? "reactivated" : "deactivated")}.";
         }
-        catch (Exception exception) when (IsApiFailure(exception)) { ShowError($"Fuel not {(active ? "reactivated" : "deactivated")}", FailureMessage(exception)); }
-        finally { IsBusy = false; }
-    }
-
-    private async Task SetCategoryActiveAsync(FuelCategoryResponse category, bool active)
-    {
-        IsBusy = true;
-        try
+        catch (Exception exception) when (IsApiFailure(exception))
         {
-            if (active) await _api.ReactivateFuelCategoryAsync(category.Id); else await _api.DeactivateFuelCategoryAsync(category.Id);
-            if (SelectedCategory?.Id == category.Id) NewCategory();
-            IsBusy = false;
-            await LoadAsync();
-            StatusMessage = $"{category.Name} {(active ? "reactivated" : "deactivated")}.";
+            ShowError($"Fuel not {(active ? "reactivated" : "deactivated")}", FailureMessage(exception));
         }
-        catch (Exception exception) when (IsApiFailure(exception)) { ShowError($"Category not {(active ? "reactivated" : "deactivated")}", FailureMessage(exception)); }
         finally { IsBusy = false; }
     }
 
     private bool ValidateFuel()
     {
-        if (string.IsNullOrWhiteSpace(FuelName)) { ShowError("Fuel not saved", "Enter a fuel name."); return false; }
-        if (FuelCategory is null || !FuelCategory.IsActive) { ShowError("Fuel not saved", "Select an active fuel category."); return false; }
+        if (string.IsNullOrWhiteSpace(FuelName)) { ShowError("Fuel not saved", "Enter a fuel name such as XCS, Premium, or Diesel."); return false; }
         if (!ValidSortOrder(FuelSortOrder)) { ShowError("Fuel not saved", "Sort order must be a whole number from 0 to 10000."); return false; }
         if (SelectedFuel is null && !ValidPrice(InitialPrice)) { ShowError("Fuel not saved", "Enter an initial price greater than zero with no more than four decimal places."); return false; }
         return true;
     }
 
-    private void NotifyFuelEditor()
+    private void NotifyEditor()
     {
-        OnPropertyChanged(nameof(FuelEditorTitle));
         OnPropertyChanged(nameof(FuelSaveText));
         OnPropertyChanged(nameof(IsNewFuel));
         OnPropertyChanged(nameof(HasSelectedFuel));
         OnPropertyChanged(nameof(PriceDifferenceDisplay));
-    }
-
-    private void NotifyCategoryEditor()
-    {
-        OnPropertyChanged(nameof(CategoryEditorTitle));
-        OnPropertyChanged(nameof(CategorySaveText));
     }
 
     private void ShowError(string title, string message)

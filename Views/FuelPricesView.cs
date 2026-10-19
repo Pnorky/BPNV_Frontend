@@ -16,17 +16,9 @@ public sealed class FuelPricesView : UserControl
 {
     public FuelPricesView()
     {
-        var search = new TextBox { Classes = { "search" }, PlaceholderText = "Search fuel name", MinWidth = 220 };
-        search.Bind(TextBox.TextProperty, new Binding(nameof(FuelPricesViewModel.SearchText)) { Mode = BindingMode.TwoWay });
-        var categoryFilter = new ComboBox { Classes = { "form-select" }, PlaceholderText = "All categories", MinWidth = 170 };
-        categoryFilter.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(FuelPricesViewModel.Categories)));
-        categoryFilter.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(nameof(FuelPricesViewModel.FilterCategory)) { Mode = BindingMode.TwoWay });
-        var includeInactive = new CheckBox { Content = "Include inactive", VerticalAlignment = VerticalAlignment.Center };
-        includeInactive.Bind(ToggleButton.IsCheckedProperty, new Binding(nameof(FuelPricesViewModel.IncludeInactive)) { Mode = BindingMode.TwoWay });
-
         var table = new PagedTable
         {
-            ItemName = "fuel", ItemNamePlural = "fuels", PageSize = 10, MinTableWidth = 780, IsSelectable = true
+            ItemName = "fuel type", ItemNamePlural = "fuel types", PageSize = 10, MinTableWidth = 680, IsSelectable = true
         };
         table.Bind(PagedTable.ItemsSourceProperty, new Binding(nameof(FuelPricesViewModel.Fuels)));
         table.Bind(PagedTable.SelectedItemProperty, new Binding(nameof(FuelPricesViewModel.SelectedFuel)) { Mode = BindingMode.TwoWay });
@@ -35,8 +27,7 @@ public sealed class FuelPricesView : UserControl
         table.Bind(PagedTable.IsFilteredProperty, new Binding(nameof(FuelPricesViewModel.IsFiltered)));
         table.Bind(PagedTable.RetryCommandProperty, new Binding(nameof(FuelPricesViewModel.LoadCommand)));
         table.Bind(PagedTable.ClearFiltersCommandProperty, new Binding(nameof(FuelPricesViewModel.ClearFiltersCommand)));
-        table.Columns.Add(PagedTableColumn.Create<FuelProductResponse, string>("FUEL", item => item.Name, new GridLength(1.3, GridUnitType.Star)));
-        table.Columns.Add(PagedTableColumn.Create<FuelProductResponse, string>("CATEGORY", item => item.CategoryName, new GridLength(1, GridUnitType.Star)));
+        table.Columns.Add(PagedTableColumn.Create<FuelProductResponse, string>("FUEL TYPE", item => item.Name, new GridLength(1.3, GridUnitType.Star)));
         var price = PagedTableColumn.Create<FuelProductResponse, decimal>("CURRENT PRICE/L", item => item.CurrentPrice, new GridLength(.9, GridUnitType.Star));
         price.HorizontalAlignment = HorizontalAlignment.Right;
         price.CellTemplate = new FuncDataTemplate<FuelProductResponse>((_, _) => Bound(nameof(FuelProductResponse.CurrentPriceDisplay), bold: true), true);
@@ -51,55 +42,37 @@ public sealed class FuelPricesView : UserControl
         actions.CellTemplate = new FuncDataTemplate<FuelProductResponse>((_, _) => FuelActions(), true);
         table.Columns.Add(actions);
 
-        var filters = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            Children =
-            {
-                search, categoryFilter, includeInactive,
-                Button("Search", nameof(FuelPricesViewModel.LoadFuelsCommand), ActionButtonVariant.Primary),
-                Button("Clear", nameof(FuelPricesViewModel.ClearFiltersCommand), ActionButtonVariant.Secondary),
-                Button("Add Fuel", nameof(FuelPricesViewModel.NewFuelCommand), ActionButtonVariant.Primary)
-            }
-        };
-
         var tabs = new TabControl
         {
             Items =
             {
                 new TabItem { Header = "Fuel Details", Content = FuelEditor() },
-                new TabItem { Header = "Price History", Content = PriceEditorAndHistory() },
-                new TabItem { Header = "Categories", Content = CategoryEditor() }
+                new TabItem { Header = "Price History", Content = PriceEditorAndHistory() }
             }
         };
 
         Content = new Grid
         {
             Margin = new Thickness(30),
-            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,*"),
             RowSpacing = 14,
             Children =
             {
-                filters,
-                At(StatusMessage(), row: 1),
+                StatusMessage(),
                 At(new Grid
                 {
                     ColumnDefinitions = new ColumnDefinitions("1.8*,1*"),
                     ColumnSpacing = 16,
                     Children = { Card(table), At(Card(tabs), column: 1) }
-                }, row: 2)
+                }, row: 1)
             }
         };
     }
 
     private static Control FuelEditor()
     {
-        var name = new TextBox { Classes = { "form-input" }, PlaceholderText = "Example: Petron XCS" };
+        var name = new TextBox { Classes = { "form-input" }, PlaceholderText = "Example: XCS, Premium, or Diesel" };
         name.Bind(TextBox.TextProperty, new Binding(nameof(FuelPricesViewModel.FuelName)) { Mode = BindingMode.TwoWay });
-        var category = new ComboBox { Classes = { "form-select" }, PlaceholderText = "Select category" };
-        category.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(FuelPricesViewModel.ActiveCategories)));
-        category.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(nameof(FuelPricesViewModel.FuelCategory)) { Mode = BindingMode.TwoWay });
         var order = new NumberField { Minimum = 0, Maximum = 10000 };
         order.Bind(NumberField.ValueProperty, new Binding(nameof(FuelPricesViewModel.FuelSortOrder)) { Mode = BindingMode.TwoWay });
         var initialPrice = new NumberField { Minimum = 0.0001m, Maximum = 99999999999999.9999m, FormatString = "N4" };
@@ -116,10 +89,8 @@ public sealed class FuelPricesView : UserControl
                 Spacing = 12,
                 Children =
                 {
-                    Bound(nameof(FuelPricesViewModel.FuelEditorTitle), 20, true),
-                    Muted("Select a row to edit it, or add a new fuel with its initial pump price."),
+                    Muted("Each record is a fuel type such as XCS, Premium, or Diesel. Select a row to edit it."),
                     Label("FUEL NAME"), name,
-                    Label("CATEGORY"), category,
                     Label("DISPLAY ORDER"), order,
                     initialGroup,
                     new StackPanel
@@ -163,71 +134,65 @@ public sealed class FuelPricesView : UserControl
         };
         pricePanel.Bind(Visual.IsVisibleProperty, new Binding(nameof(FuelPricesViewModel.HasSelectedFuel)));
 
-        var history = new PagedTable { ItemName = "price", ItemNamePlural = "prices", PageSize = 5, MinTableWidth = 520 };
-        history.Bind(PagedTable.ItemsSourceProperty, new Binding(nameof(FuelPricesViewModel.PriceHistory)));
-        var effective = PagedTableColumn.Create<FuelPriceResponse, DateTime>("EFFECTIVE", item => item.EffectiveAtUtc, new GridLength(1.2, GridUnitType.Star));
-        effective.CellTemplate = new FuncDataTemplate<FuelPriceResponse>((_, _) => Bound(nameof(FuelPriceResponse.EffectiveDisplay)), true);
-        history.Columns.Add(effective);
-        var historyPrice = PagedTableColumn.Create<FuelPriceResponse, decimal>("PRICE/L", item => item.PricePerLiter, new GridLength(.8, GridUnitType.Star));
-        historyPrice.HorizontalAlignment = HorizontalAlignment.Right;
-        historyPrice.CellTemplate = new FuncDataTemplate<FuelPriceResponse>((_, _) => Bound(nameof(FuelPriceResponse.PriceDisplay), bold: true), true);
-        history.Columns.Add(historyPrice);
-        history.Columns.Add(PagedTableColumn.Create<FuelPriceResponse, string>("CHANGED BY", item => item.CreatedByName, new GridLength(1, GridUnitType.Star)));
+        var history = new ItemsControl();
+        history.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(FuelPricesViewModel.PriceHistory)));
+        history.ItemTemplate = new FuncDataTemplate<FuelPriceResponse>((_, _) => HistoryRow(), true);
+
+        var emptyHistory = new Border
+        {
+            Padding = new Thickness(18, 28),
+            Child = MutedBound(nameof(FuelPricesViewModel.PriceHistoryEmptyMessage))
+        };
+        emptyHistory.Bind(Visual.IsVisibleProperty, new Binding(nameof(FuelPricesViewModel.HasNoPriceHistory)));
 
         return new ScrollViewer
         {
             Content = new StackPanel
             {
                 Spacing = 16,
-                Children = { pricePanel, Separator(), BoundText("Price history", 16, true), history }
+                Children =
+                {
+                    pricePanel,
+                    new Separator { Margin = new Thickness(0, 4) },
+                    Text("Price history", 16, true),
+                    history,
+                    emptyHistory
+                }
             }
         };
     }
 
-    private static Control CategoryEditor()
+    private static Control HistoryRow()
     {
-        var categories = new PagedTable
+        var changedBy = new StackPanel
         {
-            ItemName = "category", ItemNamePlural = "categories", PageSize = 5, MinTableWidth = 520, IsSelectable = true
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Children = { Muted("Changed by"), MutedBound(nameof(FuelPriceResponse.CreatedByName)) }
         };
-        categories.Bind(PagedTable.ItemsSourceProperty, new Binding(nameof(FuelPricesViewModel.Categories)));
-        categories.Bind(PagedTable.SelectedItemProperty, new Binding(nameof(FuelPricesViewModel.SelectedCategory)) { Mode = BindingMode.TwoWay });
-        categories.Columns.Add(PagedTableColumn.Create<FuelCategoryResponse, string>("CATEGORY", item => item.Name, new GridLength(1.2, GridUnitType.Star)));
-        categories.Columns.Add(PagedTableColumn.Create<FuelCategoryResponse, int>("ORDER", item => item.SortOrder, new GridLength(.5, GridUnitType.Star)));
-        var status = PagedTableColumn.Create<FuelCategoryResponse, string>("STATUS", item => item.Status, new GridLength(.7, GridUnitType.Star));
-        status.CellTemplate = new FuncDataTemplate<FuelCategoryResponse>((_, _) => Status(nameof(FuelCategoryResponse.Status)), true);
-        categories.Columns.Add(status);
-        var actions = PagedTableColumn.Create<FuelCategoryResponse, string>("ACTIONS", _ => "", new GridLength(1, GridUnitType.Star), false);
-        actions.CellTemplate = new FuncDataTemplate<FuelCategoryResponse>((_, _) => CategoryActions(), true);
-        categories.Columns.Add(actions);
-
-        var name = new TextBox { Classes = { "form-input" }, PlaceholderText = "Example: Gasoline" };
-        name.Bind(TextBox.TextProperty, new Binding(nameof(FuelPricesViewModel.CategoryName)) { Mode = BindingMode.TwoWay });
-        var order = new NumberField { Minimum = 0, Maximum = 10000 };
-        order.Bind(NumberField.ValueProperty, new Binding(nameof(FuelPricesViewModel.CategorySortOrder)) { Mode = BindingMode.TwoWay });
-        var save = Button("", nameof(FuelPricesViewModel.SaveCategoryCommand), ActionButtonVariant.Primary);
-        save.Bind(ContentControl.ContentProperty, new Binding(nameof(FuelPricesViewModel.CategorySaveText)));
-
-        return new ScrollViewer
+        var details = new StackPanel
         {
-            Content = new StackPanel
-            {
-                Spacing = 12,
-                Children =
-                {
-                    categories,
-                    Separator(),
-                    Bound(nameof(FuelPricesViewModel.CategoryEditorTitle), 20, true),
-                    Label("CATEGORY NAME"), name,
-                    Label("DISPLAY ORDER"), order,
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal, Spacing = 8,
-                        Children = { save, Button("Clear", nameof(FuelPricesViewModel.NewCategoryCommand), ActionButtonVariant.Secondary) }
-                    }
-                }
-            }
+            Spacing = 4,
+            Children = { Bound(nameof(FuelPriceResponse.EffectiveDisplay), bold: true), changedBy }
         };
+        var price = Bound(nameof(FuelPriceResponse.PriceDisplay), 16, true);
+        price.HorizontalAlignment = HorizontalAlignment.Right;
+        price.VerticalAlignment = VerticalAlignment.Center;
+
+        var row = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 12,
+            Children = { details, At(price, column: 1) }
+        };
+        var border = new Border
+        {
+            Padding = new Thickness(10, 12),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = row
+        };
+        border.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("Border"));
+        return border;
     }
 
     private static Control FuelActions()
@@ -248,39 +213,12 @@ public sealed class FuelPricesView : UserControl
             if (reactivate.DataContext is FuelProductResponse fuel && GetViewModel(reactivate) is { } viewModel)
                 await viewModel.ReactivateFuelCommand.ExecuteAsync(fuel);
         };
-        return ActiveActions(deactivate, reactivate, item => ((FuelProductResponse)item).IsActive);
-    }
-
-    private static Control CategoryActions()
-    {
-        var deactivate = new ActionButton("Deactivate", ActionButtonVariant.Danger, ActionButtonSize.Sm);
-        deactivate.Click += async (_, _) =>
-        {
-            if (deactivate.DataContext is not FuelCategoryResponse category || GetViewModel(deactivate) is not { } viewModel ||
-                TopLevel.GetTopLevel(deactivate) is not Window owner) return;
-            var dialog = new ConfirmDialog();
-            dialog.SetConfirmation("Deactivate category", $"Deactivate {category.Name}? Active fuels must be reassigned or deactivated first.", "Deactivate");
-            await dialog.ShowDialog(owner);
-            if (dialog.Confirmed) await viewModel.DeactivateCategoryCommand.ExecuteAsync(category);
-        };
-        var reactivate = new ActionButton("Reactivate", ActionButtonVariant.Secondary, ActionButtonSize.Sm);
-        reactivate.Click += async (_, _) =>
-        {
-            if (reactivate.DataContext is FuelCategoryResponse category && GetViewModel(reactivate) is { } viewModel)
-                await viewModel.ReactivateCategoryCommand.ExecuteAsync(category);
-        };
-        return ActiveActions(deactivate, reactivate, item => ((FuelCategoryResponse)item).IsActive);
-    }
-
-    private static Control ActiveActions(Control deactivate, Control reactivate, Func<object, bool> isActive)
-    {
         var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { deactivate, reactivate } };
         void Update()
         {
-            if (panel.DataContext is null) return;
-            var active = isActive(panel.DataContext);
-            deactivate.IsVisible = active;
-            reactivate.IsVisible = !active;
+            if (panel.DataContext is not FuelProductResponse fuel) return;
+            deactivate.IsVisible = fuel.IsActive;
+            reactivate.IsVisible = !fuel.IsActive;
         }
         panel.DataContextChanged += (_, _) => Update();
         panel.AttachedToVisualTree += (_, _) => Update();
@@ -316,11 +254,13 @@ public sealed class FuelPricesView : UserControl
         return value;
     }
 
-    private static Separator Separator() => new() { Margin = new Thickness(0, 4) };
-    private static TextBlock Label(string text) => new() { Text = text, FontSize = 11, FontWeight = Avalonia.Media.FontWeight.SemiBold };
+    private static TextBlock Label(string text) => Text(text, 11, true);
+    private static TextBlock Text(string text, double size = 14, bool bold = false) =>
+        new() { Text = text, FontSize = size, FontWeight = bold ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal };
     private static TextBlock Muted(string text)
     {
-        var value = new TextBlock { Text = text, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+        var value = Text(text);
+        value.TextWrapping = Avalonia.Media.TextWrapping.Wrap;
         value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("MutedForeground"));
         return value;
     }
@@ -332,12 +272,10 @@ public sealed class FuelPricesView : UserControl
     }
     private static TextBlock Bound(string path, double size = 14, bool bold = false)
     {
-        var value = new TextBlock { FontSize = size, FontWeight = bold ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal };
+        var value = Text("", size, bold);
         value.Bind(TextBlock.TextProperty, new Binding(path));
         return value;
     }
-    private static TextBlock BoundText(string text, double size = 14, bool bold = false) =>
-        new() { Text = text, FontSize = size, FontWeight = bold ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal };
     private static T At<T>(T value, int row = 0, int column = 0) where T : Control
     {
         Grid.SetRow(value, row);
