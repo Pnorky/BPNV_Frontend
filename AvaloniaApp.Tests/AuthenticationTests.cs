@@ -104,7 +104,7 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
-    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,CustomerAccounts,StatementOfAccount,CustomerPayment,EmployeeBalances,Reports")]
+    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,CustomerAccounts,StatementOfAccount,CustomerPayment,EmployeeBalances,Reports")]
     [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,CustomerAccounts,StatementOfAccount,EmployeeBalances,Reports,Employees,Categories")]
     [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,CustomerAccounts,CustomerAccountCharges,StatementOfAccount,CustomerPayment,EmployeeBalances,Reports,AdminNotifications,CashierShiftManagement,CashierOperations,Employees,Categories,FuelPrices,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
@@ -146,7 +146,7 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
-    public async Task CollapsedInventoryFlyoutNavigationAllowsInventoryAndRejectsCashier()
+    public async Task CollapsedInventoryFlyoutNavigationAllowsInventoryAndCashier()
     {
         var (inventoryClient, inventorySession) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", "Inventory")));
         await inventoryClient.LoginAsync("inventory", "strong-password");
@@ -174,7 +174,8 @@ public sealed class AuthenticationTests
 
         cashierViewModel.OpenInventorySection("InventoryDeliveryHistory");
 
-        Assert.IsNotInstanceOfType<DeliveryHistoryViewModel>(cashierViewModel.CurrentPage);
+        Assert.AreEqual("InventoryProducts", cashierViewModel.SelectedNavItem?.Tag);
+        Assert.IsInstanceOfType<DeliveryHistoryViewModel>(cashierViewModel.CurrentPage);
     }
 
     private static (AuthApiClient Client, AuthSession Session) CreateClient(

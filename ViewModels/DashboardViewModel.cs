@@ -337,7 +337,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable, IInputV
         "CashierShift" or "Sales" or "CashierSales" => _session.HasRole("Cashier"),
         "InventoryProducts" or "InventoryAddProduct" or "InventoryReceiveStock" or
         "InventoryBatchReceive" or "InventoryDeliveryHistory" or "InventoryImport" or "InventorySuppliers" or "InventoryMovements" =>
-            _session.HasRole("Admin") || _session.HasRole("Inventory"),
+            _session.HasRole("Admin") || _session.HasRole("Inventory") || _session.HasRole("Cashier"),
         "Reports" => _session.HasRole("Admin") || _session.HasRole("Inventory") || _session.HasRole("Cashier"),
         "Employees" or "Categories" => _session.HasRole("Admin") || _session.HasRole("Inventory"),
         "EmployeeBalances" => _session.HasRole("Admin") || _session.HasRole("Inventory") || _session.HasRole("Cashier"),
