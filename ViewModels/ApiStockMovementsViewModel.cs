@@ -101,7 +101,6 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         new("Bodega", ApiInventoryStockLocation.Bodega)
     ];
     public IReadOnlyList<ApiSpoilageReason> SpoilageReasons { get; } = Enum.GetValues<ApiSpoilageReason>();
-    public bool ShowOpeningBodegaBalance { get; }
     public bool SpoilageProductIsPerishable => SpoilageProduct?.IsPerishable == true;
     public bool RequiresSpoilageNotes => SpoilageReason == ApiSpoilageReason.Other;
     public bool BodegaProductIsPerishable => BodegaBalanceProduct?.IsPerishable == true;
@@ -130,14 +129,10 @@ public partial class ApiStockMovementsViewModel : ObservableObject
                 ? $"Bodega will increase by {variance:N0} {BodegaBalanceProduct?.Unit}."
                 : $"Bodega will decrease by {Math.Abs(variance):N0} {BodegaBalanceProduct?.Unit}.";
 
-    public ApiStockMovementsViewModel(
-        StoreApiClient api,
-        INotificationService notifications,
-        bool showOpeningBodegaBalance = true)
+    public ApiStockMovementsViewModel(StoreApiClient api, INotificationService notifications)
     {
         _api = api;
         _notifications = notifications;
-        ShowOpeningBodegaBalance = showOpeningBodegaBalance;
         _selectedMovementType = MovementTypes[0];
         _selectedMovementSort = MovementSortOptions[0];
         _spoilageLocation = StockLocations[0];

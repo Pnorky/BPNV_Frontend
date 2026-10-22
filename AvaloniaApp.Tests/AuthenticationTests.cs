@@ -104,7 +104,7 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
-    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,CashierStockActivity,EmployeeBalances,Reports")]
+    [DataRow("Cashier", "Dashboard,CashierShift,Sales,CashierSales,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports")]
     [DataRow("Inventory", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports,Employees,Categories")]
     [DataRow("Admin", "Dashboard,InventoryProducts,InventoryProducts,InventoryAddProduct,InventoryReceiveStock,InventoryBatchReceive,InventoryDeliveryHistory,InventoryImport,InventorySuppliers,InventoryMovements,EmployeeBalances,Reports,CashierShiftManagement,CashierOperations,AdminNotifications,Employees,Categories,Users")]
     public async Task DashboardNavigationMatchesRole(string role, string expectedTags)
@@ -129,11 +129,6 @@ public sealed class AuthenticationTests
             Assert.IsNotNull(viewModel.CurrentPage, $"Navigation did not create a page for {item.Tag}.");
             if (item.Tag == "InventorySuppliers") Assert.IsInstanceOfType<SuppliersViewModel>(viewModel.CurrentPage);
             if (item.Tag == "InventoryDeliveryHistory") Assert.IsInstanceOfType<DeliveryHistoryViewModel>(viewModel.CurrentPage);
-            if (item.Tag == "CashierStockActivity")
-            {
-                var stockActivity = Assert.IsInstanceOfType<ApiStockMovementsViewModel>(viewModel.CurrentPage);
-                Assert.IsFalse(stockActivity.ShowOpeningBodegaBalance);
-            }
             if (item.Tag == "Employees") Assert.IsInstanceOfType<EmployeesViewModel>(viewModel.CurrentPage);
             if (item.Tag == "EmployeeBalances") Assert.IsInstanceOfType<EmployeeBalancesViewModel>(viewModel.CurrentPage);
             if (item.Tag == "Categories") Assert.IsInstanceOfType<CategoriesViewModel>(viewModel.CurrentPage);
@@ -141,7 +136,7 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
-    public async Task CollapsedInventoryFlyoutNavigationAllowsInventoryAndRejectsCashier()
+    public async Task CollapsedInventoryFlyoutNavigationAllowsInventoryAndCashier()
     {
         var (inventoryClient, inventorySession) = CreateClient(_ => JsonResponse(Tokens("access", "refresh", "Inventory")));
         await inventoryClient.LoginAsync("inventory", "strong-password");
@@ -169,7 +164,8 @@ public sealed class AuthenticationTests
 
         cashierViewModel.OpenInventorySection("InventoryDeliveryHistory");
 
-        Assert.IsNotInstanceOfType<DeliveryHistoryViewModel>(cashierViewModel.CurrentPage);
+        Assert.AreEqual("InventoryProducts", cashierViewModel.SelectedNavItem?.Tag);
+        Assert.IsInstanceOfType<DeliveryHistoryViewModel>(cashierViewModel.CurrentPage);
     }
 
     private static (AuthApiClient Client, AuthSession Session) CreateClient(

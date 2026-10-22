@@ -29,8 +29,6 @@ public sealed class ApiStockMovementsView : UserControl
         var notes = Input("Notes", "Optional notes");
         var transfer = new ActionButton("Move to Display");
         transfer.Bind(Button.CommandProperty, new Binding("TransferCommand"));
-        var openingBodegaBalance = BodegaBalanceSection();
-        openingBodegaBalance.Bind(Visual.IsVisibleProperty, new Binding(nameof(ApiStockMovementsViewModel.ShowOpeningBodegaBalance)));
         var form = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("1.8*,1*,1.2*,1.5*,Auto"), ColumnSpacing = 12,
@@ -44,7 +42,7 @@ public sealed class ApiStockMovementsView : UserControl
             {
                 Status(),
                 Field("SEARCH PRODUCTS", search),
-                openingBodegaBalance,
+                BodegaBalanceSection(),
                 Card(form),
                 new TextBlock { Text = "Select a product above to view its current Bodega balance before transferring stock." },
                 SpoilageSection(),

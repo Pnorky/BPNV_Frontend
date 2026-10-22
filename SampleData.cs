@@ -104,7 +104,6 @@ public static class SampleData
         new() { Icon = "Clock3", Text = "Cashier Shift", Tag = "CashierShift", Group = "Sales" },
         new() { Icon = "ShoppingBasket", Text = "Sale", Tag = "Sales" },
         new() { Icon = "Receipt", Text = "My Sales", Tag = "CashierSales", Group = "Sales" },
-        new() { Icon = "ArrowLeftRight", Text = "Stock Activity", Tag = "CashierStockActivity", Group = "Inventory" },
         new() { Icon = "Boxes", Text = "Inventory", Tag = "InventoryProducts", Group = "Inventory" },
         new() { Icon = "Package", Text = "Products", Tag = "InventoryProducts", IsChild = true, Group = "Catalog" },
         new() { Icon = "PackagePlus", Text = "Add Product", Tag = "InventoryAddProduct", IsChild = true },
