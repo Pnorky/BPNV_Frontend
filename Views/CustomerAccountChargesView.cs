@@ -79,6 +79,10 @@ public sealed class CustomerAccountChargesView : UserControl
         var fuel = new SearchableSelect { PlaceholderText = "Select fuel type" };
         Bind(fuel, SearchableSelect.ItemsSourceProperty, "Fuels");
         Bind(fuel, SearchableSelect.SelectedItemProperty, "SelectedFuel");
+        var addProduct = Button("Add product", "AddSelectedProductCommand");
+        var addFuel = Button("Add fuel", "AddSelectedFuelCommand");
+        addProduct.VerticalAlignment = VerticalAlignment.Bottom;
+        addFuel.VerticalAlignment = VerticalAlignment.Bottom;
         var linkedItems = Card(new StackPanel
         {
             Spacing = 12,
@@ -96,8 +100,8 @@ public sealed class CustomerAccountChargesView : UserControl
                     ColumnDefinitions = new ColumnDefinitions("*,Auto,*,Auto"), ColumnSpacing = 10,
                     Children =
                     {
-                        Field("CATALOG PRODUCT", product), At(Button("Add product", "AddSelectedProductCommand"), 1),
-                        At(Field("FUEL TYPE", fuel), 2), At(Button("Add fuel", "AddSelectedFuelCommand"), 3)
+                        Field("CATALOG PRODUCT", product), At(addProduct, 1),
+                        At(Field("FUEL TYPE", fuel), 2), At(addFuel, 3)
                     }
                 }
             }
