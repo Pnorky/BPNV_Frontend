@@ -41,7 +41,7 @@ public sealed class CustomerAccountChargesView : UserControl
         var vehicle = new SearchableSelect { PlaceholderText = "Optional plate or unit" };
         Bind(vehicle, SearchableSelect.ItemsSourceProperty, "Vehicles");
         Bind(vehicle, SearchableSelect.SelectedItemProperty, "SelectedVehicle");
-        var date = new ShadcnDateTimePicker { ShowTime = false, DateLabel = "CHARGE DATE" };
+        var date = new ShadcnDateTimePicker { ShowTime = false, DateLabel = "CHARGE DATE", ShowDateLabel = false };
         Bind(date, ShadcnDateTimePicker.SelectedDateProperty, "ChargeDate");
         var reference = Input("InvoiceReference", "Invoice or delivery reference", 100);
         var note = Input("Note", "Optional charge note", 500);

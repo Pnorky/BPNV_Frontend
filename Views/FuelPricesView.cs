@@ -18,7 +18,7 @@ public sealed class FuelPricesView : UserControl
     {
         var table = new PagedTable
         {
-            ItemName = "fuel type", ItemNamePlural = "fuel types", PageSize = 10, MinTableWidth = 680, IsSelectable = true
+            ItemName = "fuel type", ItemNamePlural = "fuel types", PageSize = 10, MinTableWidth = 760, IsSelectable = true
         };
         table.Bind(PagedTable.ItemsSourceProperty, new Binding(nameof(FuelPricesViewModel.Fuels)));
         table.Bind(PagedTable.SelectedItemProperty, new Binding(nameof(FuelPricesViewModel.SelectedFuel)) { Mode = BindingMode.TwoWay });
@@ -32,7 +32,7 @@ public sealed class FuelPricesView : UserControl
         price.HorizontalAlignment = HorizontalAlignment.Right;
         price.CellTemplate = new FuncDataTemplate<FuelProductResponse>((_, _) => Bound(nameof(FuelProductResponse.CurrentPriceDisplay), bold: true), true);
         table.Columns.Add(price);
-        var lastChanged = PagedTableColumn.Create<FuelProductResponse, DateTime>("LAST CHANGED", item => item.CurrentPriceEffectiveAtUtc, new GridLength(1.1, GridUnitType.Star));
+        var lastChanged = PagedTableColumn.Create<FuelProductResponse, DateTime>("LAST CHANGED", item => item.CurrentPriceEffectiveAtUtc, new GridLength(220));
         lastChanged.CellTemplate = new FuncDataTemplate<FuelProductResponse>((_, _) => Bound(nameof(FuelProductResponse.LastChangedDisplay)), true);
         table.Columns.Add(lastChanged);
         var status = PagedTableColumn.Create<FuelProductResponse, string>("STATUS", item => item.Status, new GridLength(.65, GridUnitType.Star));
@@ -75,7 +75,7 @@ public sealed class FuelPricesView : UserControl
         name.Bind(TextBox.TextProperty, new Binding(nameof(FuelPricesViewModel.FuelName)) { Mode = BindingMode.TwoWay });
         var order = new NumberField { Minimum = 0, Maximum = 10000 };
         order.Bind(NumberField.ValueProperty, new Binding(nameof(FuelPricesViewModel.FuelSortOrder)) { Mode = BindingMode.TwoWay });
-        var initialPrice = new NumberField { Minimum = 0.0001m, Maximum = 99999999999999.9999m, FormatString = "N4" };
+        var initialPrice = new NumberField { Minimum = 0.001m, Maximum = 999999999999999.999m, FormatString = "0.000" };
         initialPrice.Bind(NumberField.ValueProperty, new Binding(nameof(FuelPricesViewModel.InitialPrice)) { Mode = BindingMode.TwoWay });
         var initialGroup = new StackPanel { Spacing = 6, Children = { Label("INITIAL PRICE PER LITER"), initialPrice } };
         initialGroup.Bind(Visual.IsVisibleProperty, new Binding(nameof(FuelPricesViewModel.IsNewFuel)));
@@ -86,10 +86,10 @@ public sealed class FuelPricesView : UserControl
         {
             Content = new StackPanel
             {
+                Margin = new Thickness(0, 12, 0, 0),
                 Spacing = 12,
                 Children =
                 {
-                    Muted("Each record is a fuel type such as XCS, Premium, or Diesel. Select a row to edit it."),
                     Label("FUEL NAME"), name,
                     Label("DISPLAY ORDER"), order,
                     initialGroup,
@@ -105,7 +105,7 @@ public sealed class FuelPricesView : UserControl
 
     private static Control PriceEditorAndHistory()
     {
-        var newPrice = new NumberField { Minimum = 0.0001m, Maximum = 99999999999999.9999m, FormatString = "N4" };
+        var newPrice = new NumberField { Minimum = 0.001m, Maximum = 999999999999999.999m, FormatString = "0.000" };
         newPrice.Bind(NumberField.ValueProperty, new Binding(nameof(FuelPricesViewModel.NewPrice)) { Mode = BindingMode.TwoWay });
         var change = new ActionButton("Change Price", ActionButtonVariant.Primary, ActionButtonSize.Sm);
         change.Click += async (_, _) =>
@@ -114,7 +114,7 @@ public sealed class FuelPricesView : UserControl
                 TopLevel.GetTopLevel(change) is not Window owner) return;
             var dialog = new ConfirmDialog();
             dialog.SetConfirmation("Change fuel price",
-                $"Change {fuel.Name} from {fuel.CurrentPriceDisplay} to ₱{viewModel.NewPrice:N2}/L? The previous price will remain in history.",
+                $"Change {fuel.Name} from {fuel.CurrentPriceDisplay} to ₱{viewModel.NewPrice:N3}/L? The previous price will remain in history.",
                 "Change price");
             await dialog.ShowDialog(owner);
             if (dialog.Confirmed) await viewModel.ChangePriceCommand.ExecuteAsync(null);

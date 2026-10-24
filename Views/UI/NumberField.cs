@@ -338,7 +338,7 @@ public sealed class NumberField : Border
             ? $"Enter a {kind} of at least 1. Letters, negative values, and zero are not allowed."
             : minimum == 0
                 ? $"Enter a {kind} of zero or greater. Letters and negative values are not allowed."
-                : $"Enter a {kind} between {minimum} and {Math.Max(Minimum, Maximum)}.";
+                : $"Enter a {kind} greater than zero. Letters, negative values, and zero are not allowed.";
     }
 
     private void UpdateText()

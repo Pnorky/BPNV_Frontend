@@ -71,4 +71,21 @@ public sealed class NumberFieldTests
         Assert.IsFalse(field.IsInputValid);
         Assert.AreEqual(-1m, field.Value);
     }
+
+    [TestMethod]
+    public void FuelPriceFormatAcceptsThreeDecimalPlaces()
+    {
+        var field = new NumberField
+        {
+            Minimum = 0.001m,
+            Maximum = 999999999999999.999m,
+            FormatString = "0.000",
+            Value = 0.001m
+        };
+
+        field.Input.Text = "88.330";
+
+        Assert.IsTrue(field.IsInputValid);
+        Assert.AreEqual(88.330m, field.Value);
+    }
 }
