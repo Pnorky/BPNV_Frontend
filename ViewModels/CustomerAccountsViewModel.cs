@@ -175,18 +175,19 @@ public partial class CustomerAccountsViewModel : ObservableObject
     private async Task SaveVehicleAsync()
     {
         if (!CanSaveVehicle || SelectedCustomer is null) return;
+        var editingVehicle = SelectedVehicle;
         IsBusy = true;
         try
         {
-            var request = new SaveCustomerVehicleRequest(PlateOrUnitNumber.Trim(), Null(VehicleDescription), SelectedVehicle?.Version);
-            if (SelectedVehicle is null)
+            var request = new SaveCustomerVehicleRequest(PlateOrUnitNumber.Trim(), Null(VehicleDescription), editingVehicle?.Version);
+            if (editingVehicle is null)
                 await _api.CreateCustomerVehicleAsync(SelectedCustomer.Id, request);
             else
-                await _api.UpdateCustomerVehicleAsync(SelectedCustomer.Id, SelectedVehicle.Id, request);
-            StatusMessage = SelectedVehicle is null ? "Vehicle added to the customer account." : "Vehicle details updated.";
+                await _api.UpdateCustomerVehicleAsync(SelectedCustomer.Id, editingVehicle.Id, request);
+            StatusMessage = editingVehicle is null ? "Vehicle added to the customer account." : "Vehicle details updated.";
             _notifications.ShowSuccess("Vehicle saved", StatusMessage);
             IsBusy = false;
-            SelectedVehicle = null;
+            NewVehicle();
             await LoadVehiclesAsync(SelectedCustomer.Id, ++_vehicleLoadVersion);
         }
         catch (Exception exception) when (IsApiFailure(exception))
@@ -202,6 +203,11 @@ public partial class CustomerAccountsViewModel : ObservableObject
 
     [RelayCommand]
     private Task ReactivateVehicleAsync(CustomerVehicleResponse? vehicle) => SetVehicleActiveAsync(vehicle, true);
+
+    [RelayCommand]
+    private Task RetryVehiclesAsync() => SelectedCustomer is null
+        ? Task.CompletedTask
+        : LoadVehiclesAsync(SelectedCustomer.Id, ++_vehicleLoadVersion);
 
     [RelayCommand]
     private void ClearFilters() => SearchText = "";
@@ -239,7 +245,7 @@ public partial class CustomerAccountsViewModel : ObservableObject
             StatusMessage = $"Vehicle {(active ? "reactivated" : "deactivated")}.";
             _notifications.ShowSuccess("Vehicle updated", StatusMessage);
             IsBusy = false;
-            SelectedVehicle = null;
+            NewVehicle();
             await LoadVehiclesAsync(SelectedCustomer.Id, ++_vehicleLoadVersion);
         }
         catch (Exception exception) when (IsApiFailure(exception))

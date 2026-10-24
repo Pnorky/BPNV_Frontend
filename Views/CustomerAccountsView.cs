@@ -136,6 +136,7 @@ public sealed class CustomerAccountsView : UserControl
         table.Bind(PagedTable.SelectedItemProperty, new Binding(nameof(CustomerAccountsViewModel.SelectedVehicle)) { Mode = BindingMode.TwoWay });
         table.Bind(PagedTable.IsLoadingProperty, new Binding(nameof(CustomerAccountsViewModel.IsVehiclesLoading)));
         table.Bind(PagedTable.ErrorMessageProperty, new Binding(nameof(CustomerAccountsViewModel.VehicleError)));
+        table.Bind(PagedTable.RetryCommandProperty, new Binding(nameof(CustomerAccountsViewModel.RetryVehiclesCommand)));
         table.Columns.Add(PagedTableColumn.Create<CustomerVehicleResponse, string>("PLATE / UNIT", item => item.PlateOrUnitNumber, Star(1.2)));
         table.Columns.Add(PagedTableColumn.Create<CustomerVehicleResponse, string>("DESCRIPTION", item => item.Description ?? "-", Star(2)));
         table.Columns.Add(PagedTableColumn.Create<CustomerVehicleResponse, string>("STATUS", item => item.IsActive ? "Active" : "Inactive", Star(.8)));
