@@ -39,31 +39,41 @@ public sealed class CustomerAccountsView : UserControl
         customerTable.Columns.Add(lastPayment);
         customerTable.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("STATUS", item => item.Status, Star(.8)));
 
-        var customerForm = CustomerForm();
-        var customerCard = Card(new StackPanel { Spacing = 12, Children = { customerForm } });
-
         var customerList = Card(new StackPanel
         {
             Spacing = 10,
             Children =
             {
                 Heading("Customer accounts"),
-                Muted("Select a row once to review and maintain that customer's details and vehicles."),
+                Muted("Select a row once to open that customer's details and plate / unit numbers below."),
                 customerTable
             }
         });
 
-        var vehicles = VehicleSection();
-        vehicles.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.HasSelectedCustomer)));
+        var customerDetails = CustomerDetails();
 
         Content = new ScrollViewer
         {
             Content = new StackPanel
             {
                 Margin = new Thickness(30), Spacing = 14,
-                Children = { Status(), customerCard, customerList, vehicles }
+                Children = { Status(), customerList, customerDetails }
             }
         };
+    }
+
+    private static Border CustomerDetails()
+    {
+        var vehicles = VehicleSection();
+        vehicles.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.HasSelectedCustomer)));
+        var separator = new Border { Height = 1 };
+        separator.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Border"));
+        separator.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.HasSelectedCustomer)));
+        return Card(new StackPanel
+        {
+            Spacing = 16,
+            Children = { CustomerForm(), separator, vehicles }
+        });
     }
 
     private static Control CustomerForm()
@@ -106,7 +116,7 @@ public sealed class CustomerAccountsView : UserControl
         return new StackPanel { Spacing = 10, Children = { title, status, fields, actions } };
     }
 
-    private static Border VehicleSection()
+    private static Control VehicleSection()
     {
         var title = Bound(nameof(CustomerAccountsViewModel.VehicleSectionTitle), 18, true);
         var plate = Text(nameof(CustomerAccountsViewModel.PlateOrUnitNumber), "TJN 800 or BACKHOE", 50);
@@ -144,17 +154,17 @@ public sealed class CustomerAccountsView : UserControl
         actions.CellTemplate = new FuncDataTemplate<CustomerVehicleResponse>((_, _) => VehicleActions(), true);
         table.Columns.Add(actions);
 
-        return Card(new StackPanel
+        return new StackPanel
         {
             Spacing = 12,
             Children =
             {
                 title,
-                Muted("Add as many vehicles or equipment units as needed. Select a vehicle row to edit it."),
+                Muted("All vehicles and equipment registered to this customer. Select a row to edit it."),
                 editor,
                 table
             }
-        });
+        };
     }
 
     private static Control VehicleActions()

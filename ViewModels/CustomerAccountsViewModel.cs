@@ -41,9 +41,7 @@ public partial class CustomerAccountsViewModel : ObservableObject
     public bool CanReactivateCustomer => CanManageCustomers && !IsBusy && SelectedCustomer is { IsActive: false };
     public string CustomerFormTitle => SelectedCustomer is null ? "Create customer" : $"Customer details · {SelectedCustomer.Name}";
     public string CustomerSaveText => SelectedCustomer is null ? "Create customer" : "Save changes";
-    public string VehicleSectionTitle => SelectedCustomer is null
-        ? "Vehicles and equipment"
-        : $"Vehicles and equipment · {SelectedCustomer.Name}";
+    public string VehicleSectionTitle => "Plate / unit numbers";
     public string VehicleSaveText => SelectedVehicle is null ? "Add vehicle" : "Save vehicle";
     public string SelectedCustomerStatus => SelectedCustomer?.Status ?? "Select a customer row to view its details and vehicles.";
 
