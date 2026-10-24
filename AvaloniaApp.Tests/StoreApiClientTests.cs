@@ -10,6 +10,18 @@ namespace AvaloniaApp.Tests;
 public sealed class StoreApiClientTests
 {
     [TestMethod]
+    public void FuelPricesDisplayTwoDecimalPlaces()
+    {
+        var now = DateTime.UtcNow;
+        var fuel = new FuelProductResponse(Guid.NewGuid(), "XCS", 1, true,
+            90.330m, now, Guid.NewGuid(), now, Guid.NewGuid(), now);
+        var history = new FuelPriceResponse(Guid.NewGuid(), fuel.Id, 90.330m, now, Guid.NewGuid(), "Admin", now);
+
+        Assert.AreEqual("₱90.33/L", fuel.CurrentPriceDisplay);
+        Assert.AreEqual("₱90.33/L", history.PriceDisplay);
+    }
+
+    [TestMethod]
     public async Task FuelPricingUsesAdminCrudAndAppendOnlyPriceEndpoints()
     {
         var fuelId = Guid.NewGuid();
@@ -51,11 +63,13 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
-    public async Task CustomerAccountChargeUsesNestedEndpointAndPreservesOrderedManualLines()
+    public async Task CustomerAccountChargeUsesNestedEndpointAndPreservesMixedLineReferences()
     {
         Uri? requestedUri = null;
         string? body = null;
         var customerId = Guid.NewGuid();
+        var productUnitId = Guid.NewGuid();
+        var fuelId = Guid.NewGuid();
         var (auth, _) = Client(request =>
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
@@ -71,13 +85,14 @@ public sealed class StoreApiClientTests
 
         var response = await new StoreApiClient(auth).CreateCustomerAccountChargeAsync(customerId,
             new(Guid.NewGuid(), new DateOnly(2026, 10, 10), "INV-1001", null, null,
-                [new("Diesel", 1000, "L", 10), new("Lubricant", 6, "Can", 500)]));
+                [new(null, 2, null, null, productUnitId), new(null, 1000, null, null, null, fuelId),
+                 new("Lubricant service", 1, "Job", 500)]));
 
         Assert.AreEqual("CCHG-000001", response.ChargeNumber);
         StringAssert.EndsWith(requestedUri!.AbsolutePath, $"/api/customers/{customerId}/account-charges");
-        StringAssert.Contains(body!, "\"particular\":\"Diesel\"");
-        StringAssert.Contains(body!, "\"particular\":\"Lubricant\"");
-        Assert.IsTrue(body!.IndexOf("Diesel", StringComparison.Ordinal) < body.IndexOf("Lubricant", StringComparison.Ordinal));
+        StringAssert.Contains(body!, $"\"productUnitId\":\"{productUnitId}\"");
+        StringAssert.Contains(body!, $"\"fuelProductId\":\"{fuelId}\"");
+        StringAssert.Contains(body!, "\"particular\":\"Lubricant service\"");
     }
 
     [TestMethod]

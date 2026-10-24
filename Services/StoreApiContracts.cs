@@ -190,7 +190,7 @@ public sealed record FuelProductResponse(Guid Id, string Name,
     Guid CreatedByUserId, DateTime CreatedAtUtc, Guid UpdatedByUserId, DateTime UpdatedAtUtc)
 {
     public string Status => IsActive ? "Active" : "Inactive";
-    public string CurrentPriceDisplay => $"₱{CurrentPrice:N3}/L";
+    public string CurrentPriceDisplay => $"₱{CurrentPrice:N2}/L";
     public string LastChangedDisplay => StoreDateTime.FormatUtc(CurrentPriceEffectiveAtUtc);
     public override string ToString() => Name;
 }
@@ -204,7 +204,7 @@ public sealed record ChangeFuelPriceRequest(decimal PricePerLiter);
 public sealed record FuelPriceResponse(Guid Id, Guid FuelProductId, decimal PricePerLiter,
     DateTime EffectiveAtUtc, Guid CreatedByUserId, string CreatedByName, DateTime CreatedAtUtc)
 {
-    public string PriceDisplay => $"₱{PricePerLiter:N3}/L";
+    public string PriceDisplay => $"₱{PricePerLiter:N2}/L";
     public string EffectiveDisplay => StoreDateTime.FormatUtc(EffectiveAtUtc);
 }
 
@@ -276,14 +276,19 @@ public sealed record CustomerVehicleResponse(Guid Id, Guid CustomerId, string Pl
 }
 public sealed record SaveCustomerVehicleRequest(string PlateOrUnitNumber, string? Description, ulong? ExpectedVersion = null);
 public enum ApiCustomerAccountChargeStatus { Posted, Voided }
+public enum ApiCustomerAccountChargeLineSource { Manual, Product, Fuel }
 public enum ApiCustomerStatementSourceType { PosCharge, ManualCharge }
-public sealed record CreateCustomerAccountChargeLineRequest(string Particular, decimal Quantity, string Unit, decimal UnitPrice);
+public sealed record CreateCustomerAccountChargeLineRequest(string? Particular, decimal Quantity, string? Unit,
+    decimal? UnitPrice, Guid? ProductUnitId = null, Guid? FuelProductId = null);
 public sealed record CreateCustomerAccountChargeRequest(Guid IdempotencyKey, DateOnly ChargeDate,
     string InvoiceReference, Guid? CustomerVehicleId, string? Note,
     IReadOnlyList<CreateCustomerAccountChargeLineRequest> Lines);
 public sealed record VoidCustomerAccountChargeRequest(string Reason);
 public sealed record CustomerAccountChargeLineResponse(Guid Id, int LineNumber, string Particular,
-    decimal Quantity, string Unit, decimal UnitPrice, decimal LineTotal)
+    decimal Quantity, string Unit, decimal UnitPrice, decimal LineTotal,
+    ApiCustomerAccountChargeLineSource SourceType = ApiCustomerAccountChargeLineSource.Manual,
+    Guid? ProductId = null, Guid? ProductUnitId = null, Guid? FuelProductId = null,
+    string? Sku = null, string? Barcode = null, int? PiecesPerUnit = null, int? BasePieceQuantity = null)
 {
     public string QuantityDisplay => $"{Quantity:N3} {Unit}";
     public string UnitPriceDisplay => $"₱{UnitPrice:N4}";
@@ -845,6 +850,7 @@ public sealed record StockMovementResponse(
         "OpeningBodega" => "Opening Bodega",
         "TransferToDisplay" => "Bodega to Display",
         "AccountsReceivable" => "Accounts Receivable",
+        "AccountsReceivableVoid" => "Accounts Receivable Void",
         "DisplayAdjustmentIn" => "Display Adjustment In",
         "DisplayAdjustmentOut" => "Display Adjustment Out",
         "BodegaAdjustmentIn" => "Bodega Adjustment In",

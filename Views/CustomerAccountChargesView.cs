@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
@@ -26,7 +27,7 @@ public sealed class CustomerAccountChargesView : UserControl
             Padding = new Thickness(14, 11), CornerRadius = new CornerRadius(7),
             Child = new TextBlock
             {
-                Text = "Accounts Receivable only: saving creates customer debt. It does not create products, deduct stock, or affect cashier shifts.",
+                Text = "Catalog product lines deduct Display stock. Fuel and manual lines create customer debt without changing inventory or cashier shifts.",
                 TextWrapping = TextWrapping.Wrap
             }
         }, Border.BackgroundProperty, "Secondary");
@@ -57,11 +58,56 @@ public sealed class CustomerAccountChargesView : UserControl
             }
         };
 
-        var addLine = Button("Add line", "AddLineCommand");
+        var scanner = Input("ScannerText", "Scan an existing product barcode", 64);
+        scanner.KeyDown += (_, eventArgs) =>
+        {
+            if (eventArgs.Key != Key.Enter || scanner.DataContext is not CustomerAccountChargesViewModel viewModel) return;
+            viewModel.ScanBarcodeCommand.Execute(null);
+            eventArgs.Handled = true;
+        };
+        var scanButton = Button("Scan barcode", "ScanBarcodeCommand", true);
+        var product = new SearchableSelect
+        {
+            PlaceholderText = "Search product name or SKU",
+            SearchTextSelector = item => item is PosProductResponse value
+                ? $"{value.Name} {value.Sku} {value.Barcode}" : ""
+        };
+        Bind(product, SearchableSelect.ItemsSourceProperty, "Products");
+        Bind(product, SearchableSelect.SelectedItemProperty, "SelectedProduct");
+        product.ItemTemplate = new FuncDataTemplate<PosProductResponse>((_, _) =>
+            new StackPanel { Spacing = 2, Children = { BoundText("Name"), MutedBound("CatalogDetails") } }, true);
+        var fuel = new SearchableSelect { PlaceholderText = "Select fuel type" };
+        Bind(fuel, SearchableSelect.ItemsSourceProperty, "Fuels");
+        Bind(fuel, SearchableSelect.SelectedItemProperty, "SelectedFuel");
+        var linkedItems = Card(new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                Heading("Add linked items"),
+                Muted("Scan a product barcode, search a barcode-less catalog product by name or SKU, or select a fuel type. Create genuinely new products in Inventory first."),
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 10,
+                    Children = { Field("PRODUCT BARCODE", scanner), At(scanButton, 1) }
+                },
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,Auto,*,Auto"), ColumnSpacing = 10,
+                    Children =
+                    {
+                        Field("CATALOG PRODUCT", product), At(Button("Add product", "AddSelectedProductCommand"), 1),
+                        At(Field("FUEL TYPE", fuel), 2), At(Button("Add fuel", "AddSelectedFuelCommand"), 3)
+                    }
+                }
+            }
+        });
+
+        var addLine = Button("Add manual line", "AddLineCommand");
         var lineHeading = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Children = { new StackPanel { Children = { Heading("Charge lines"), Muted("Enter manual particulars, quantities, units, and prices.") } }, At(addLine, 1) }
+            Children = { new StackPanel { Children = { Heading("Charge lines"), Muted("Adjust quantities, or enter particulars, units, and prices for manual lines.") } }, At(addLine, 1) }
         };
         var lines = new ItemsControl();
         Bind(lines, ItemsControl.ItemsSourceProperty, "Lines");
@@ -80,7 +126,7 @@ public sealed class CustomerAccountChargesView : UserControl
                 At(new StackPanel { Spacing = 2, Children = { Muted("CHARGE TOTAL"), total } }, 1), At(save, 2)
             }
         };
-        var form = Card(new StackPanel { Spacing = 16, Children = { header, lineHeading, lines, summary } });
+        var form = Card(new StackPanel { Spacing = 16, Children = { header, linkedItems, lineHeading, lines, summary } });
 
         var table = new PagedTable
         {
@@ -138,20 +184,28 @@ public sealed class CustomerAccountChargesView : UserControl
         var remove = Button("Remove", "DataContext.RemoveLineCommand", ancestor: typeof(CustomerAccountChargesView));
         remove.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
         var quantity = Number("Quantity", "0.000", 0.001m, 999999999999999.999m, 0.001m);
-        var price = Number("UnitPrice", "0.0000", 0, 99999999999999.9999m, 0.01m);
+        Bind(quantity, NumberField.FormatStringProperty, "QuantityFormat");
+        Bind(quantity, NumberField.IncrementProperty, "QuantityIncrement");
         var amount = BoundText("AmountDisplay"); amount.FontWeight = FontWeight.SemiBold;
+        var particular = Input("Particular", "Diesel or lubricant", 200);
+        Bind(particular, TextBox.IsReadOnlyProperty, "IsLinked");
+        var unit = Input("Unit", "L or Can", 30);
+        Bind(unit, TextBox.IsReadOnlyProperty, "IsLinked");
+        var price = Number("UnitPrice", "0.0000", 0, 99999999999999.9999m, 0.01m);
+        Bind(price, IsEnabledProperty, "IsManual");
         var row = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("2*,0.8*,0.8*,1*,1*,Auto"), ColumnSpacing = 10,
             Children =
             {
-                Field("PARTICULAR", Input("Particular", "Diesel or lubricant", 200)),
-                At(Field("QUANTITY", quantity), 1), At(Field("UNIT", Input("Unit", "L or Can", 30)), 2),
+                Field("PARTICULAR", particular),
+                At(Field("QUANTITY", quantity), 1), At(Field("UNIT", unit), 2),
                 At(Field("UNIT PRICE", price), 3), At(Field("AMOUNT", new Border { MinHeight = 42, Child = amount }), 4), At(remove, 5)
             }
         };
         remove.VerticalAlignment = VerticalAlignment.Bottom;
-        return Resource(new Border { BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(0, 12), Child = row },
+        return Resource(new Border { BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(0, 12),
+            Child = new StackPanel { Spacing = 5, Children = { MutedBound("SourceDisplay"), row } } },
             Border.BorderBrushProperty, "Border");
     }
 
@@ -176,6 +230,7 @@ public sealed class CustomerAccountChargesView : UserControl
     private static TextBlock Heading(string text) => new() { Text = text, FontSize = 18, FontWeight = FontWeight.SemiBold };
     private static TextBlock Muted(string text) => Resource(new TextBlock { Text = text, FontSize = 11, TextWrapping = TextWrapping.Wrap }, TextBlock.ForegroundProperty, "MutedForeground");
     private static TextBlock BoundText(string path) { var value = new TextBlock(); Bind(value, TextBlock.TextProperty, path); return value; }
+    private static TextBlock MutedBound(string path) { var value = BoundText(path); value.FontSize = 11; return Resource(value, TextBlock.ForegroundProperty, "MutedForeground"); }
     private static Border Card(Control child) { var value = new Border { Padding = new Thickness(20), Child = child, HorizontalAlignment = HorizontalAlignment.Stretch }; value.Classes.Add("theme-card"); return Resource(value, Border.BackgroundProperty, "Card"); }
     private static T At<T>(T control, int column = 0, int row = 0, int span = 1) where T : Control { Grid.SetColumn(control, column); Grid.SetRow(control, row); Grid.SetColumnSpan(control, span); return control; }
     private static T Bind<T>(T target, AvaloniaProperty property, string path) where T : AvaloniaObject { target.Bind(property, new Binding(path)); return target; }

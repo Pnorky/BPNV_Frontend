@@ -1,3 +1,4 @@
+using AvaloniaApp.Services;
 using AvaloniaApp.ViewModels;
 
 namespace AvaloniaApp.Tests;
@@ -30,6 +31,40 @@ public sealed class CustomerAccountChargeLineViewModelTests
         Assert.IsFalse(line.IsValid);
         line.Particular = "Lubricant";
         line.Unit = "Can";
+        Assert.IsTrue(line.IsValid);
+    }
+
+    [TestMethod]
+    public void CatalogProductUsesSelectedUnitPriceAndDisplayAvailability()
+    {
+        var productId = Guid.NewGuid();
+        var unit = new ProductUnitResponse(Guid.NewGuid(), null, "Case", 2, 125, 100, false, true);
+        var product = new PosProductResponse(productId, "Supplier", "SKU-1", null, "Engine Oil", "Can",
+            100, 90, 6, 1, [unit], unit);
+        var line = CustomerAccountChargeLineViewModel.Product(() => { }, product, unit);
+
+        line.Quantity = 3;
+
+        Assert.AreEqual(ApiCustomerAccountChargeLineSource.Product, line.SourceType);
+        Assert.AreEqual(375m, line.Amount);
+        Assert.AreEqual(6, line.RequiredBasePieces);
+        Assert.IsTrue(line.IsValid);
+        line.Quantity = 4;
+        Assert.IsFalse(line.IsValid);
+    }
+
+    [TestMethod]
+    public void FuelUsesCurrentPriceAndLiterUnit()
+    {
+        var fuel = new FuelProductResponse(Guid.NewGuid(), "Diesel", 1, true, 88.330m, DateTime.UtcNow,
+            Guid.NewGuid(), DateTime.UtcNow, Guid.NewGuid(), DateTime.UtcNow);
+
+        var line = CustomerAccountChargeLineViewModel.Fuel(() => { }, fuel);
+        line.Quantity = 10;
+
+        Assert.AreEqual(ApiCustomerAccountChargeLineSource.Fuel, line.SourceType);
+        Assert.AreEqual("L", line.Unit);
+        Assert.AreEqual(883.30m, line.Amount);
         Assert.IsTrue(line.IsValid);
     }
 }

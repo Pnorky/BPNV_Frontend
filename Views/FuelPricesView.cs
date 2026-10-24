@@ -75,7 +75,7 @@ public sealed class FuelPricesView : UserControl
         name.Bind(TextBox.TextProperty, new Binding(nameof(FuelPricesViewModel.FuelName)) { Mode = BindingMode.TwoWay });
         var order = new NumberField { Minimum = 0, Maximum = 10000 };
         order.Bind(NumberField.ValueProperty, new Binding(nameof(FuelPricesViewModel.FuelSortOrder)) { Mode = BindingMode.TwoWay });
-        var initialPrice = new NumberField { Minimum = 0.001m, Maximum = 999999999999999.999m, FormatString = "0.000" };
+        var initialPrice = new NumberField { Minimum = 0.01m, Maximum = 999999999999999.99m, Increment = 0.01m, FormatString = "0.00" };
         initialPrice.Bind(NumberField.ValueProperty, new Binding(nameof(FuelPricesViewModel.InitialPrice)) { Mode = BindingMode.TwoWay });
         var initialGroup = new StackPanel { Spacing = 6, Children = { Label("INITIAL PRICE PER LITER"), initialPrice } };
         initialGroup.Bind(Visual.IsVisibleProperty, new Binding(nameof(FuelPricesViewModel.IsNewFuel)));
@@ -86,10 +86,10 @@ public sealed class FuelPricesView : UserControl
         {
             Content = new StackPanel
             {
-                Margin = new Thickness(0, 12, 0, 0),
                 Spacing = 12,
                 Children =
                 {
+                    new Separator { Margin = new Thickness(0, 4) },
                     Label("FUEL NAME"), name,
                     Label("DISPLAY ORDER"), order,
                     initialGroup,
@@ -105,7 +105,7 @@ public sealed class FuelPricesView : UserControl
 
     private static Control PriceEditorAndHistory()
     {
-        var newPrice = new NumberField { Minimum = 0.001m, Maximum = 999999999999999.999m, FormatString = "0.000" };
+        var newPrice = new NumberField { Minimum = 0.01m, Maximum = 999999999999999.99m, Increment = 0.01m, FormatString = "0.00" };
         newPrice.Bind(NumberField.ValueProperty, new Binding(nameof(FuelPricesViewModel.NewPrice)) { Mode = BindingMode.TwoWay });
         var change = new ActionButton("Change Price", ActionButtonVariant.Primary, ActionButtonSize.Sm);
         change.Click += async (_, _) =>
@@ -114,7 +114,7 @@ public sealed class FuelPricesView : UserControl
                 TopLevel.GetTopLevel(change) is not Window owner) return;
             var dialog = new ConfirmDialog();
             dialog.SetConfirmation("Change fuel price",
-                $"Change {fuel.Name} from {fuel.CurrentPriceDisplay} to ₱{viewModel.NewPrice:N3}/L? The previous price will remain in history.",
+                $"Change {fuel.Name} from {fuel.CurrentPriceDisplay} to ₱{viewModel.NewPrice:N2}/L? The previous price will remain in history.",
                 "Change price");
             await dialog.ShowDialog(owner);
             if (dialog.Confirmed) await viewModel.ChangePriceCommand.ExecuteAsync(null);

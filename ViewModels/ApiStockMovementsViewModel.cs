@@ -77,6 +77,7 @@ public partial class ApiStockMovementsViewModel : ObservableObject
         new("Opening Display", "OpeningDisplay"),
         new("Opening Bodega", "OpeningBodega"),
         new("Accounts Receivable", "AccountsReceivable"),
+        new("Accounts Receivable voids", "AccountsReceivableVoid"),
         new("Display adjustments in", "DisplayAdjustmentIn"),
         new("Display adjustments out", "DisplayAdjustmentOut"),
         new("Bodega adjustments in", "BodegaAdjustmentIn"),
