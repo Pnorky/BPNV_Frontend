@@ -10,6 +10,18 @@ namespace AvaloniaApp.Tests;
 public sealed class StoreApiClientTests
 {
     [TestMethod]
+    public void FuelPricesDisplayTwoDecimalPlaces()
+    {
+        var now = DateTime.UtcNow;
+        var fuel = new FuelProductResponse(Guid.NewGuid(), "XCS", 1, true,
+            90.330m, now, Guid.NewGuid(), now, Guid.NewGuid(), now);
+        var history = new FuelPriceResponse(Guid.NewGuid(), fuel.Id, 90.330m, now, Guid.NewGuid(), "Admin", now);
+
+        Assert.AreEqual("₱90.33/L", fuel.CurrentPriceDisplay);
+        Assert.AreEqual("₱90.33/L", history.PriceDisplay);
+    }
+
+    [TestMethod]
     public async Task FuelPricingUsesAdminCrudAndAppendOnlyPriceEndpoints()
     {
         var fuelId = Guid.NewGuid();

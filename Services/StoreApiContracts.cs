@@ -190,7 +190,7 @@ public sealed record FuelProductResponse(Guid Id, string Name,
     Guid CreatedByUserId, DateTime CreatedAtUtc, Guid UpdatedByUserId, DateTime UpdatedAtUtc)
 {
     public string Status => IsActive ? "Active" : "Inactive";
-    public string CurrentPriceDisplay => $"₱{CurrentPrice:N3}/L";
+    public string CurrentPriceDisplay => $"₱{CurrentPrice:N2}/L";
     public string LastChangedDisplay => StoreDateTime.FormatUtc(CurrentPriceEffectiveAtUtc);
     public override string ToString() => Name;
 }
@@ -204,7 +204,7 @@ public sealed record ChangeFuelPriceRequest(decimal PricePerLiter);
 public sealed record FuelPriceResponse(Guid Id, Guid FuelProductId, decimal PricePerLiter,
     DateTime EffectiveAtUtc, Guid CreatedByUserId, string CreatedByName, DateTime CreatedAtUtc)
 {
-    public string PriceDisplay => $"₱{PricePerLiter:N3}/L";
+    public string PriceDisplay => $"₱{PricePerLiter:N2}/L";
     public string EffectiveDisplay => StoreDateTime.FormatUtc(EffectiveAtUtc);
 }
 
