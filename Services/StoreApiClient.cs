@@ -172,11 +172,28 @@ public sealed class StoreApiClient(AuthApiClient authClient)
     public Task<CustomerResponse> UpdateCustomerAsync(Guid id, SaveCustomerRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<CustomerResponse, SaveCustomerRequest>(HttpMethod.Put, $"api/customers/{id}", request, cancellationToken);
 
+    public Task DeactivateCustomerAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/customers/{id}/deactivate", cancellationToken);
+
+    public Task ReactivateCustomerAsync(Guid id, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/customers/{id}/reactivate", cancellationToken);
+
     public Task<IReadOnlyList<CustomerVehicleResponse>> GetCustomerVehiclesAsync(Guid customerId, CancellationToken cancellationToken = default) =>
         SendAsync<IReadOnlyList<CustomerVehicleResponse>>(() => new HttpRequestMessage(HttpMethod.Get, $"api/customers/{customerId}/vehicles"), cancellationToken);
 
     public Task<CustomerVehicleResponse> CreateCustomerVehicleAsync(Guid customerId, SaveCustomerVehicleRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<CustomerVehicleResponse, SaveCustomerVehicleRequest>(HttpMethod.Post, $"api/customers/{customerId}/vehicles", request, cancellationToken);
+
+    public Task<CustomerVehicleResponse> UpdateCustomerVehicleAsync(Guid customerId, Guid vehicleId,
+        SaveCustomerVehicleRequest request, CancellationToken cancellationToken = default) =>
+        SendJsonAsync<CustomerVehicleResponse, SaveCustomerVehicleRequest>(HttpMethod.Put,
+            $"api/customers/{customerId}/vehicles/{vehicleId}", request, cancellationToken);
+
+    public Task DeactivateCustomerVehicleAsync(Guid customerId, Guid vehicleId, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/customers/{customerId}/vehicles/{vehicleId}/deactivate", cancellationToken);
+
+    public Task ReactivateCustomerVehicleAsync(Guid customerId, Guid vehicleId, CancellationToken cancellationToken = default) =>
+        SendWithoutResponseAsync(HttpMethod.Post, $"api/customers/{customerId}/vehicles/{vehicleId}/reactivate", cancellationToken);
 
     public Task<CustomerAccountChargePageResponse> GetCustomerAccountChargesAsync(Guid? customerId = null,
         DateOnly? fromDate = null, DateOnly? toDate = null, ApiCustomerAccountChargeStatus? status = null,
