@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
+using Avalonia.Media;
 using AvaloniaApp.Services;
 using AvaloniaApp.ViewModels;
 using AvaloniaApp.Views.UI;
@@ -13,62 +15,218 @@ public sealed class CustomerAccountsView : UserControl
 {
     public CustomerAccountsView()
     {
-        var table = new PagedTable { ItemName = "customer", ItemNamePlural = "customers", PageSize = 10, MinTableWidth = 1050, IsSelectable = true };
-        table.Bind(PagedTable.ItemsSourceProperty, new Binding(nameof(CustomerAccountsViewModel.Customers)));
-        table.Bind(PagedTable.SelectedItemProperty, new Binding(nameof(CustomerAccountsViewModel.SelectedCustomer)) { Mode = BindingMode.TwoWay });
-        table.Bind(PagedTable.IsLoadingProperty, new Binding(nameof(CustomerAccountsViewModel.IsBusy)));
-        table.Bind(PagedTable.ErrorMessageProperty, new Binding(nameof(CustomerAccountsViewModel.ErrorMessage)));
-        table.Bind(PagedTable.IsFilteredProperty, new Binding(nameof(CustomerAccountsViewModel.IsFiltered)));
-        table.Bind(PagedTable.RetryCommandProperty, new Binding(nameof(CustomerAccountsViewModel.LoadCommand)));
-        table.Bind(PagedTable.ClearFiltersCommandProperty, new Binding(nameof(CustomerAccountsViewModel.ClearFiltersCommand)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("ACCOUNT", item => item.AccountNumber, Star(1)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("CUSTOMER", item => item.Name, Star(1.8)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("CONTACT", item => item.ContactPerson ?? "-", Star(1.4)));
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("PHONE", item => item.Phone ?? "-", Star(1.1)));
-        var money = PagedTableColumn.Create<CustomerResponse, string>("BALANCE", item => item.OutstandingDisplay, Star(1)); money.HorizontalAlignment = HorizontalAlignment.Right; table.Columns.Add(money);
-        var lastPayment = PagedTableColumn.Create<CustomerResponse, string>("LAST PAYMENT", item => item.LastPaymentDisplay, Star(1.8)); lastPayment.WrapText = true; table.Columns.Add(lastPayment);
-        table.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("STATUS", item => item.Status, Star(0.8)));
+        var customerTable = new PagedTable
+        {
+            ItemName = "customer", ItemNamePlural = "customers", PageSize = 10,
+            MinTableWidth = 1050, IsSelectable = true, Height = 390
+        };
+        customerTable.Bind(PagedTable.ItemsSourceProperty, new Binding(nameof(CustomerAccountsViewModel.Customers)));
+        customerTable.Bind(PagedTable.SelectedItemProperty, new Binding(nameof(CustomerAccountsViewModel.SelectedCustomer)) { Mode = BindingMode.TwoWay });
+        customerTable.Bind(PagedTable.IsLoadingProperty, new Binding(nameof(CustomerAccountsViewModel.IsBusy)));
+        customerTable.Bind(PagedTable.ErrorMessageProperty, new Binding(nameof(CustomerAccountsViewModel.ErrorMessage)));
+        customerTable.Bind(PagedTable.IsFilteredProperty, new Binding(nameof(CustomerAccountsViewModel.IsFiltered)));
+        customerTable.Bind(PagedTable.RetryCommandProperty, new Binding(nameof(CustomerAccountsViewModel.LoadCommand)));
+        customerTable.Bind(PagedTable.ClearFiltersCommandProperty, new Binding(nameof(CustomerAccountsViewModel.ClearFiltersCommand)));
+        customerTable.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("ACCOUNT", item => item.AccountNumber, Star(1)));
+        customerTable.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("CUSTOMER", item => item.Name, Star(1.8)));
+        customerTable.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("CONTACT", item => item.ContactPerson ?? "-", Star(1.4)));
+        customerTable.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("PHONE", item => item.Phone ?? "-", Star(1.1)));
+        var money = PagedTableColumn.Create<CustomerResponse, string>("BALANCE", item => item.OutstandingDisplay, Star(1));
+        money.HorizontalAlignment = HorizontalAlignment.Right;
+        customerTable.Columns.Add(money);
+        var lastPayment = PagedTableColumn.Create<CustomerResponse, string>("LAST PAYMENT", item => item.LastPaymentDisplay, Star(1.8));
+        lastPayment.WrapText = true;
+        customerTable.Columns.Add(lastPayment);
+        customerTable.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("STATUS", item => item.Status, Star(.8)));
 
-        var customerForm = FormCard("Create customer", new Grid
+        var customerForm = CustomerForm();
+        var customerCard = Card(new StackPanel { Spacing = 12, Children = { customerForm } });
+
+        var customerList = Card(new StackPanel
         {
-            ColumnDefinitions = new ColumnDefinitions("*,2*,2*,*,*,Auto"), ColumnSpacing = 8,
+            Spacing = 10,
             Children =
             {
-                Field("Account number", Text("AccountNumber", "ACCT-001"), 0),
-                Field("Customer name", Text("CustomerName", "Business or account name"), 1),
-                Field("Billing address", Text("BillingAddress", "Optional address"), 2),
-                Field("Contact person", Text("ContactPerson", "Optional"), 3),
-                Field("Phone", Text("Phone", "Optional"), 4),
-                Button("Create", "CreateCustomerCommand", 5)
+                Heading("Customer accounts"),
+                Muted("Select a row once to review and maintain that customer's details and vehicles."),
+                customerTable
             }
         });
-        var vehicleForm = FormCard("Add plate or unit to selected customer", new Grid
+
+        var vehicles = VehicleSection();
+        vehicles.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.HasSelectedCustomer)));
+
+        Content = new ScrollViewer
         {
-            ColumnDefinitions = new ColumnDefinitions("*,2*,Auto"), ColumnSpacing = 8,
-            Children =
+            Content = new StackPanel
             {
-                Field("Plate / unit", Text("PlateOrUnitNumber", "TJN 800 or BACKHOE"), 0),
-                Field("Description", Text("VehicleDescription", "Optional vehicle description"), 1),
-                Button("Add", "CreateVehicleCommand", 2)
+                Margin = new Thickness(30), Spacing = 14,
+                Children = { Status(), customerCard, customerList, vehicles }
             }
-        });
-        var card = new Border { Padding = new Thickness(18), Child = table }; card.Classes.Add("theme-card"); card.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card"));
-        var forms = new StackPanel { Spacing = 10, Children = { customerForm, vehicleForm } };
-        forms.Bind(IsVisibleProperty, new Binding("CanManageCustomers"));
-        Content = new Grid { Margin = new Thickness(30), RowDefinitions = new RowDefinitions("Auto,Auto,*"), RowSpacing = 14,
-            Children = { Status(), forms, At(card, 2) } };
-        Grid.SetRow(forms, 1);
+        };
     }
 
-    private static Border FormCard(string title, Control form)
+    private static Control CustomerForm()
     {
-        var card = new Border { Padding = new Thickness(14), Child = new StackPanel { Spacing = 8, Children = { new TextBlock { Text = title, FontWeight = Avalonia.Media.FontWeight.SemiBold }, form } } };
-        card.Classes.Add("theme-card"); card.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card")); return card;
+        var title = Bound(nameof(CustomerAccountsViewModel.CustomerFormTitle), 18, true);
+        var status = MutedBound(nameof(CustomerAccountsViewModel.SelectedCustomerStatus));
+        var account = Text(nameof(CustomerAccountsViewModel.AccountNumber), "ACCT-001", 30);
+        var name = Text(nameof(CustomerAccountsViewModel.CustomerName), "Business or account name", 200);
+        var address = Text(nameof(CustomerAccountsViewModel.BillingAddress), "Optional billing address", 500);
+        var contact = Text(nameof(CustomerAccountsViewModel.ContactPerson), "Optional contact person", 160);
+        var phone = Text(nameof(CustomerAccountsViewModel.Phone), "Optional phone", 50);
+        var email = Text(nameof(CustomerAccountsViewModel.Email), "Optional email", 254);
+        foreach (var control in new Control[] { account, name, address, contact, phone, email })
+            control.Bind(IsEnabledProperty, new Binding(nameof(CustomerAccountsViewModel.CanManageCustomers)));
+
+        var fields = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,2*,2*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto"), ColumnSpacing = 10, RowSpacing = 10,
+            Children =
+            {
+                Field("ACCOUNT NUMBER", account), At(Field("CUSTOMER NAME", name), 1), At(Field("BILLING ADDRESS", address), 2),
+                At(Field("CONTACT PERSON", contact), row: 1), At(Field("PHONE", phone), 1, 1), At(Field("EMAIL", email), 2, 1)
+            }
+        };
+        var save = new ActionButton("", ActionButtonVariant.Primary);
+        save.Bind(ContentControl.ContentProperty, new Binding(nameof(CustomerAccountsViewModel.CustomerSaveText)));
+        save.Bind(Avalonia.Controls.Button.CommandProperty, new Binding(nameof(CustomerAccountsViewModel.SaveCustomerCommand)));
+        var clear = Button("New customer", nameof(CustomerAccountsViewModel.NewCustomerCommand));
+        var deactivate = Button("Deactivate", nameof(CustomerAccountsViewModel.DeactivateCustomerCommand), ActionButtonVariant.Danger);
+        deactivate.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.CanDeactivateCustomer)));
+        var reactivate = Button("Reactivate", nameof(CustomerAccountsViewModel.ReactivateCustomerCommand));
+        reactivate.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.CanReactivateCustomer)));
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 8,
+            Children = { save, clear, deactivate, reactivate }
+        };
+        actions.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.CanManageCustomers)));
+        return new StackPanel { Spacing = 10, Children = { title, status, fields, actions } };
     }
-    private static Control Field(string label, Control control, int column) { var panel = new StackPanel { Spacing = 4, Children = { new TextBlock { Text = label, FontSize = 11 }, control } }; Grid.SetColumn(panel, column); return panel; }
-    private static TextBox Text(string path, string placeholder) { var control = new TextBox { PlaceholderText = placeholder, Classes = { "form-input" } }; control.Bind(TextBox.TextProperty, new Binding(path) { Mode = BindingMode.TwoWay }); return control; }
-    private static Button Button(string text, string command, int column) { var button = new ActionButton(text, ActionButtonVariant.Primary) { VerticalAlignment = VerticalAlignment.Bottom }; button.Bind(Avalonia.Controls.Button.CommandProperty, new Binding(command)); Grid.SetColumn(button, column); return button; }
-    private static Border Status() { var text = new TextBlock(); text.Bind(TextBlock.TextProperty, new Binding("StatusMessage")); var border = new Border { Padding = new Thickness(12, 8), Child = text }; border.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary")); return border; }
+
+    private static Border VehicleSection()
+    {
+        var title = Bound(nameof(CustomerAccountsViewModel.VehicleSectionTitle), 18, true);
+        var plate = Text(nameof(CustomerAccountsViewModel.PlateOrUnitNumber), "TJN 800 or BACKHOE", 50);
+        var description = Text(nameof(CustomerAccountsViewModel.VehicleDescription), "Optional vehicle description", 160);
+        var save = new ActionButton("", ActionButtonVariant.Primary);
+        save.Bind(ContentControl.ContentProperty, new Binding(nameof(CustomerAccountsViewModel.VehicleSaveText)));
+        save.Bind(Avalonia.Controls.Button.CommandProperty, new Binding(nameof(CustomerAccountsViewModel.SaveVehicleCommand)));
+        save.VerticalAlignment = VerticalAlignment.Bottom;
+        var clear = Button("New vehicle", nameof(CustomerAccountsViewModel.NewVehicleCommand));
+        clear.VerticalAlignment = VerticalAlignment.Bottom;
+        var editor = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,2*,Auto,Auto"), ColumnSpacing = 10,
+            Children =
+            {
+                Field("PLATE / UNIT", plate), At(Field("DESCRIPTION", description), 1), At(save, 2), At(clear, 3)
+            }
+        };
+        editor.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.CanManageCustomers)));
+
+        var table = new PagedTable
+        {
+            ItemName = "vehicle", ItemNamePlural = "vehicles", PageSize = 10,
+            IsSelectable = true, Height = 300, MinTableWidth = 650
+        };
+        table.Bind(PagedTable.ItemsSourceProperty, new Binding(nameof(CustomerAccountsViewModel.Vehicles)));
+        table.Bind(PagedTable.SelectedItemProperty, new Binding(nameof(CustomerAccountsViewModel.SelectedVehicle)) { Mode = BindingMode.TwoWay });
+        table.Bind(PagedTable.IsLoadingProperty, new Binding(nameof(CustomerAccountsViewModel.IsVehiclesLoading)));
+        table.Bind(PagedTable.ErrorMessageProperty, new Binding(nameof(CustomerAccountsViewModel.VehicleError)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerVehicleResponse, string>("PLATE / UNIT", item => item.PlateOrUnitNumber, Star(1.2)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerVehicleResponse, string>("DESCRIPTION", item => item.Description ?? "-", Star(2)));
+        table.Columns.Add(PagedTableColumn.Create<CustomerVehicleResponse, string>("STATUS", item => item.IsActive ? "Active" : "Inactive", Star(.8)));
+        var actions = PagedTableColumn.Create<CustomerVehicleResponse, string>("ACTIONS", _ => "", Star(1.2), false);
+        actions.CellTemplate = new FuncDataTemplate<CustomerVehicleResponse>((_, _) => VehicleActions(), true);
+        table.Columns.Add(actions);
+
+        return Card(new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                title,
+                Muted("Add as many vehicles or equipment units as needed. Select a vehicle row to edit it."),
+                editor,
+                table
+            }
+        });
+    }
+
+    private static Control VehicleActions()
+    {
+        var deactivate = Button("Deactivate", "DataContext.DeactivateVehicleCommand", ActionButtonVariant.Danger,
+            typeof(CustomerAccountsView));
+        var reactivate = Button("Reactivate", "DataContext.ReactivateVehicleCommand", ActionButtonVariant.Secondary,
+            typeof(CustomerAccountsView));
+        deactivate.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
+        reactivate.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { deactivate, reactivate } };
+        panel.Bind(IsVisibleProperty, new Binding("DataContext.CanManageCustomers")
+        { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(CustomerAccountsView) } });
+        void Update()
+        {
+            if (panel.DataContext is not CustomerVehicleResponse vehicle) return;
+            deactivate.IsVisible = vehicle.IsActive;
+            reactivate.IsVisible = !vehicle.IsActive;
+        }
+        panel.DataContextChanged += (_, _) => Update();
+        panel.AttachedToVisualTree += (_, _) => Update();
+        return panel;
+    }
+
+    private static ActionButton Button(string text, string command,
+        ActionButtonVariant variant = ActionButtonVariant.Secondary, Type? ancestor = null)
+    {
+        var button = new ActionButton(text, variant, ActionButtonSize.Sm);
+        button.Bind(Avalonia.Controls.Button.CommandProperty, ancestor is null ? new Binding(command) : new Binding(command)
+        { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = ancestor } });
+        return button;
+    }
+
+    private static TextBox Text(string path, string placeholder, int maxLength)
+    {
+        var control = new TextBox { PlaceholderText = placeholder, MaxLength = maxLength, Classes = { "form-input" } };
+        control.Bind(TextBox.TextProperty, new Binding(path) { Mode = BindingMode.TwoWay });
+        return control;
+    }
+
+    private static StackPanel Field(string label, Control control) => new()
+    {
+        Spacing = 4,
+        Children = { Muted(label), control }
+    };
+
+    private static Border Status()
+    {
+        var border = new Border { Padding = new Thickness(12, 8), Child = Bound(nameof(CustomerAccountsViewModel.StatusMessage)) };
+        border.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Secondary"));
+        return border;
+    }
+
+    private static Border Card(Control child)
+    {
+        var card = new Border { Padding = new Thickness(18), Child = child };
+        card.Classes.Add("theme-card");
+        card.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card"));
+        return card;
+    }
+
+    private static TextBlock Heading(string text) => new() { Text = text, FontSize = 18, FontWeight = FontWeight.SemiBold };
+    private static TextBlock Bound(string path, double? size = null, bool bold = false)
+    {
+        var text = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        if (size.HasValue) text.FontSize = size.Value;
+        if (bold) text.FontWeight = FontWeight.SemiBold;
+        text.Bind(TextBlock.TextProperty, new Binding(path));
+        return text;
+    }
+    private static TextBlock Muted(string text) => Resource(new TextBlock { Text = text, FontSize = 11, TextWrapping = TextWrapping.Wrap }, TextBlock.ForegroundProperty, "MutedForeground");
+    private static TextBlock MutedBound(string path) => Resource(Bound(path), TextBlock.ForegroundProperty, "MutedForeground");
     private static GridLength Star(double value) => new(value, GridUnitType.Star);
-    private static T At<T>(T value, int row) where T : Control { Grid.SetRow(value, row); return value; }
+    private static T At<T>(T control, int column = 0, int row = 0) where T : Control { Grid.SetColumn(control, column); Grid.SetRow(control, row); return control; }
+    private static T Resource<T>(T target, AvaloniaProperty property, string key) where T : AvaloniaObject { target.Bind(property, new DynamicResourceExtension(key)); return target; }
 }

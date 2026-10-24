@@ -10,6 +10,38 @@ namespace AvaloniaApp.Tests;
 public sealed class StoreApiClientTests
 {
     [TestMethod]
+    public async Task CustomerAndVehicleManagementUseNestedRoutes()
+    {
+        var customerId = Guid.NewGuid();
+        var vehicleId = Guid.NewGuid();
+        var requests = new List<(HttpMethod Method, string Path)>();
+        var vehicle = new CustomerVehicleResponse(vehicleId, customerId, "TJN 800", "Truck", true, 2);
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            requests.Add((request.Method, request.RequestUri.AbsolutePath));
+            return request.Method == HttpMethod.Put ? Json(vehicle) : new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+        await auth.LoginAsync("admin", "password");
+        var client = new StoreApiClient(auth);
+
+        await client.DeactivateCustomerAsync(customerId);
+        await client.ReactivateCustomerAsync(customerId);
+        await client.UpdateCustomerVehicleAsync(customerId, vehicleId, new("TJN 800", "Truck", 1));
+        await client.DeactivateCustomerVehicleAsync(customerId, vehicleId);
+        await client.ReactivateCustomerVehicleAsync(customerId, vehicleId);
+
+        CollectionAssert.AreEqual(new[]
+        {
+            (HttpMethod.Post, $"/api/customers/{customerId}/deactivate"),
+            (HttpMethod.Post, $"/api/customers/{customerId}/reactivate"),
+            (HttpMethod.Put, $"/api/customers/{customerId}/vehicles/{vehicleId}"),
+            (HttpMethod.Post, $"/api/customers/{customerId}/vehicles/{vehicleId}/deactivate"),
+            (HttpMethod.Post, $"/api/customers/{customerId}/vehicles/{vehicleId}/reactivate")
+        }, requests.ToArray());
+    }
+
+    [TestMethod]
     public void FuelPricesDisplayTwoDecimalPlaces()
     {
         var now = DateTime.UtcNow;
