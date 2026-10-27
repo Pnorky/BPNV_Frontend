@@ -166,6 +166,10 @@ public sealed class StoreApiClient(AuthApiClient authClient)
             ("search", search), ("includeInactive", includeInactive ? "true" : "false"),
             ("page", page.ToString(CultureInfo.InvariantCulture)), ("pageSize", pageSize.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
 
+    public Task<NextCustomerAccountNumberResponse> GetNextCustomerAccountNumberAsync(CancellationToken cancellationToken = default) =>
+        SendAsync<NextCustomerAccountNumberResponse>(() => new HttpRequestMessage(HttpMethod.Get,
+            "api/customers/next-account-number"), cancellationToken);
+
     public Task<CustomerResponse> CreateCustomerAsync(SaveCustomerRequest request, CancellationToken cancellationToken = default) =>
         SendJsonAsync<CustomerResponse, SaveCustomerRequest>(HttpMethod.Post, "api/customers", request, cancellationToken);
 

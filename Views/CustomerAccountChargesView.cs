@@ -44,7 +44,7 @@ public sealed class CustomerAccountChargesView : UserControl
         Bind(vehicle, SearchableSelect.SelectedItemProperty, "SelectedVehicle");
         var date = new ShadcnDateTimePicker { ShowTime = false, DateLabel = "CHARGE DATE", ShowDateLabel = false };
         Bind(date, ShadcnDateTimePicker.SelectedDateProperty, "ChargeDate");
-        var reference = Input("InvoiceReference", "Invoice or delivery reference", 100);
+        var reference = Input("InvoiceReference", "Optional; defaults to the generated charge number", 100);
         var note = Input("Note", "Optional charge note", 500);
         var header = new Grid
         {
@@ -53,7 +53,7 @@ public sealed class CustomerAccountChargesView : UserControl
             Children =
             {
                 Field("CUSTOMER", customer), At(Field("CHARGE DATE", date), 1),
-                At(Field("INVOICE / REFERENCE", reference), row: 1), At(Field("PLATE / UNIT", vehicle), 1, 1),
+                At(Field("EXTERNAL REFERENCE (OPTIONAL)", reference), row: 1), At(Field("PLATE / UNIT", vehicle), 1, 1),
                 At(Field("NOTE", note), row: 2, span: 2)
             }
         };
@@ -195,7 +195,8 @@ public sealed class CustomerAccountChargesView : UserControl
         Bind(particular, TextBox.IsReadOnlyProperty, "IsLinked");
         var unit = Input("Unit", "L or Can", 30);
         Bind(unit, TextBox.IsReadOnlyProperty, "IsLinked");
-        var price = Number("UnitPrice", "0.0000", 0, 99999999999999.9999m, 0.01m);
+        var price = Number("UnitPrice", "0.000", 0, 99999999999999.999m, 0.001m);
+        Bind(price, NumberField.FormatStringProperty, "UnitPriceFormat");
         Bind(price, IsEnabledProperty, "IsManual");
         var row = new Grid
         {

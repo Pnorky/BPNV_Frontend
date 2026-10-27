@@ -23,7 +23,12 @@ public partial class CustomerAccountChargeLineViewModel : ObservableObject
     public int? DisplayStock { get; }
     public bool IsManual => SourceType == ApiCustomerAccountChargeLineSource.Manual;
     public bool IsLinked => !IsManual;
-    public string QuantityFormat => SourceType == ApiCustomerAccountChargeLineSource.Product ? "0" : "0.000";
+    public string QuantityFormat => SourceType switch
+    {
+        ApiCustomerAccountChargeLineSource.Product => "0",
+        _ => "0.000"
+    };
+    public string UnitPriceFormat => SourceType == ApiCustomerAccountChargeLineSource.Product ? "0.00" : "0.000";
     public decimal QuantityIncrement => SourceType == ApiCustomerAccountChargeLineSource.Product ? 1m : 0.001m;
     public string SourceDisplay => SourceType switch
     {
@@ -82,7 +87,9 @@ public partial class CustomerAccountChargeLineViewModel : ObservableObject
     public bool IsValid => !string.IsNullOrWhiteSpace(Particular) && Particular.Trim().Length <= 200 &&
         Quantity > 0 && Quantity <= 999999999999999.999m && decimal.Round(Quantity, 3) == Quantity &&
         !string.IsNullOrWhiteSpace(Unit) && Unit.Trim().Length <= 30 && UnitPrice >= 0 &&
-        UnitPrice <= 99999999999999.9999m && decimal.Round(UnitPrice, 4) == UnitPrice && TryGetAmount(out _) &&
+        UnitPrice <= 99999999999999.999m &&
+        decimal.Round(UnitPrice, SourceType == ApiCustomerAccountChargeLineSource.Product ? 2 : 3) == UnitPrice &&
+        TryGetAmount(out _) &&
         (SourceType != ApiCustomerAccountChargeLineSource.Product ||
          TryGetRequiredBasePieces(out var required) && required <= DisplayStock);
 
@@ -167,7 +174,7 @@ public partial class CustomerAccountChargesViewModel : ObservableObject
     }
     public string ChargeTotalDisplay => $"₱{ChargeTotal:N2}";
     public bool CanSave => !IsBusy && SelectedCustomer is { IsActive: true } && ChargeDate.HasValue &&
-        !string.IsNullOrWhiteSpace(InvoiceReference) && InvoiceReference.Trim().Length <= 100 && Lines.Count > 0 &&
+        InvoiceReference.Trim().Length <= 100 && Lines.Count > 0 &&
         Lines.All(line => line.IsValid) && HasAvailableProductStock() && ChargeTotal is > 0 and <= 9999999999999999.99m;
     public bool CanVoid => !IsBusy && SelectedCharge?.CanVoid == true && !string.IsNullOrWhiteSpace(VoidReason);
     public bool CanPreviousHistory => !IsHistoryLoading && HistoryPage > 1;

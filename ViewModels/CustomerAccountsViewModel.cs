@@ -28,19 +28,22 @@ public partial class CustomerAccountsViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "Loading customer accounts...";
     [ObservableProperty] private string? _errorMessage;
     [ObservableProperty] private string? _vehicleError;
+    [ObservableProperty] private string _nextAccountNumber = "Loading...";
 
     public bool IsFiltered => !string.IsNullOrWhiteSpace(SearchText);
     public bool HasSelectedCustomer => SelectedCustomer is not null;
     public bool HasSelectedVehicle => SelectedVehicle is not null;
     public bool CanManageCustomers { get; }
     public bool CanSaveCustomer => CanManageCustomers && !IsBusy &&
-        !string.IsNullOrWhiteSpace(AccountNumber) && !string.IsNullOrWhiteSpace(CustomerName);
+        !string.IsNullOrWhiteSpace(CustomerName) &&
+        (SelectedCustomer is null || !string.IsNullOrWhiteSpace(AccountNumber));
     public bool CanSaveVehicle => CanManageCustomers && !IsBusy && SelectedCustomer is not null &&
         !string.IsNullOrWhiteSpace(PlateOrUnitNumber);
     public bool CanDeactivateCustomer => CanManageCustomers && !IsBusy && SelectedCustomer?.IsActive == true;
     public bool CanReactivateCustomer => CanManageCustomers && !IsBusy && SelectedCustomer is { IsActive: false };
     public string CustomerFormTitle => SelectedCustomer is null ? "Create customer" : $"Customer details · {SelectedCustomer.Name}";
     public string CustomerSaveText => SelectedCustomer is null ? "Create customer" : "Save changes";
+    public string AccountNumberDisplay => SelectedCustomer?.AccountNumber ?? NextAccountNumber;
     public string VehicleSectionTitle => "Plate / unit numbers";
     public string VehicleSaveText => SelectedVehicle is null ? "Add vehicle" : "Save vehicle";
     public string SelectedCustomerStatus => SelectedCustomer?.Status ?? "Select a customer row to view its details and vehicles.";
@@ -92,6 +95,7 @@ public partial class CustomerAccountsViewModel : ObservableObject
     }
 
     partial void OnAccountNumberChanged(string value) => NotifyCustomerEditor();
+    partial void OnNextAccountNumberChanged(string value) => OnPropertyChanged(nameof(AccountNumberDisplay));
     partial void OnCustomerNameChanged(string value) => NotifyCustomerEditor();
     partial void OnPlateOrUnitNumberChanged(string value) => NotifyVehicleEditor();
     partial void OnIsBusyChanged(bool value) { NotifyCustomerEditor(); NotifyVehicleEditor(); }
@@ -107,6 +111,11 @@ public partial class CustomerAccountsViewModel : ObservableObject
             var selectedId = SelectedCustomer?.Id;
             var response = await _api.GetCustomersAsync(SearchText, includeInactive: true, pageSize: 100);
             Customers = response.Items;
+            if (CanManageCustomers)
+            {
+                try { NextAccountNumber = (await _api.GetNextCustomerAccountNumberAsync()).AccountNumber; }
+                catch (Exception exception) when (IsApiFailure(exception)) { NextAccountNumber = "Assigned when saved"; }
+            }
             SelectedCustomer = selectedId.HasValue ? Customers.FirstOrDefault(customer => customer.Id == selectedId) : null;
             StatusMessage = $"Loaded {response.TotalCount} customer account{(response.TotalCount == 1 ? "" : "s")}.";
         }
@@ -134,7 +143,7 @@ public partial class CustomerAccountsViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var request = new SaveCustomerRequest(AccountNumber.Trim(), CustomerName.Trim(), Null(BillingAddress),
+            var request = new SaveCustomerRequest(SelectedCustomer is null ? "" : AccountNumber.Trim(), CustomerName.Trim(), Null(BillingAddress),
                 Null(ContactPerson), Null(Phone), Null(Email), SelectedCustomer?.Version);
             var saved = SelectedCustomer is null
                 ? await _api.CreateCustomerAsync(request)
@@ -283,6 +292,7 @@ public partial class CustomerAccountsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasSelectedCustomer));
         OnPropertyChanged(nameof(CustomerFormTitle));
+        OnPropertyChanged(nameof(AccountNumberDisplay));
         OnPropertyChanged(nameof(CustomerSaveText));
         OnPropertyChanged(nameof(SelectedCustomerStatus));
         OnPropertyChanged(nameof(CanSaveCustomer));

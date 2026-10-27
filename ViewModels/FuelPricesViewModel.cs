@@ -32,7 +32,7 @@ public partial class FuelPricesViewModel : ObservableObject
     public bool IsFiltered => !string.IsNullOrWhiteSpace(SearchText) || IncludeInactive;
     public string PriceDifferenceDisplay => SelectedFuel is null || NewPrice <= 0
         ? "Enter a new price."
-        : $"{(NewPrice - SelectedFuel.CurrentPrice >= 0 ? "+" : "-")}₱{Math.Abs(NewPrice - SelectedFuel.CurrentPrice):N2}/L";
+        : $"{(NewPrice - SelectedFuel.CurrentPrice >= 0 ? "+" : "-")}₱{Math.Abs(NewPrice - SelectedFuel.CurrentPrice):N3}/L";
 
     public FuelPricesViewModel(StoreApiClient api, INotificationService notifications)
     {
@@ -143,7 +143,7 @@ public partial class FuelPricesViewModel : ObservableObject
     private async Task ChangePriceAsync()
     {
         if (SelectedFuel is null || IsBusy) return;
-        if (!ValidPrice(NewPrice)) { ShowError("Price not changed", "Enter a price greater than zero with no more than two decimal places."); return; }
+        if (!ValidPrice(NewPrice)) { ShowError("Price not changed", "Enter a price greater than zero with no more than three decimal places."); return; }
         if (NewPrice == SelectedFuel.CurrentPrice) { ShowError("Price not changed", "Enter a price different from the current price."); return; }
         IsBusy = true;
         try
@@ -205,7 +205,7 @@ public partial class FuelPricesViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(FuelName)) { ShowError("Fuel not saved", "Enter a fuel name such as XCS, Premium, or Diesel."); return false; }
         if (!ValidSortOrder(FuelSortOrder)) { ShowError("Fuel not saved", "Sort order must be a whole number from 0 to 10000."); return false; }
-        if (SelectedFuel is null && !ValidPrice(InitialPrice)) { ShowError("Fuel not saved", "Enter an initial price greater than zero with no more than two decimal places."); return false; }
+        if (SelectedFuel is null && !ValidPrice(InitialPrice)) { ShowError("Fuel not saved", "Enter an initial price greater than zero with no more than three decimal places."); return false; }
         return true;
     }
 
@@ -224,7 +224,7 @@ public partial class FuelPricesViewModel : ObservableObject
     }
 
     private static bool ValidSortOrder(decimal value) => value is >= 0 and <= 10000 && decimal.Truncate(value) == value;
-    private static bool ValidPrice(decimal value) => value > 0 && value <= 999999999999999.99m && decimal.Round(value, 2) == value;
+    private static bool ValidPrice(decimal value) => value > 0 && value <= 999999999999999.999m && decimal.Round(value, 3) == value;
     private static bool IsApiFailure(Exception exception) => exception is ApiClientException or HttpRequestException or TaskCanceledException;
     private static string FailureMessage(Exception exception) => exception is HttpRequestException
         ? "Cannot reach the store API."

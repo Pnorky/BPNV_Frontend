@@ -13,6 +13,8 @@ namespace AvaloniaApp.Views;
 
 public sealed class CustomerAccountsView : UserControl
 {
+    private bool _isCustomerDialogOpen;
+
     public CustomerAccountsView()
     {
         var customerTable = new PagedTable
@@ -38,6 +40,27 @@ public sealed class CustomerAccountsView : UserControl
         lastPayment.WrapText = true;
         customerTable.Columns.Add(lastPayment);
         customerTable.Columns.Add(PagedTableColumn.Create<CustomerResponse, string>("STATUS", item => item.Status, Star(.8)));
+        customerTable.PropertyChanged += async (_, change) =>
+        {
+            if (change.Property != PagedTable.SelectedItemProperty ||
+                customerTable.SelectedItem is not CustomerResponse customer ||
+                _isCustomerDialogOpen || DataContext is not CustomerAccountsViewModel viewModel ||
+                TopLevel.GetTopLevel(customerTable) is not Window owner) return;
+            _isCustomerDialogOpen = true;
+            viewModel.SelectedCustomer = customer;
+            try
+            {
+                await new CustomerDetailsDialog(viewModel).ShowDialog(owner);
+            }
+            finally
+            {
+                viewModel.NewCustomerCommand.Execute(null);
+                customerTable.SelectedItem = null;
+                _isCustomerDialogOpen = false;
+            }
+        };
+
+        var createCustomer = Card(CustomerForm());
 
         var customerList = Card(new StackPanel
         {
@@ -45,42 +68,28 @@ public sealed class CustomerAccountsView : UserControl
             Children =
             {
                 Heading("Customer accounts"),
-                Muted("Select a row once to open that customer's details and plate / unit numbers below."),
+                Muted("Select a row once to open that customer's details and plate / unit numbers."),
                 customerTable
             }
         });
-
-        var customerDetails = CustomerDetails();
 
         Content = new ScrollViewer
         {
             Content = new StackPanel
             {
                 Margin = new Thickness(30), Spacing = 14,
-                Children = { Status(), customerList, customerDetails }
+                Children = { Status(), createCustomer, customerList }
             }
         };
     }
 
-    private static Border CustomerDetails()
-    {
-        var vehicles = VehicleSection();
-        vehicles.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.HasSelectedCustomer)));
-        var separator = new Border { Height = 1 };
-        separator.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Border"));
-        separator.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.HasSelectedCustomer)));
-        return Card(new StackPanel
-        {
-            Spacing = 16,
-            Children = { CustomerForm(), separator, vehicles }
-        });
-    }
-
-    private static Control CustomerForm()
+    private static Control CustomerForm(bool showStatus = false)
     {
         var title = Bound(nameof(CustomerAccountsViewModel.CustomerFormTitle), 18, true);
         var status = MutedBound(nameof(CustomerAccountsViewModel.SelectedCustomerStatus));
-        var account = Text(nameof(CustomerAccountsViewModel.AccountNumber), "ACCT-001", 30);
+        status.IsVisible = showStatus;
+        var account = Text(nameof(CustomerAccountsViewModel.AccountNumberDisplay), "Loading...", 30, BindingMode.OneWay);
+        account.IsReadOnly = true;
         var name = Text(nameof(CustomerAccountsViewModel.CustomerName), "Business or account name", 200);
         var address = Text(nameof(CustomerAccountsViewModel.BillingAddress), "Optional billing address", 500);
         var contact = Text(nameof(CustomerAccountsViewModel.ContactPerson), "Optional contact person", 160);
@@ -95,22 +104,26 @@ public sealed class CustomerAccountsView : UserControl
             RowDefinitions = new RowDefinitions("Auto,Auto"), ColumnSpacing = 10, RowSpacing = 10,
             Children =
             {
-                Field("ACCOUNT NUMBER", account), At(Field("CUSTOMER NAME", name), 1), At(Field("BILLING ADDRESS", address), 2),
+                Field("ACCOUNT NUMBER (AUTO-GENERATED)", account), At(Field("CUSTOMER NAME", name), 1), At(Field("BILLING ADDRESS", address), 2),
                 At(Field("CONTACT PERSON", contact), row: 1), At(Field("PHONE", phone), 1, 1), At(Field("EMAIL", email), 2, 1)
             }
         };
         var save = new ActionButton("", ActionButtonVariant.Primary);
         save.Bind(ContentControl.ContentProperty, new Binding(nameof(CustomerAccountsViewModel.CustomerSaveText)));
         save.Bind(Avalonia.Controls.Button.CommandProperty, new Binding(nameof(CustomerAccountsViewModel.SaveCustomerCommand)));
-        var clear = Button("New customer", nameof(CustomerAccountsViewModel.NewCustomerCommand));
         var deactivate = Button("Deactivate", nameof(CustomerAccountsViewModel.DeactivateCustomerCommand), ActionButtonVariant.Danger);
         deactivate.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.CanDeactivateCustomer)));
         var reactivate = Button("Reactivate", nameof(CustomerAccountsViewModel.ReactivateCustomerCommand));
         reactivate.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.CanReactivateCustomer)));
-        var actions = new StackPanel
+        var actionButtons = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8,
-            Children = { save, clear, deactivate, reactivate }
+            Children = { save, deactivate, reactivate }
+        };
+        var actions = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Children = { At(actionButtons, column: 1) }
         };
         actions.Bind(IsVisibleProperty, new Binding(nameof(CustomerAccountsViewModel.CanManageCustomers)));
         return new StackPanel { Spacing = 10, Children = { title, status, fields, actions } };
@@ -170,14 +183,14 @@ public sealed class CustomerAccountsView : UserControl
     private static Control VehicleActions()
     {
         var deactivate = Button("Deactivate", "DataContext.DeactivateVehicleCommand", ActionButtonVariant.Danger,
-            typeof(CustomerAccountsView));
+            typeof(CustomerDetailsDialog));
         var reactivate = Button("Reactivate", "DataContext.ReactivateVehicleCommand", ActionButtonVariant.Secondary,
-            typeof(CustomerAccountsView));
+            typeof(CustomerDetailsDialog));
         deactivate.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
         reactivate.Bind(Avalonia.Controls.Button.CommandParameterProperty, new Binding());
         var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { deactivate, reactivate } };
         panel.Bind(IsVisibleProperty, new Binding("DataContext.CanManageCustomers")
-        { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(CustomerAccountsView) } });
+        { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(CustomerDetailsDialog) } });
         void Update()
         {
             if (panel.DataContext is not CustomerVehicleResponse vehicle) return;
@@ -189,6 +202,55 @@ public sealed class CustomerAccountsView : UserControl
         return panel;
     }
 
+    private sealed class CustomerDetailsDialog : Window
+    {
+        public CustomerDetailsDialog(CustomerAccountsViewModel viewModel)
+        {
+            Title = $"Customer details · {viewModel.SelectedCustomer?.Name}";
+            Width = 1100;
+            Height = 760;
+            MinWidth = 850;
+            MinHeight = 600;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            DataContext = viewModel;
+
+            var close = new ActionButton("Close", ActionButtonVariant.Secondary);
+            close.Click += (_, _) => Close();
+            var actions = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Children = { close }
+            };
+            var content = new Grid
+            {
+                Margin = new Thickness(24),
+                RowDefinitions = new RowDefinitions("*,Auto"),
+                RowSpacing = 16,
+                Children =
+                {
+                    new ScrollViewer
+                    {
+                        Content = new Border
+                        {
+                            Padding = new Thickness(0, 0, 20, 0),
+                            Child = new StackPanel
+                            {
+                                Spacing = 16,
+                                Children = { CustomerForm(showStatus: true), new Separator(), VehicleSection() }
+                            }
+                        }
+                    },
+                    At(actions, row: 1)
+                }
+            };
+            var border = new Border { Child = content, CornerRadius = new CornerRadius(0) };
+            border.Classes.Add("theme-dialog");
+            border.Bind(Border.BackgroundProperty, new DynamicResourceExtension("Card"));
+            Content = border;
+        }
+    }
+
     private static ActionButton Button(string text, string command,
         ActionButtonVariant variant = ActionButtonVariant.Secondary, Type? ancestor = null)
     {
@@ -198,10 +260,10 @@ public sealed class CustomerAccountsView : UserControl
         return button;
     }
 
-    private static TextBox Text(string path, string placeholder, int maxLength)
+    private static TextBox Text(string path, string placeholder, int maxLength, BindingMode mode = BindingMode.TwoWay)
     {
         var control = new TextBox { PlaceholderText = placeholder, MaxLength = maxLength, Classes = { "form-input" } };
-        control.Bind(TextBox.TextProperty, new Binding(path) { Mode = BindingMode.TwoWay });
+        control.Bind(TextBox.TextProperty, new Binding(path) { Mode = mode });
         return control;
     }
 

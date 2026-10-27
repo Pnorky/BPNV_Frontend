@@ -10,6 +10,24 @@ namespace AvaloniaApp.Tests;
 public sealed class StoreApiClientTests
 {
     [TestMethod]
+    public async Task NextCustomerAccountNumberUsesPreviewEndpoint()
+    {
+        string? requestedPath = null;
+        var (auth, _) = Client(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/login")) return Json(Tokens("access", "refresh"));
+            requestedPath = request.RequestUri.AbsolutePath;
+            return Json(new NextCustomerAccountNumberResponse("ACCT-005"));
+        });
+        await auth.LoginAsync("admin", "password");
+
+        var result = await new StoreApiClient(auth).GetNextCustomerAccountNumberAsync();
+
+        Assert.AreEqual("ACCT-005", result.AccountNumber);
+        Assert.AreEqual("/api/customers/next-account-number", requestedPath);
+    }
+
+    [TestMethod]
     public async Task CustomerAndVehicleManagementUseNestedRoutes()
     {
         var customerId = Guid.NewGuid();
@@ -42,15 +60,15 @@ public sealed class StoreApiClientTests
     }
 
     [TestMethod]
-    public void FuelPricesDisplayTwoDecimalPlaces()
+    public void FuelPricesDisplayThreeDecimalPlaces()
     {
         var now = DateTime.UtcNow;
         var fuel = new FuelProductResponse(Guid.NewGuid(), "XCS", 1, true,
             90.330m, now, Guid.NewGuid(), now, Guid.NewGuid(), now);
         var history = new FuelPriceResponse(Guid.NewGuid(), fuel.Id, 90.330m, now, Guid.NewGuid(), "Admin", now);
 
-        Assert.AreEqual("₱90.33/L", fuel.CurrentPriceDisplay);
-        Assert.AreEqual("₱90.33/L", history.PriceDisplay);
+        Assert.AreEqual("₱90.330/L", fuel.CurrentPriceDisplay);
+        Assert.AreEqual("₱90.330/L", history.PriceDisplay);
     }
 
     [TestMethod]

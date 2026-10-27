@@ -35,6 +35,20 @@ public sealed class CustomerAccountChargeLineViewModelTests
     }
 
     [TestMethod]
+    public void ManualPriceRejectsMoreThanThreeDecimalPlaces()
+    {
+        var line = new CustomerAccountChargeLineViewModel(() => { })
+        {
+            Particular = "Service",
+            Unit = "Job",
+            Quantity = 1,
+            UnitPrice = 10.1255m
+        };
+
+        Assert.IsFalse(line.IsValid);
+    }
+
+    [TestMethod]
     public void CatalogProductUsesSelectedUnitPriceAndDisplayAvailability()
     {
         var productId = Guid.NewGuid();
